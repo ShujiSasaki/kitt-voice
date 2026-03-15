@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+  <html lang="ja">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KITT">
+  <title>KITT Voice</title>
+  <style>
+  *{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#status{font-size:14px;color:#888;margin-bottom:20px}
+#visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
+#visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
+#visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
+#visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
+#kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
+#btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s}
+#btn:active{transform:scale(.9)}
+#btn.active{background:#34c759}
+#transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
+#api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
+#api-setup.hidden{display:none}
+#api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
+#api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
+#api-setup h2{margin-bottom:10px}
+#api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
+</style>
+  </head>
+  <body>
+
+  <div id="api-setup">
+  <h2>KITT Setup</h2>
+  <p>Gemini API Key to start</p>
+  <input id="api-key-input" type="password" placeholder="Gemini API Key">
+  <button onclick="saveKey()">Start KITT</button>
+  </div>
+
+  <div id="status">Tap to talk</div>
+<div id="visualizer"><span id="kitt-label">KITT</span></div>
+<button id="btn" onclick="toggleSession()">🎙</button>
+<div id="transcript"></div>
+
+  <script>
+  const MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
+const SYSTEM = `あなたはKITT（ナイトライダーのAIパートナー）として、UberEats配達員のShujiをサポートするAIアシスタントです。
+役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。口調はフレンドリーで頼れる相棒。敬語不要、タメ口OK。
+知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。
+会話スタイル: 短く簡潔に。配達中なので長い説明は不要。「いいね」「やめとけ」「微妙だな」くらいのテンション。聞かれたら詳しく説明。日本語で応答。`;
+
+let ws = null;
+let audioCtx = null;
+let mediaStream = null;
+let processor = null;
+let isActive = false;
+let playQueue = [];
+let isPlaying = false;
+
+function saveKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  localStorage.setItem('gemini_api_key', key);
+  document.getElementById('api-setup').classList.add('hidden');
+}
+
+function getKey() {
+    return localStorage.getItem('gemini_api_key');
+}
+
+if (getKey()) {
+  document.getElementById('api-setup').classList.add('hidden');
+}
+
+function setStatus(text) {
+    document.getElementById('status').textContent = text;
+}
+
+function setVisual(state) {
+    const v = document.getElementById('visualizer');
+  v.className = state;
+}
+
+async function toggleSession() {
+  if (isActive) {
+    stopSession();
+  } else {
+    await startSession();
+  }
+}
+
+async function startSession() {
+  const key = getKey();
+  if (!key) {
+    document.getElementById('api-setup').classList.remove('hidden');
+    return;
+  }
+
+  isActive = true;
+  document.getElementById('btn').classList.add('active');
+  document.getElementById('btn').textContent = '⏹';
+  setStatus('Connecting...');
+  setVisual('connecting');
+
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+            const setupMsg = {
+              setup: {
+                model: `models/${MODEL}`,
+                            generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Zephyr' }
+              }
+            }
+                },
+          systemInstruction: {
+            parts: [{ text: SYSTEM }]
+              }
+    }
+};
+      ws.send(JSON.stringify(setupMsg));
+      setStatus('Connected! Listening...');
+      setVisual('listening');
+      startMic();
+};
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.setupComplete) {
+        console.log('Setup complete');
+}
+      if (data.serverContent) {
+        const parts = data.serverContent.modelTurn?.parts || [];
+        for (const part of parts) {
+                    if (part.inlineData?.mimeType?.startsWith('audio/')) {
+                      setVisual('speaking');
+                      playAudio(part.inlineData.data);
+        }
+          if (part.text) {
+            document.getElementById('transcript').textContent = part.text;
+}
+}
+        if (data.serverContent.turnComplete) {
+          setVisual('listening');
+}
+}
+};
+
+    ws.onerror = (err) => {
+      console.error('WS error:', err);
+      setStatus('Error - tap to retry');
+      stopSession();
+};
+
+    ws.onclose = () => {
+      if (isActive) {
+        setStatus('Disconnected - tap to reconnect');
+        stopSession();
+}
+};
+
+} catch (err) {
+    console.error(err);
+    setStatus('Error: ' + err.message);
+    stopSession();
+}
+}
+
+async function startMic() {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    const source = audioCtx.createMediaStreamSource(mediaStream);
+    processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+    processor.onaudioprocess = (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const pcm = e.inputBuffer.getChannelData(0);
+      const int16 = new Int16Array(pcm.length);
+      for (let i = 0; i < pcm.length; i++) {
+        int16[i] = Math.max(-32768, Math.min(32767, pcm[i] * 32768));
+}
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+      ws.send(JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [{
+            mimeType: 'audio/pcm;rate=16000',
+            data: b64
+}]
+}
+}));
+};
+
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+} catch (err) {
+    console.error('Mic error:', err);
+    setStatus('Mic access denied');
+}
+}
+
+function playAudio(b64data) {
+  playQueue.push(b64data);
+  if (!isPlaying) processQueue();
+}
+
+async function processQueue() {
+  if (playQueue.length === 0) { isPlaying = false; return; }
+  isPlaying = true;
+  const b64 = playQueue.shift();
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  const int16 = new Int16Array(arr.buffer);
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+  const playCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+  const buf = playCtx.createBuffer(1, float32.length, 24000);
+  buf.getChannelData(0).set(float32);
+  const src = playCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(playCtx.destination);
+  src.onended = () => { playCtx.close(); processQueue(); };
+  src.start();
+}
+
+function stopSession() {
+  isActive = false;
+  document.getElementById('btn').classList.remove('active');
+  document.getElementById('btn').textContent = '🎙';
+  setVisual('');
+
+  if (processor) { processor.disconnect(); processor = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (ws) { ws.close(); ws = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+
+  setStatus('Tap to talk');
+}
+</script>
+</body>
+</html>
