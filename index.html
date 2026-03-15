@@ -50,8 +50,7 @@
     var mediaStream = null;
     var processor = null;
     var isActive = false;
-    var playQueue = [];
-    var isPlaying = false;
+    var nextPlayTime = 0;
     var setupComplete = false;
 
     function log(msg) {
@@ -128,6 +127,7 @@
       if (isActive) return;
       isActive = true;
       setupComplete = false;
+      nextPlayTime = 0;
       document.getElementById('btn').classList.add('active');
       document.getElementById('btn').textContent = String.fromCodePoint(0x23F9);
       setStatus('Connecting...');
@@ -175,7 +175,7 @@
                 if (parts[i].inlineData && parts[i].inlineData.data) {
                   setVisual('speaking');
                   setStatus('KITT is speaking...');
-                  playAudioChunk(parts[i].inlineData.data);
+                  scheduleAudioChunk(parts[i].inlineData.data);
                 }
                 if (parts[i].text) {
                   document.getElementById('transcript').textContent = parts[i].text;
@@ -271,8 +271,9 @@
         };
 
         source.connect(processor);
+        /* iOS requires processor connected to destination for onaudioprocess to fire */
         var muteGain = audioCtx.createGain();
-        muteGain.gain.value = 0.0;
+        muteGain.gain.setValueAtTime(0, audioCtx.currentTime);
         processor.connect(muteGain);
         muteGain.connect(audioCtx.destination);
 
@@ -283,44 +284,43 @@
       });
     }
 
-    function playAudioChunk(b64data) {
-      playQueue.push(b64data);
-      if (!isPlaying) processPlayQueue();
-    }
-
-    function processPlayQueue() {
-      if (playQueue.length === 0) { isPlaying = false; return; }
-      isPlaying = true;
-      var b64 = playQueue.shift();
+    /* Gapless scheduled playback - prevents clicks between chunks */
+    function scheduleAudioChunk(b64data) {
       try {
-        var arrayBuf = base64ToArrayBuffer(b64);
+        if (!playbackCtx || playbackCtx.state === 'closed') {
+          playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        }
+        if (playbackCtx.state === 'suspended') { playbackCtx.resume(); }
+
+        var arrayBuf = base64ToArrayBuffer(b64data);
         var int16 = new Int16Array(arrayBuf);
         var float32 = new Float32Array(int16.length);
         for (var i = 0; i < int16.length; i++) {
           float32[i] = int16[i] / 32768.0;
         }
-        if (!playbackCtx || playbackCtx.state === 'closed') {
-          playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-        }
+
         var buf = playbackCtx.createBuffer(1, float32.length, 24000);
         buf.getChannelData(0).set(float32);
+
         var src = playbackCtx.createBufferSource();
         src.buffer = buf;
         src.connect(playbackCtx.destination);
-        src.onended = function() { processPlayQueue(); };
-        src.start();
+
+        var now = playbackCtx.currentTime;
+        if (nextPlayTime < now) {
+          nextPlayTime = now;
+        }
+        src.start(nextPlayTime);
+        nextPlayTime += buf.duration;
       } catch(err) {
         log('Play err: ' + err.message);
-        isPlaying = false;
-        processPlayQueue();
       }
     }
 
     function stopSession() {
       isActive = false;
       setupComplete = false;
-      playQueue = [];
-      isPlaying = false;
+      nextPlayTime = 0;
       document.getElementById('btn').classList.remove('active');
       document.getElementById('btn').textContent = String.fromCodePoint(0x1F3A4);
       setVisual('');
