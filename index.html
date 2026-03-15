@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KITT">
     <title>KITT Voice</title>
-  <style>
+  <style
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,sans-serif;background:#0a0a0;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
     #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
@@ -35,7 +35,7 @@
         <h2>KITT Setup</h2>
       <p>Gemini API Key to start</p>
       <input id="api-key-input" type="password" placeholder="Gemini API Key">
-      <button onclick="saveKey()">Start KITT</button>button>
+      <button onclick="saveKeyAndStart()">Start KITT</button>button>
     </div>div>
   
   <div id="status">Tap to talk</div>div>
@@ -63,23 +63,27 @@
         document.getElementById('debug').textContent = msg;
     }
 
-    function saveKey() {
+    function saveKeyAndStart() {
         const key = document.getElementById('api-key-input').value.trim();
         if (!key) return;
         localStorage.setItem('gemini_api_key', key);
         document.getElementById('api-setup').classList.add('hidden');
+              startSession();
     }
 
     function getKey() {
         return localStorage.getItem('gemini_api_key');
+      
     }
 
     if (getKey()) {
         document.getElementById('api-setup').classList.add('hidden');
+                  setTimeout(function() { startSession(); }, 500);
     }
 
     function setStatus(text) {
         document.getElementById('status').textContent = text;
+      
     }
 
     function setVisual(state) {
@@ -311,7 +315,10 @@
               };
 
               source.connect(processor);
-              processor.connect(audioCtx.destination);
+                            var silentGain = audioCtx.createGain();
+                  silentGain.gain.value = 0;
+                  silentGain.connect(audioCtx.destination);
+                  processor.connect(silentGain);
               workletNode = processor;
 
               log('Mic active, sending audio...');
