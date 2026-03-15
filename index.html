@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KITT">
     <title>KITT Voice</title>
-  <style
+  <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,sans-serif;background:#0a0a0;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
     #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
@@ -35,14 +35,14 @@
         <h2>KITT Setup</h2>
       <p>Gemini API Key to start</p>
       <input id="api-key-input" type="password" placeholder="Gemini API Key">
-      <button onclick="saveKeyAndStart()">Start KITT</button>button>
-    </div>div>
+      <button onclick="saveKeyAndStart()">Start KITT</button>
+    </div>
   
-  <div id="status">Tap to talk</div>div>
-  <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
-  <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>button>
-  <div id="transcript"></div>div>
-  <div id="debug"></div>div>
+  <div id="status">Tap to talk</div>
+  <div id="visualizer"><span id="kitt-label">KITT</span></div>
+  <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>
+  <div id="transcript"></div>
+  <div id="debug"></div>
   
   <script>
     const MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
@@ -404,8 +404,4 @@
     }
   </script>
   </body>
-</html>html>
-  </script></p></h2>
-  </body>
-  </style></title>
-  </head>
+</html>
