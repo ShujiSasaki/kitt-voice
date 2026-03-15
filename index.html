@@ -1,249 +1,404 @@
 <!DOCTYPE html>
-  <html lang="ja">
+<html lang="ja">
   <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="KITT">
-  <title>KITT Voice</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KITT">
+    <title>KITT Voice</title>
   <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
-#status{font-size:14px;color:#888;margin-bottom:20px}
-#visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
-#visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
-#visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
-#visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
-#kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
-#btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s}
-#btn:active{transform:scale(.9)}
-#btn.active{background:#34c759}
-#transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
-#api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
-#api-setup.hidden{display:none}
-#api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
-#api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
-#api-setup h2{margin-bottom:10px}
-#api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
-</style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
+    #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
+    #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
+    #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
+    #visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
+    #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
+    #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
+    #btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s;-webkit-tap-highlight-color:transparent}
+    #btn:active{transform:scale(.9)}
+    #btn.active{background:#34c759}
+    #transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
+    #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
+    #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
+    #api-setup.hidden{display:none}
+    #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
+    #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
+    #api-setup h2{margin-bottom:10px}
+    #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
+    </style>
   </head>
   <body>
 
-  <div id="api-setup">
-  <h2>KITT Setup</h2>
-  <p>Gemini API Key to start</p>
-  <input id="api-key-input" type="password" placeholder="Gemini API Key">
-  <button onclick="saveKey()">Start KITT</button>
-  </div>
-
-  <div id="status">Tap to talk</div>
-<div id="visualizer"><span id="kitt-label">KITT</span></div>
-<button id="btn" onclick="toggleSession()">🎙</button>
-<div id="transcript"></div>
-
+    <div id="api-setup">
+        <h2>KITT Setup</h2>
+      <p>Gemini API Key to start</p>
+      <input id="api-key-input" type="password" placeholder="Gemini API Key">
+      <button onclick="saveKey()">Start KITT</button>button>
+    </div>div>
+  
+  <div id="status">Tap to talk</div>div>
+  <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
+  <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>button>
+  <div id="transcript"></div>div>
+  <div id="debug"></div>div>
+  
   <script>
-  const MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
-const SYSTEM = `あなたはKITT（ナイトライダーのAIパートナー）として、UberEats配達員のShujiをサポートするAIアシスタントです。
-役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。口調はフレンドリーで頼れる相棒。敬語不要、タメ口OK。
-知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。
-会話スタイル: 短く簡潔に。配達中なので長い説明は不要。「いいね」「やめとけ」「微妙だな」くらいのテンション。聞かれたら詳しく説明。日本語で応答。`;
+    const MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
+    const SYSTEM = 'あなたはKITT（ナイトライダーのAIパートナー）として、UberEats配達員のShujiをサポートするAIアシスタントです。\n役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。口調はフレンドリーで頼れる相棒。敬語不要、タメ口OK。\n知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。「いいね」「やめとけ」「微妙だな」くらいのテンション。聞かれたら詳しく説明。日本語で応答。';
 
-let ws = null;
-let audioCtx = null;
-let mediaStream = null;
-let processor = null;
-let isActive = false;
-let playQueue = [];
-let isPlaying = false;
+    let ws = null;
+    let audioCtx = null;
+    let playbackCtx = null;
+    let mediaStream = null;
+    let workletNode = null;
+    let isActive = false;
+    let playQueue = [];
+    let isPlaying = false;
+    let setupComplete = false;
 
-function saveKey() {
-    const key = document.getElementById('api-key-input').value.trim();
-  if (!key) return;
-  localStorage.setItem('gemini_api_key', key);
-  document.getElementById('api-setup').classList.add('hidden');
-}
-
-function getKey() {
-    return localStorage.getItem('gemini_api_key');
-}
-
-if (getKey()) {
-  document.getElementById('api-setup').classList.add('hidden');
-}
-
-function setStatus(text) {
-    document.getElementById('status').textContent = text;
-}
-
-function setVisual(state) {
-    const v = document.getElementById('visualizer');
-  v.className = state;
-}
-
-async function toggleSession() {
-  if (isActive) {
-    stopSession();
-  } else {
-    await startSession();
-  }
-}
-
-async function startSession() {
-  const key = getKey();
-  if (!key) {
-    document.getElementById('api-setup').classList.remove('hidden');
-    return;
-  }
-
-  isActive = true;
-  document.getElementById('btn').classList.add('active');
-  document.getElementById('btn').textContent = '⏹';
-  setStatus('Connecting...');
-  setVisual('connecting');
-
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-            const setupMsg = {
-              setup: {
-                model: `models/${MODEL}`,
-                            generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Zephyr' }
-              }
-            }
-                },
-          systemInstruction: {
-            parts: [{ text: SYSTEM }]
-              }
+    function log(msg) {
+        console.log('[KITT]', msg);
+        document.getElementById('debug').textContent = msg;
     }
-};
-      ws.send(JSON.stringify(setupMsg));
-      setStatus('Connected! Listening...');
-      setVisual('listening');
-      startMic();
-};
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.setupComplete) {
-        console.log('Setup complete');
-}
-      if (data.serverContent) {
-        const parts = data.serverContent.modelTurn?.parts || [];
-        for (const part of parts) {
-                    if (part.inlineData?.mimeType?.startsWith('audio/')) {
-                      setVisual('speaking');
-                      playAudio(part.inlineData.data);
+    function saveKey() {
+        const key = document.getElementById('api-key-input').value.trim();
+        if (!key) return;
+        localStorage.setItem('gemini_api_key', key);
+        document.getElementById('api-setup').classList.add('hidden');
+    }
+
+    function getKey() {
+        return localStorage.getItem('gemini_api_key');
+    }
+
+    if (getKey()) {
+        document.getElementById('api-setup').classList.add('hidden');
+    }
+
+    function setStatus(text) {
+        document.getElementById('status').textContent = text;
+    }
+
+    function setVisual(state) {
+        document.getElementById('visualizer').className = state;
+    }
+
+    // Base64 encode without spread operator (safe for large arrays)
+    function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+              const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+              for (let j = 0; j < chunk.length; j++) {
+                      binary += String.fromCharCode(chunk[j]);
+              }
         }
-          if (part.text) {
-            document.getElementById('transcript').textContent = part.text;
-}
-}
-        if (data.serverContent.turnComplete) {
-          setVisual('listening');
-}
-}
-};
+        return btoa(binary);
+    }
 
-    ws.onerror = (err) => {
-      console.error('WS error:', err);
-      setStatus('Error - tap to retry');
-      stopSession();
-};
+    // Base64 decode
+    function base64ToArrayBuffer(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+              bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
 
-    ws.onclose = () => {
-      if (isActive) {
-        setStatus('Disconnected - tap to reconnect');
-        stopSession();
-}
-};
+    async function toggleSession() {
+        if (isActive) {
+              stopSession();
+        } else {
+              await startSession();
+        }
+    }
 
-} catch (err) {
-    console.error(err);
-    setStatus('Error: ' + err.message);
-    stopSession();
-}
-}
+    async function startSession() {
+        const key = getKey();
+        if (!key) {
+              document.getElementById('api-setup').classList.remove('hidden');
+              return;
+        }
 
-async function startMic() {
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } });
-    const source = audioCtx.createMediaStreamSource(mediaStream);
-    processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        isActive = true;
+        setupComplete = false;
+        document.getElementById('btn').classList.add('active');
+        document.getElementById('btn').textContent = String.fromCodePoint(0x23F9);
+        setStatus('Connecting...');
+        setVisual('connecting');
 
-    processor.onaudioprocess = (e) => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const pcm = e.inputBuffer.getChannelData(0);
-      const int16 = new Int16Array(pcm.length);
-      for (let i = 0; i < pcm.length; i++) {
-        int16[i] = Math.max(-32768, Math.min(32767, pcm[i] * 32768));
-}
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-      ws.send(JSON.stringify({
-        realtimeInput: {
-          mediaChunks: [{
-            mimeType: 'audio/pcm;rate=16000',
-            data: b64
-}]
-}
-}));
-};
+        try {
+              // Single AudioContext for playback - create on user gesture (important for iOS)
+              if (!playbackCtx || playbackCtx.state === 'closed') {
+                      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+              }
+              if (playbackCtx.state === 'suspended') {
+                      await playbackCtx.resume();
+              }
 
-    source.connect(processor);
-    processor.connect(audioCtx.destination);
-} catch (err) {
-    console.error('Mic error:', err);
-    setStatus('Mic access denied');
-}
-}
+              const wsUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + key;
+              ws = new WebSocket(wsUrl);
 
-function playAudio(b64data) {
-  playQueue.push(b64data);
-  if (!isPlaying) processQueue();
-}
+              ws.onopen = function() {
+                      log('WS connected, sending setup...');
+                      const setupMsg = {
+                                setup: {
+                                            model: 'models/' + MODEL,
+                                            generationConfig: {
+                                                          responseModalities: ['AUDIO'],
+                                                          speechConfig: {
+                                                                          voiceConfig: {
+                                                                                            prebuiltVoiceConfig: {
+                                                                                                                voiceName: 'Zephyr'
+                                                                                              }
+                                                                            }
+                                                          }
+                                            },
+                                            systemInstruction: {
+                                                          parts: [{ text: SYSTEM }]
+                                            }
+                                }
+                      };
+                      ws.send(JSON.stringify(setupMsg));
+              };
 
-async function processQueue() {
-  if (playQueue.length === 0) { isPlaying = false; return; }
-  isPlaying = true;
-  const b64 = playQueue.shift();
-  const bytes = atob(b64);
-  const arr = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-  const int16 = new Int16Array(arr.buffer);
-  const float32 = new Float32Array(int16.length);
-  for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+              ws.onmessage = async function(event) {
+                      let data;
+                      if (event.data instanceof Blob) {
+                                const text = await event.data.text();
+                                try {
+                                            data = JSON.parse(text);
+                                } catch(e) {
+                                            log('Non-JSON blob received');
+                                            return;
+                                }
+                      } else {
+                                try {
+                                            data = JSON.parse(event.data);
+                                } catch(e) {
+                                            log('Non-JSON message');
+                                            return;
+                                }
+                      }
 
-  const playCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-  const buf = playCtx.createBuffer(1, float32.length, 24000);
-  buf.getChannelData(0).set(float32);
-  const src = playCtx.createBufferSource();
-  src.buffer = buf;
-  src.connect(playCtx.destination);
-  src.onended = () => { playCtx.close(); processQueue(); };
-  src.start();
-}
+                      if (data.setupComplete) {
+                                log('Setup complete! Starting mic...');
+                                setupComplete = true;
+                                setStatus('Listening...');
+                                setVisual('listening');
+                                startMic();
+                                return;
+                      }
 
-function stopSession() {
-  isActive = false;
-  document.getElementById('btn').classList.remove('active');
-  document.getElementById('btn').textContent = '🎙';
-  setVisual('');
+                      if (data.serverContent) {
+                                const parts = data.serverContent.modelTurn?.parts || [];
+                                for (const part of parts) {
+                                            if (part.inlineData && part.inlineData.data) {
+                                                          setVisual('speaking');
+                                                          setStatus('KITT is speaking...');
+                                                          playAudioChunk(part.inlineData.data);
+                                            }
+                                            if (part.text) {
+                                                          document.getElementById('transcript').textContent = part.text;
+                                            }
+                                }
+                                if (data.serverContent.turnComplete) {
+                                            setTimeout(function() {
+                                                          if (isActive) {
+                                                                          setVisual('listening');
+                                                                          setStatus('Listening...');
+                                                          }
+                                            }, 500);
+                                }
+                      }
 
-  if (processor) { processor.disconnect(); processor = null; }
-  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-  if (ws) { ws.close(); ws = null; }
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+                      if (data.error) {
+                                log('API Error: ' + JSON.stringify(data.error));
+                                setStatus('Error: ' + (data.error.message || 'Unknown'));
+                      }
+              };
 
-  setStatus('Tap to talk');
-}
-</script>
-</body>
-</html>
+              ws.onerror = function(err) {
+                      log('WS error occurred');
+                      setStatus('Connection error - tap to retry');
+                      stopSession();
+              };
+
+              ws.onclose = function(event) {
+                      log('WS closed: code=' + event.code + ' reason=' + event.reason);
+                      if (isActive) {
+                                setStatus('Disconnected (code:' + event.code + ')');
+                                stopSession();
+                      }
+              };
+
+        } catch (err) {
+              log('Start error: ' + err.message);
+              setStatus('Error: ' + err.message);
+              stopSession();
+        }
+    }
+
+    async function startMic() {
+        try {
+              mediaStream = await navigator.mediaDevices.getUserMedia({
+                      audio: {
+                                sampleRate: { ideal: 16000 },
+                                channelCount: 1,
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true
+                      }
+              });
+
+              audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              if (audioCtx.state === 'suspended') {
+                      await audioCtx.resume();
+              }
+
+              log('Mic sampleRate: ' + audioCtx.sampleRate);
+              const source = audioCtx.createMediaStreamSource(mediaStream);
+
+              // Use ScriptProcessor (wider iOS support than AudioWorklet)
+              const bufSize = 4096;
+              const processor = audioCtx.createScriptProcessor(bufSize, 1, 1);
+              const inputRate = audioCtx.sampleRate;
+              const outputRate = 16000;
+
+              processor.onaudioprocess = function(e) {
+                      if (!ws || ws.readyState !== WebSocket.OPEN || !setupComplete) return;
+
+                      const input = e.inputBuffer.getChannelData(0);
+
+                      // Resample to 16kHz if needed
+                      let pcm16k;
+                      if (Math.abs(inputRate - outputRate) < 100) {
+                                pcm16k = input;
+                      } else {
+                                const ratio = inputRate / outputRate;
+                                const outLen = Math.floor(input.length / ratio);
+                                pcm16k = new Float32Array(outLen);
+                                for (let i = 0; i < outLen; i++) {
+                                            pcm16k[i] = input[Math.floor(i * ratio)];
+                                }
+                      }
+
+                      // Convert to Int16
+                      const int16 = new Int16Array(pcm16k.length);
+                      for (let i = 0; i < pcm16k.length; i++) {
+                                const s = Math.max(-1, Math.min(1, pcm16k[i]));
+                                int16[i] = s < 0 ? s * 32768 : s * 32767;
+                      }
+
+                      const b64 = arrayBufferToBase64(int16.buffer);
+                      try {
+                                ws.send(JSON.stringify({
+                                            realtimeInput: {
+                                                          mediaChunks: [{
+                                                                          mimeType: 'audio/pcm;rate=16000',
+                                                                          data: b64
+                                                          }]
+                                            }
+                                }));
+                      } catch(err) {
+                                log('Send error: ' + err.message);
+                      }
+              };
+
+              source.connect(processor);
+              processor.connect(audioCtx.destination);
+              workletNode = processor;
+
+              log('Mic active, sending audio...');
+
+        } catch (err) {
+              log('Mic error: ' + err.message);
+              setStatus('Mic access denied');
+        }
+    }
+
+    function playAudioChunk(b64data) {
+        playQueue.push(b64data);
+        if (!isPlaying) {
+              processPlayQueue();
+        }
+    }
+
+    function processPlayQueue() {
+        if (playQueue.length === 0) {
+              isPlaying = false;
+              return;
+        }
+
+    isPlaying = true;
+        const b64 = playQueue.shift();
+
+        try {
+              const arrayBuf = base64ToArrayBuffer(b64);
+              const int16 = new Int16Array(arrayBuf);
+              const float32 = new Float32Array(int16.length);
+              for (let i = 0; i < int16.length; i++) {
+                      float32[i] = int16[i] / 32768.0;
+              }
+
+              if (!playbackCtx || playbackCtx.state === 'closed') {
+                      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+              }
+
+              const buf = playbackCtx.createBuffer(1, float32.length, 24000);
+              buf.getChannelData(0).set(float32);
+              const src = playbackCtx.createBufferSource();
+              src.buffer = buf;
+              src.connect(playbackCtx.destination);
+              src.onended = function() {
+                      processPlayQueue();
+              };
+              src.start();
+        } catch(err) {
+              log('Play error: ' + err.message);
+              isPlaying = false;
+              processPlayQueue();
+        }
+    }
+
+    function stopSession() {
+        isActive = false;
+        setupComplete = false;
+        playQueue = [];
+        isPlaying = false;
+        document.getElementById('btn').classList.remove('active');
+        document.getElementById('btn').textContent = String.fromCodePoint(0x1F3A4);
+        setVisual('');
+
+        if (workletNode) {
+              workletNode.disconnect();
+              workletNode = null;
+        }
+        if (mediaStream) {
+              mediaStream.getTracks().forEach(function(t) { t.stop(); });
+              mediaStream = null;
+        }
+        if (ws) {
+              ws.close();
+              ws = null;
+        }
+        if (audioCtx && audioCtx.state !== 'closed') {
+              audioCtx.close();
+              audioCtx = null;
+        }
+        // Keep playbackCtx alive for reuse
+
+        setStatus('Tap to talk');
+    }
+  </script>
+  </body>
+</html>html>
+  </script></p></h2>
+  </body>
+  </style></title>
+  </head>
