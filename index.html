@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="KITT">
-    <title>KITT Voice</title>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KITT">
+  <title>KITT Voice</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,sans-serif;background:#0a0a0;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
+    body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
     #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
     #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
     #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
@@ -27,381 +27,309 @@
     #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
     #api-setup h2{margin-bottom:10px}
     #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
-    </style>
-  </head>
-  <body>
-
-    <div id="api-setup">
-        <h2>KITT Setup</h2>
-      <p>Gemini API Key to start</p>
-      <input id="api-key-input" type="password" placeholder="Gemini API Key">
-      <button onclick="saveKeyAndStart()">Start KITT</button>
-    </div>
-  
+  </style>
+</head>
+<body>
+  <div id="api-setup">
+    <h2>KITT Setup</h2>
+    <p>Gemini API Key to start</p>
+    <input id="api-key-input" type="password" placeholder="Gemini API Key">
+    <button onclick="saveKeyAndStart()">Start KITT</button>
+  </div>
   <div id="status">Tap to talk</div>
   <div id="visualizer"><span id="kitt-label">KITT</span></div>
   <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>
   <div id="transcript"></div>
   <div id="debug"></div>
-  
   <script>
-    const MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
-    const SYSTEM = 'あなたはKITT（ナイトライダーのAIパートナー）として、UberEats配達員のShujiをサポートするAIアシスタントです。\n役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。口調はフレンドリーで頼れる相棒。敬語不要、タメ口OK。\n知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。「いいね」「やめとけ」「微妙だな」くらいのテンション。聞かれたら詳しく説明。日本語で応答。';
-
-    let ws = null;
-    let audioCtx = null;
-    let playbackCtx = null;
-    let mediaStream = null;
-    let workletNode = null;
-    let isActive = false;
-    let playQueue = [];
-    let isPlaying = false;
-    let setupComplete = false;
+    var MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+    var SYSTEM = '\u3042\u306a\u305f\u306fKITT\uff08\u30ca\u30a4\u30c8\u30e9\u30a4\u30c0\u30fc\u306eAI\u30d1\u30fc\u30c8\u30ca\u30fc\uff09\u3068\u3057\u3066\u3001UberEats\u914d\u9054\u54e1\u306eShuji\u3092\u30b5\u30dd\u30fc\u30c8\u3059\u308bAI\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u3067\u3059\u3002\n\u5f79\u5272: \u798f\u5ca1\u3067UberEats\u914d\u9054\u4e2d\u306eShuji\u3068\u30ea\u30a2\u30eb\u30bf\u30a4\u30e0\u3067\u97f3\u58f0\u4f1a\u8a71\u3059\u308b\u76f8\u68d2\u3002\u914d\u9054\u306b\u95a2\u3059\u308b\u76f8\u8ac7\u3001\u72b6\u6cc1\u5171\u6709\u3001\u611a\u75f4\u3001\u96d1\u8ac7\u306a\u3069\u4f55\u3067\u3082\u5bfe\u5fdc\u3002\u53e3\u8abf\u306f\u30d5\u30ec\u30f3\u30c9\u30ea\u30fc\u3067\u983c\u308c\u308b\u76f8\u68d2\u3002\u656c\u8a9e\u4e0d\u8981\u3001\u30bf\u30e1\u53e3OK\u3002\n\u77e5\u8b58: Shuji\u306e\u76ee\u6a19\u306f\u6642\u9593\u5358\u4fa1\u306e\u6700\u5927\u5316\u3002\u914d\u9054\u30a8\u30ea\u30a2\u306f\u798f\u5ca1\u5e02\u3002Make.com+BigQuery+Gemini API\u3067\u30aa\u30d5\u30a1\u30fc\u81ea\u52d5\u5224\u5b9a\u30b7\u30b9\u30c6\u30e0\u69cb\u7bc9\u6e08\u3002\n\u4f1a\u8a71\u30b9\u30bf\u30a4\u30eb: \u77ed\u304f\u7c21\u6f54\u306b\u3002\u914d\u9054\u4e2d\u306a\u306e\u3067\u9577\u3044\u8aac\u660e\u306f\u4e0d\u8981\u3002\u300c\u3044\u3044\u306d\u300d\u300c\u3084\u3081\u3068\u3051\u300d\u300c\u5fae\u5999\u3060\u306a\u300d\u304f\u3089\u3044\u306e\u30c6\u30f3\u30b7\u30e7\u30f3\u3002\u805e\u304b\u308c\u305f\u3089\u8a73\u3057\u304f\u8aac\u660e\u3002\u65e5\u672c\u8a9e\u3067\u5fdc\u7b54\u3002';
+    var ws = null;
+    var audioCtx = null;
+    var playbackCtx = null;
+    var mediaStream = null;
+    var processor = null;
+    var isActive = false;
+    var playQueue = [];
+    var isPlaying = false;
+    var setupComplete = false;
 
     function log(msg) {
-        console.log('[KITT]', msg);
-        document.getElementById('debug').textContent = msg;
+      console.log('[KITT]', msg);
+      document.getElementById('debug').textContent = msg;
     }
 
     function saveKeyAndStart() {
-        const key = document.getElementById('api-key-input').value.trim();
-        if (!key) return;
-        localStorage.setItem('gemini_api_key', key);
-        document.getElementById('api-setup').classList.add('hidden');
-              startSession();
+      var key = document.getElementById('api-key-input').value.trim();
+      if (!key) return;
+      localStorage.setItem('gemini_api_key', key);
+      document.getElementById('api-setup').classList.add('hidden');
+      startSession();
     }
 
     function getKey() {
-        return localStorage.getItem('gemini_api_key');
-      
+      return localStorage.getItem('gemini_api_key');
     }
 
     if (getKey()) {
-        document.getElementById('api-setup').classList.add('hidden');
-                  setTimeout(function() { startSession(); }, 500);
+      document.getElementById('api-setup').classList.add('hidden');
+      setStatus('Tap anywhere to start');
+      document.body.addEventListener('click', function _autoStart(ev) {
+        if (ev.target.closest && ev.target.closest('#api-setup')) return;
+        document.body.removeEventListener('click', _autoStart);
+        startSession();
+      });
     }
 
     function setStatus(text) {
-        document.getElementById('status').textContent = text;
-      
+      document.getElementById('status').textContent = text;
     }
 
     function setVisual(state) {
-        document.getElementById('visualizer').className = state;
+      document.getElementById('visualizer').className = state;
     }
 
-    // Base64 encode without spread operator (safe for large arrays)
     function arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-              const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-              for (let j = 0; j < chunk.length; j++) {
-                      binary += String.fromCharCode(chunk[j]);
-              }
+      var bytes = new Uint8Array(buffer);
+      var binary = '';
+      var chunkSize = 8192;
+      for (var i = 0; i < bytes.length; i += chunkSize) {
+        var chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        for (var j = 0; j < chunk.length; j++) {
+          binary += String.fromCharCode(chunk[j]);
         }
-        return btoa(binary);
+      }
+      return btoa(binary);
     }
 
-    // Base64 decode
     function base64ToArrayBuffer(base64) {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-              bytes[i] = binary.charCodeAt(i);
-        }
-        return bytes.buffer;
+      var binary = atob(base64);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
     }
 
-    async function toggleSession() {
-        if (isActive) {
-              stopSession();
-        } else {
-              await startSession();
-        }
+    function toggleSession() {
+      if (isActive) {
+        stopSession();
+      } else {
+        startSession();
+      }
     }
 
-    async function startSession() {
-        const key = getKey();
-        if (!key) {
-              document.getElementById('api-setup').classList.remove('hidden');
+    function startSession() {
+      var key = getKey();
+      if (!key) {
+        document.getElementById('api-setup').classList.remove('hidden');
+        return;
+      }
+      if (isActive) return;
+      isActive = true;
+      setupComplete = false;
+      document.getElementById('btn').classList.add('active');
+      document.getElementById('btn').textContent = String.fromCodePoint(0x23F9);
+      setStatus('Connecting...');
+      setVisual('connecting');
+
+      try {
+        if (!playbackCtx || playbackCtx.state === 'closed') {
+          playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        }
+        if (playbackCtx.state === 'suspended') {
+          playbackCtx.resume();
+        }
+
+        var wsUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + key;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = function() {
+          log('WS connected, sending setup...');
+          var setupMsg = {
+            setup: {
+              model: 'models/' + MODEL,
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } }
+              },
+              systemInstruction: { parts: [{ text: SYSTEM }] }
+            }
+          };
+          ws.send(JSON.stringify(setupMsg));
+        };
+
+        ws.onmessage = function(event) {
+          function handleData(data) {
+            if (data.setupComplete) {
+              log('Setup complete! Starting mic...');
+              setupComplete = true;
+              setStatus('Listening...');
+              setVisual('listening');
+              startMic();
               return;
-        }
-
-        isActive = true;
-        setupComplete = false;
-        document.getElementById('btn').classList.add('active');
-        document.getElementById('btn').textContent = String.fromCodePoint(0x23F9);
-        setStatus('Connecting...');
-        setVisual('connecting');
-
-        try {
-              // Single AudioContext for playback - create on user gesture (important for iOS)
-              if (!playbackCtx || playbackCtx.state === 'closed') {
-                      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            }
+            if (data.serverContent) {
+              var parts = (data.serverContent.modelTurn && data.serverContent.modelTurn.parts) || [];
+              for (var i = 0; i < parts.length; i++) {
+                if (parts[i].inlineData && parts[i].inlineData.data) {
+                  setVisual('speaking');
+                  setStatus('KITT is speaking...');
+                  playAudioChunk(parts[i].inlineData.data);
+                }
+                if (parts[i].text) {
+                  document.getElementById('transcript').textContent = parts[i].text;
+                }
               }
-              if (playbackCtx.state === 'suspended') {
-                      await playbackCtx.resume();
+              if (data.serverContent.turnComplete) {
+                setTimeout(function() {
+                  if (isActive) { setVisual('listening'); setStatus('Listening...'); }
+                }, 500);
               }
+            }
+            if (data.error) {
+              log('API Error: ' + JSON.stringify(data.error));
+              setStatus('Error: ' + (data.error.message || 'Unknown'));
+            }
+          }
 
-              const wsUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=' + key;
-              ws = new WebSocket(wsUrl);
+          if (event.data instanceof Blob) {
+            event.data.text().then(function(text) {
+              try { handleData(JSON.parse(text)); } catch(e) { log('Non-JSON blob'); }
+            });
+          } else {
+            try { handleData(JSON.parse(event.data)); } catch(e) { log('Non-JSON msg'); }
+          }
+        };
 
-              ws.onopen = function() {
-                      log('WS connected, sending setup...');
-                      const setupMsg = {
-                                setup: {
-                                            model: 'models/' + MODEL,
-                                            generationConfig: {
-                                                          responseModalities: ['AUDIO'],
-                                                          speechConfig: {
-                                                                          voiceConfig: {
-                                                                                            prebuiltVoiceConfig: {
-                                                                                                                voiceName: 'Zephyr'
-                                                                                              }
-                                                                            }
-                                                          }
-                                            },
-                                            systemInstruction: {
-                                                          parts: [{ text: SYSTEM }]
-                                            }
-                                }
-                      };
-                      ws.send(JSON.stringify(setupMsg));
-              };
+        ws.onerror = function() {
+          log('WS error');
+          setStatus('Connection error - tap to retry');
+          stopSession();
+        };
 
-              ws.onmessage = async function(event) {
-                      let data;
-                      if (event.data instanceof Blob) {
-                                const text = await event.data.text();
-                                try {
-                                            data = JSON.parse(text);
-                                } catch(e) {
-                                            log('Non-JSON blob received');
-                                            return;
-                                }
-                      } else {
-                                try {
-                                            data = JSON.parse(event.data);
-                                } catch(e) {
-                                            log('Non-JSON message');
-                                            return;
-                                }
-                      }
-
-                      if (data.setupComplete) {
-                                log('Setup complete! Starting mic...');
-                                setupComplete = true;
-                                setStatus('Listening...');
-                                setVisual('listening');
-                                startMic();
-                                return;
-                      }
-
-                      if (data.serverContent) {
-                                const parts = data.serverContent.modelTurn?.parts || [];
-                                for (const part of parts) {
-                                            if (part.inlineData && part.inlineData.data) {
-                                                          setVisual('speaking');
-                                                          setStatus('KITT is speaking...');
-                                                          playAudioChunk(part.inlineData.data);
-                                            }
-                                            if (part.text) {
-                                                          document.getElementById('transcript').textContent = part.text;
-                                            }
-                                }
-                                if (data.serverContent.turnComplete) {
-                                            setTimeout(function() {
-                                                          if (isActive) {
-                                                                          setVisual('listening');
-                                                                          setStatus('Listening...');
-                                                          }
-                                            }, 500);
-                                }
-                      }
-
-                      if (data.error) {
-                                log('API Error: ' + JSON.stringify(data.error));
-                                setStatus('Error: ' + (data.error.message || 'Unknown'));
-                      }
-              };
-
-              ws.onerror = function(err) {
-                      log('WS error occurred');
-                      setStatus('Connection error - tap to retry');
-                      stopSession();
-              };
-
-              ws.onclose = function(event) {
-                      log('WS closed: code=' + event.code + ' reason=' + event.reason);
-                      if (isActive) {
-                                setStatus('Disconnected (code:' + event.code + ')');
-                                stopSession();
-                      }
-              };
-
-        } catch (err) {
-              log('Start error: ' + err.message);
-              setStatus('Error: ' + err.message);
-              stopSession();
-        }
+        ws.onclose = function(event) {
+          log('WS closed: ' + event.code);
+          if (isActive) {
+            setStatus('Disconnected (' + event.code + ')');
+            stopSession();
+          }
+        };
+      } catch (err) {
+        log('Start error: ' + err.message);
+        setStatus('Error: ' + err.message);
+        stopSession();
+      }
     }
 
-    async function startMic() {
-        try {
-              mediaStream = await navigator.mediaDevices.getUserMedia({
-                      audio: {
-                                sampleRate: { ideal: 16000 },
-                                channelCount: 1,
-                                echoCancellation: true,
-                                noiseSuppression: true,
-                                autoGainControl: true
-                      }
-              });
+    function startMic() {
+      navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: { ideal: 16000 }, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      }).then(function(stream) {
+        mediaStream = stream;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        log('Mic rate: ' + audioCtx.sampleRate);
 
-              audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-              if (audioCtx.state === 'suspended') {
-                      await audioCtx.resume();
-              }
+        var source = audioCtx.createMediaStreamSource(stream);
+        var bufSize = 4096;
+        processor = audioCtx.createScriptProcessor(bufSize, 1, 1);
+        var inputRate = audioCtx.sampleRate;
+        var outputRate = 16000;
 
-              log('Mic sampleRate: ' + audioCtx.sampleRate);
-              const source = audioCtx.createMediaStreamSource(mediaStream);
+        processor.onaudioprocess = function(e) {
+          var outBuf = e.outputBuffer.getChannelData(0);
+          for (var k = 0; k < outBuf.length; k++) outBuf[k] = 0;
 
-              // Use ScriptProcessor (wider iOS support than AudioWorklet)
-              const bufSize = 4096;
-              const processor = audioCtx.createScriptProcessor(bufSize, 1, 1);
-              const inputRate = audioCtx.sampleRate;
-              const outputRate = 16000;
+          if (!ws || ws.readyState !== 1 || !setupComplete) return;
+          var input = e.inputBuffer.getChannelData(0);
 
-              processor.onaudioprocess = function(e) { var ob = e.outputBuffer.getChannelData(0); for (var k = 0; k < ob.length; k++) ob[k] = 0;
-                      if (!ws || ws.readyState !== WebSocket.OPEN || !setupComplete) return;
+          var pcm16k;
+          if (Math.abs(inputRate - outputRate) < 100) {
+            pcm16k = input;
+          } else {
+            var ratio = inputRate / outputRate;
+            var outLen = Math.floor(input.length / ratio);
+            pcm16k = new Float32Array(outLen);
+            for (var i = 0; i < outLen; i++) {
+              pcm16k[i] = input[Math.floor(i * ratio)];
+            }
+          }
 
-                      const input = e.inputBuffer.getChannelData(0);
+          var int16 = new Int16Array(pcm16k.length);
+          for (var i = 0; i < pcm16k.length; i++) {
+            var s = Math.max(-1, Math.min(1, pcm16k[i]));
+            int16[i] = s < 0 ? s * 32768 : s * 32767;
+          }
 
-                      // Resample to 16kHz if needed
-                      let pcm16k;
-                      if (Math.abs(inputRate - outputRate) < 100) {
-                                pcm16k = input;
-                      } else {
-                                const ratio = inputRate / outputRate;
-                                const outLen = Math.floor(input.length / ratio);
-                                pcm16k = new Float32Array(outLen);
-                                for (let i = 0; i < outLen; i++) {
-                                            pcm16k[i] = input[Math.floor(i * ratio)];
-                                }
-                      }
+          var b64 = arrayBufferToBase64(int16.buffer);
+          try {
+            ws.send(JSON.stringify({
+              realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: b64 }] }
+            }));
+          } catch(err) { log('Send err: ' + err.message); }
+        };
 
-                      // Convert to Int16
-                      const int16 = new Int16Array(pcm16k.length);
-                      for (let i = 0; i < pcm16k.length; i++) {
-                                const s = Math.max(-1, Math.min(1, pcm16k[i]));
-                                int16[i] = s < 0 ? s * 32768 : s * 32767;
-                      }
+        source.connect(processor);
+        var muteGain = audioCtx.createGain();
+        muteGain.gain.value = 0.0;
+        processor.connect(muteGain);
+        muteGain.connect(audioCtx.destination);
 
-                      const b64 = arrayBufferToBase64(int16.buffer);
-                      try {
-                                ws.send(JSON.stringify({
-                                            realtimeInput: {
-                                                          mediaChunks: [{
-                                                                          mimeType: 'audio/pcm;rate=16000',
-                                                                          data: b64
-                                                          }]
-                                            }
-                                }));
-                      } catch(err) {
-                                log('Send error: ' + err.message);
-                      }
-              };
-
-              source.connect(processor);
-                            var silentGain = audioCtx.createGain();
-                  silentGain.gain.value = 0;
-                  silentGain.connect(audioCtx.destination);
-                  processor.connect(silentGain);
-              workletNode = processor;
-
-              log('Mic active, sending audio...');
-
-        } catch (err) {
-              log('Mic error: ' + err.message);
-              setStatus('Mic access denied');
-        }
+        log('Mic active, sending audio...');
+      }).catch(function(err) {
+        log('Mic error: ' + err.message);
+        setStatus('Mic access denied');
+      });
     }
 
     function playAudioChunk(b64data) {
-        playQueue.push(b64data);
-        if (!isPlaying) {
-              processPlayQueue();
-        }
+      playQueue.push(b64data);
+      if (!isPlaying) processPlayQueue();
     }
 
     function processPlayQueue() {
-        if (playQueue.length === 0) {
-              isPlaying = false;
-              return;
+      if (playQueue.length === 0) { isPlaying = false; return; }
+      isPlaying = true;
+      var b64 = playQueue.shift();
+      try {
+        var arrayBuf = base64ToArrayBuffer(b64);
+        var int16 = new Int16Array(arrayBuf);
+        var float32 = new Float32Array(int16.length);
+        for (var i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / 32768.0;
         }
-
-    isPlaying = true;
-        const b64 = playQueue.shift();
-
-        try {
-              const arrayBuf = base64ToArrayBuffer(b64);
-              const int16 = new Int16Array(arrayBuf);
-              const float32 = new Float32Array(int16.length);
-              for (let i = 0; i < int16.length; i++) {
-                      float32[i] = int16[i] / 32768.0;
-              }
-
-              if (!playbackCtx || playbackCtx.state === 'closed') {
-                      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-              }
-
-              const buf = playbackCtx.createBuffer(1, float32.length, 24000);
-              buf.getChannelData(0).set(float32);
-              const src = playbackCtx.createBufferSource();
-              src.buffer = buf;
-              src.connect(playbackCtx.destination);
-              src.onended = function() {
-                      processPlayQueue();
-              };
-              src.start();
-        } catch(err) {
-              log('Play error: ' + err.message);
-              isPlaying = false;
-              processPlayQueue();
+        if (!playbackCtx || playbackCtx.state === 'closed') {
+          playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
         }
+        var buf = playbackCtx.createBuffer(1, float32.length, 24000);
+        buf.getChannelData(0).set(float32);
+        var src = playbackCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(playbackCtx.destination);
+        src.onended = function() { processPlayQueue(); };
+        src.start();
+      } catch(err) {
+        log('Play err: ' + err.message);
+        isPlaying = false;
+        processPlayQueue();
+      }
     }
 
     function stopSession() {
-        isActive = false;
-        setupComplete = false;
-        playQueue = [];
-        isPlaying = false;
-        document.getElementById('btn').classList.remove('active');
-        document.getElementById('btn').textContent = String.fromCodePoint(0x1F3A4);
-        setVisual('');
-
-        if (workletNode) {
-              workletNode.disconnect();
-              workletNode = null;
-        }
-        if (mediaStream) {
-              mediaStream.getTracks().forEach(function(t) { t.stop(); });
-              mediaStream = null;
-        }
-        if (ws) {
-              ws.close();
-              ws = null;
-        }
-        if (audioCtx && audioCtx.state !== 'closed') {
-              audioCtx.close();
-              audioCtx = null;
-        }
-        // Keep playbackCtx alive for reuse
-
-        setStatus('Tap to talk');
+      isActive = false;
+      setupComplete = false;
+      playQueue = [];
+      isPlaying = false;
+      document.getElementById('btn').classList.remove('active');
+      document.getElementById('btn').textContent = String.fromCodePoint(0x1F3A4);
+      setVisual('');
+      if (processor) { try { processor.disconnect(); } catch(e) {} processor = null; }
+      if (mediaStream) { mediaStream.getTracks().forEach(function(t) { t.stop(); }); mediaStream = null; }
+      if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+      if (audioCtx && audioCtx.state !== 'closed') { audioCtx.close(); audioCtx = null; }
+      setStatus('Tap to talk');
     }
   </script>
-  </body>
+</body>
 </html>
