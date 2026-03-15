@@ -274,7 +274,7 @@
               const inputRate = audioCtx.sampleRate;
               const outputRate = 16000;
 
-              processor.onaudioprocess = function(e) {
+              processor.onaudioprocess = function(e) { var ob = e.outputBuffer.getChannelData(0); for (var k = 0; k < ob.length; k++) ob[k] = 0;
                       if (!ws || ws.readyState !== WebSocket.OPEN || !setupComplete) return;
 
                       const input = e.inputBuffer.getChannelData(0);
