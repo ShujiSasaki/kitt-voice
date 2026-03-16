@@ -1,112 +1,203 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="KITT">
-    <title>KITT Voice</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
-    #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
-    #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
-    #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
-    #visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
-    #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
-    #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
-    #btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s;-webkit-tap-highlight-color:transparent}
-    #btn:active{transform:scale(.9)}
-    #btn.active{background:#34c759}
-    #transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
-    #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
-    #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
-    #api-setup.hidden{display:none}
-    #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
-    #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
-    #api-setup h2{margin-bottom:10px}
-    #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
-    </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="KITT">
+        <title>KITT Voice</title>
+      <style>
+                *{margin:0;padding:0;box-sizing:border-box}
+                body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
+                #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
+                #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
+                #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
+                #visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
+                #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
+                #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
+                #btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s;-webkit-tap-highlight-color:transparent}
+                #btn:active{transform:scale(.9)}
+                #btn.active{background:#34c759}
+                #transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
+                #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
+                #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
+                #api-setup.hidden{display:none}
+                #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
+                #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
+                #api-setup h2{margin-bottom:10px}
+                #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
+            </style>
   </head>
   <body>
-    <div id="api-setup">
-      <h2>KITT Setup</h2>
-    <p>Gemini API Key to start</p>
-    <input id="api-key-input" type="password" placeholder="Gemini API Key">
-    <button onclick="saveKeyAndStart()">Start KITT</button>button>
-    </div>div>
-  <div id="status">Tap to talk</div>div>
-  <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
-  <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>button>
-  <div id="transcript"></div>div>
-  <div id="debug"></div>div>
-  <script>
-    var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
-    var BQ_WEBHOOK='https://hook.us2.make.com/iiofpiedm4jkxg9c2kf14agelq2api91';
-    var SILENCE_TIMEOUT=10000;
-    var SYSTEM_BASE='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員のShujiをサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。「マイケル」の代わりに「Shuji」と呼ぶ。敬語ベースだが堅すぎない。例：「Shuji、そのオファーは承諾すべきではありません。時給換算で基準を下回っています」「お言葉ですが、それは非効率的かと」\n役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。';
-    var bqContext='';
-    var ws=null;var audioCtx=null;var playbackCtx=null;var mediaStream=null;var processor=null;var isActive=false;var nextPlayTime=0;var setupComplete=false;var silenceTimer=null;var lastActivityTime=0;
+        <div id="api-setup">
+                  <h2>KITT Setup</h2>
+                <p>Gemini API Key to start</p>
+                <input id="api-key-input" type="password" placeholder="Gemini API Key">
+                <button onclick="saveKeyAndStart()">Start KITT</button>button>
+        </div>div>
+      <div id="status">Tap to talk</div>div>
+      <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
+      <button id="btn" onclick="toggleSession()">&#x1F3A4;</button>button>
+      <div id="transcript"></div>div>
+      <div id="debug"></div>div>
+      <script>
+        var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
+        var BQ_WEBHOOK='https://hook.us2.make.com/iiofpiedm4jkxg9c2kf14agelq2api91';
+        var SILENCE_TIMEOUT=10000;
+        var SYSTEM_BASE='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員のShujiをサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。「マイケル」の代わりに「Shuji」と呼ぶ。敬語ベースだが堅すぎない。例：「Shuji、そのオファーは承諾すべきではありません。時給換算で基準を下回っています」「お言葉ですが、それは非効率的かと」\n役割: 福岡でUberEats配達中のShujiとリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: Shujiの目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。';
+        var bqContext='';
+        var ws=null,audioCtx=null,playbackCtx=null,mediaStream=null,processor=null;
+        var isActive=false,nextPlayTime=0,setupComplete=false,silenceTimer=null,lastActivityTime=0;
+        var offerData=null,offerAnnounced=false;
 
-    function log(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
-    function saveKeyAndStart(){var k=document.getElementById('api-key-input').value.trim();if(!k)return;localStorage.setItem('gemini_api_key',k);document.getElementById('api-setup').classList.add('hidden');startSession()}
-    function getKey(){return localStorage.getItem('gemini_api_key')}
+        function getOfferParams(){
+              var p=new URLSearchParams(window.location.search);
+              if(p.get('offer')!=='1')return null;
+              return {decision:p.get('d')||'',reward:p.get('r')||'',hourly:p.get('h')||'',store:p.get('s')||'',reason:p.get('reason')||'',duration:p.get('dur')||'',confidence:p.get('c')||''};
+        }
 
-    if(getKey()){document.getElementById('api-setup').classList.add('hidden');setStatus('Tap anywhere to start');document.body.addEventListener('click',function _a(ev){if(ev.target.closest&&ev.target.closest('#api-setup'))return;document.body.removeEventListener('click',_a);startSession()})}
+        function buildOfferPrompt(o){
+              var d=o.decision==='accept'?'承諾':'拒否';
+            var t='【オファー判定結果を報告して】\n';
+              t+='判定: '+d+'\n';
+              if(o.store)t+='店舗: '+o.store+'\n';
+              if(o.reward)t+='報酬: ¥'+o.reward+'\n';
+              if(o.duration)t+='推定時間: '+o.duration+'分\n';
+              if(o.hourly)t+='推定時給: ¥'+o.hourly+'\n';
+              if(o.reason)t+='理由: '+o.reason+'\n';
+              if(o.confidence)t+='確信度: '+o.confidence+'点\n';
+              t+='\nKITTとして簡潔に（2文以内で）この結果をShujiに報告してください。判定理由を一言添えて。';
+              return t;
+        }
 
-    function setStatus(t){document.getElementById('status').textContent=t}
-    function setVisual(s){document.getElementById('visualizer').className=s}
-    function resetSilenceTimer(){lastActivityTime=Date.now();if(silenceTimer)clearTimeout(silenceTimer);if(isActive){silenceTimer=setTimeout(function(){if(isActive&&Date.now()-lastActivityTime>=SILENCE_TIMEOUT){log('Silence timeout - ending session');setStatus('Session ended (silence)');stopSession()}},SILENCE_TIMEOUT)}}
+        function announceOffer(){
+              if(!offerData||offerAnnounced||!ws||ws.readyState!==1||!setupComplete)return;
+              offerAnnounced=true;
+              var prompt=buildOfferPrompt(offerData);
+              log('Announcing offer: '+offerData.decision);
+              try{
+                        ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));
+              }catch(e){log('Announce err: '+e.message)}
+        }
 
-    function arrayBufferToBase64(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
-    function base64ToArrayBuffer(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+        function log(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
+        function saveKeyAndStart(){var k=document.getElementById('api-key-input').value.trim();if(!k)return;localStorage.setItem('gemini_api_key',k);document.getElementById('api-setup').classList.add('hidden');startSession()}
+        function getKey(){return localStorage.getItem('gemini_api_key')}
 
-    function toggleSession(){if(isActive){stopSession()}else{startSession()}}
+        offerData=getOfferParams();
 
-    function startSession(){var key=getKey();if(!key){document.getElementById('api-setup').classList.remove('hidden');return}
-                            if(isActive)return;isActive=true;setupComplete=false;nextPlayTime=0;
-                            document.getElementById('btn').classList.add('active');document.getElementById('btn').textContent=String.fromCodePoint(0x23F9);
-                            setStatus('Connecting...');setVisual('connecting');
-                            try{if(!playbackCtx||playbackCtx.state==='closed'){playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
-                                if(playbackCtx.state==='suspended')playbackCtx.resume();
-                                var fullSystem=SYSTEM_BASE+(bqContext?'\n\n【BigQueryデータ】\n'+bqContext:'');
-                                var wsUrl='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
-                                ws=new WebSocket(wsUrl);
-                                ws.onopen=function(){log('WS connected');var msg={setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSystem}]}}};ws.send(JSON.stringify(msg))};
-                                ws.onmessage=function(ev){function handle(d){if(d.setupComplete){log('Setup complete');setupComplete=true;setStatus('Listening...');setVisual('listening');startMic();resetSilenceTimer();return}
-                                                                             if(d.serverContent){var parts=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];for(var i=0;i<parts.length;i++){if(parts[i].inlineData&&parts[i].inlineData.data){setVisual('speaking');setStatus('KITT is speaking...');scheduleAudioChunk(parts[i].inlineData.data);resetSilenceTimer()}if(parts[i].text){document.getElementById('transcript').textContent=parts[i].text}}
-                                                                                                 if(d.serverContent.turnComplete){setTimeout(function(){if(isActive){setVisual('listening');setStatus('Listening...');resetSilenceTimer()}},500)}}
-                                                                             if(d.error){log('Error: '+JSON.stringify(d.error));setStatus('Error: '+(d.error.message||'Unknown'))}}
-                                                          if(ev.data instanceof Blob){ev.data.text().then(function(t){try{handle(JSON.parse(t))}catch(e){}})}else{try{handle(JSON.parse(ev.data))}catch(e){}}};
-                                ws.onerror=function(){log('WS error');setStatus('Connection error');stopSession()};
-                                ws.onclose=function(e){log('WS closed: '+e.code);if(isActive){setStatus('Disconnected');stopSession()}}}catch(err){log('Start error: '+err.message);stopSession()}}
+        if(getKey()){
+              document.getElementById('api-setup').classList.add('hidden');
+              if(offerData){
+                        setStatus('Offer received - connecting...');
+                        setTimeout(function(){startSession()},300);
+              }else{
+                        setStatus('Tap anywhere to start');
+                        document.body.addEventListener('click',function _a(ev){
+                                      if(ev.target.closest&&ev.target.closest('#api-setup'))return;
+                                      document.body.removeEventListener('click',_a);startSession();
+                        });
+              }
+        }
 
-    function startMic(){navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){mediaStream=stream;audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();
-                                                                                                                                                                                                      var src=audioCtx.createMediaStreamSource(stream);var bufSize=4096;processor=audioCtx.createScriptProcessor(bufSize,1,1);var inRate=audioCtx.sampleRate;var outRate=16000;
-                                                                                                                                                                                                      processor.onaudioprocess=function(e){var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;if(!ws||ws.readyState!==1||!setupComplete)return;
-                                                                                                                                                                                                                                           var input=e.inputBuffer.getChannelData(0);var pcm;if(Math.abs(inRate-outRate)<100){pcm=input}else{var r=inRate/outRate;var len=Math.floor(input.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=input[Math.floor(i*r)]}
-                                                                                                                                                                                                                                           var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)resetSilenceTimer();
-                                                                                                                                                                                                                                           var int16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));int16[i]=s<0?s*32768:s*32767}
-                                                                                                                                                                                                                                           try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:arrayBufferToBase64(int16.buffer)}]}}))}catch(err){}};
-                                                                                                                                                                                                      src.connect(processor);var mute=audioCtx.createGain();mute.gain.setValueAtTime(0,audioCtx.currentTime);processor.connect(mute);mute.connect(audioCtx.destination);log('Mic active')}).catch(function(err){log('Mic error: '+err.message);setStatus('Mic access denied')})}
+        function setStatus(t){document.getElementById('status').textContent=t}
+        function setVisual(s){document.getElementById('visualizer').className=s}
 
-    function scheduleAudioChunk(b64){try{if(!playbackCtx||playbackCtx.state==='closed')playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});if(playbackCtx.state==='suspended')playbackCtx.resume();
-                                         var ab=base64ToArrayBuffer(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
-                                         var buf=playbackCtx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=playbackCtx.createBufferSource();s.buffer=buf;s.connect(playbackCtx.destination);
-                                         var now=playbackCtx.currentTime;if(nextPlayTime<now)nextPlayTime=now;s.start(nextPlayTime);nextPlayTime+=buf.duration}catch(err){log('Play err: '+err.message)}}
+        function resetSilenceTimer(){
+              lastActivityTime=Date.now();
+              if(silenceTimer)clearTimeout(silenceTimer);
+              if(isActive){silenceTimer=setTimeout(function(){
+                        if(isActive&&Date.now()-lastActivityTime>=SILENCE_TIMEOUT){
+                                      log('Silence timeout - ending session');setStatus('Session ended (silence)');stopSession();
+                                      if(offerData){setTimeout(function(){window.close();},500)}
+                        }
+              },SILENCE_TIMEOUT)}
+        }
 
-    function stopSession(){isActive=false;setupComplete=false;nextPlayTime=0;if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null}
-                           document.getElementById('btn').classList.remove('active');document.getElementById('btn').textContent=String.fromCodePoint(0x1F3A4);setVisual('');
-                           if(processor){try{processor.disconnect()}catch(e){}processor=null}
-                           if(mediaStream){mediaStream.getTracks().forEach(function(t){t.stop()});mediaStream=null}
-                           if(ws){try{ws.close()}catch(e){}ws=null}
-                           if(audioCtx&&audioCtx.state!=='closed'){audioCtx.close();audioCtx=null}
-                           setStatus('Tap to talk')}
-  </script>
+        function arrayBufferToBase64(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
+        function base64ToArrayBuffer(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+        function toggleSession(){if(isActive){stopSession()}else{startSession()}}
+
+        function startSession(){
+              var key=getKey();
+              if(!key){document.getElementById('api-setup').classList.remove('hidden');return}
+              if(isActive)return;isActive=true;setupComplete=false;nextPlayTime=0;offerAnnounced=false;
+              document.getElementById('btn').classList.add('active');document.getElementById('btn').textContent=String.fromCodePoint(0x23F9);
+              setStatus('Connecting...');setVisual('connecting');
+              try{
+                        if(!playbackCtx||playbackCtx.state==='closed'){playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
+                        if(playbackCtx.state==='suspended')playbackCtx.resume();
+                        var fullSystem=SYSTEM_BASE+(bqContext?'\n\n【BigQueryデータ】\n'+bqContext:'');
+                        if(offerData){fullSystem+='\n\n【モード】オファー判定報告モード。接続したらすぐに判定結果を報告して、Shujiの反応を待って。'}
+                        var wsUrl='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
+                        ws=new WebSocket(wsUrl);
+                        ws.onopen=function(){log('WS connected');var msg={setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSystem}]}}};ws.send(JSON.stringify(msg))};
+                        ws.onmessage=function(ev){
+                                      function handle(d){
+                                                        if(d.setupComplete){log('Setup complete');setupComplete=true;setStatus('Listening...');setVisual('listening');startMic();resetSilenceTimer();
+                                                                                                if(offerData&&!offerAnnounced){setTimeout(function(){announceOffer()},500)}
+                                                                                                return;
+                                                                           }
+                                                        if(d.serverContent){
+                                                                              var parts=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
+                                                                              for(var i=0;i<parts.length;i++){
+                                                                                                        if(parts[i].inlineData&&parts[i].inlineData.data){setVisual('speaking');setStatus('KITT is speaking...');scheduleAudioChunk(parts[i].inlineData.data);resetSilenceTimer()}
+                                                                                                        if(parts[i].text){document.getElementById('transcript').textContent=parts[i].text}
+                                                                                }
+                                                                              if(d.serverContent.turnComplete){setTimeout(function(){if(isActive){setVisual('listening');setStatus('Listening...');resetSilenceTimer()}},500)}
+                                                        }
+                                                        if(d.error){log('Error: '+JSON.stringify(d.error));setStatus('Error: '+(d.error.message||'Unknown'))}
+                                      }
+                                      if(ev.data instanceof Blob){ev.data.text().then(function(t){try{handle(JSON.parse(t))}catch(e){}})}
+                                      else{try{handle(JSON.parse(ev.data))}catch(e){}}
+                        };
+                        ws.onerror=function(){log('WS error');setStatus('Connection error');stopSession()};
+                        ws.onclose=function(e){log('WS closed: '+e.code);if(isActive){setStatus('Disconnected');stopSession()}}
+              }catch(err){log('Start error: '+err.message);stopSession()}
+        }
+
+        function startMic(){
+              navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
+                        mediaStream=stream;audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();
+                        var src=audioCtx.createMediaStreamSource(stream);var bufSize=4096;processor=audioCtx.createScriptProcessor(bufSize,1,1);var inRate=audioCtx.sampleRate;var outRate=16000;
+                        processor.onaudioprocess=function(e){
+                                      var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;
+                                      if(!ws||ws.readyState!==1||!setupComplete)return;
+                                      var input=e.inputBuffer.getChannelData(0);var pcm;
+                                      if(Math.abs(inRate-outRate)<100){pcm=input}else{var r=inRate/outRate;var len=Math.floor(input.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=input[Math.floor(i*r)]}
+                                      var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)resetSilenceTimer();
+                                      var int16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));int16[i]=s<0?s*32768:s*32767}
+                                      try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:arrayBufferToBase64(int16.buffer)}]}}))}catch(err){}
+                        };
+                        src.connect(processor);var mute=audioCtx.createGain();mute.gain.setValueAtTime(0,audioCtx.currentTime);processor.connect(mute);mute.connect(audioCtx.destination);log('Mic active');
+              }).catch(function(err){log('Mic error: '+err.message);setStatus('Mic access denied')})
+        }
+
+        function scheduleAudioChunk(b64){
+              try{
+                        if(!playbackCtx||playbackCtx.state==='closed')playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+                        if(playbackCtx.state==='suspended')playbackCtx.resume();
+                        var ab=base64ToArrayBuffer(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
+                        var buf=playbackCtx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=playbackCtx.createBufferSource();s.buffer=buf;s.connect(playbackCtx.destination);
+                        var now=playbackCtx.currentTime;if(nextPlayTime<now)nextPlayTime=now;s.start(nextPlayTime);nextPlayTime+=buf.duration;
+              }catch(err){log('Play err: '+err.message)}
+        }
+
+        function stopSession(){
+              isActive=false;setupComplete=false;nextPlayTime=0;
+              if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null}
+              document.getElementById('btn').classList.remove('active');document.getElementById('btn').textContent=String.fromCodePoint(0x1F3A4);setVisual('');
+              if(processor){try{processor.disconnect()}catch(e){}processor=null}
+              if(mediaStream){mediaStream.getTracks().forEach(function(t){t.stop()});mediaStream=null}
+              if(ws){try{ws.close()}catch(e){}ws=null}
+              if(audioCtx&&audioCtx.state!=='closed'){audioCtx.close();audioCtx=null}
+              setStatus('Tap to talk');
+        }
+      </script>
   </body>
 </html>html>
-  </script></p></h2>
+      </script></p></h2>
   </body>
-  </style></title>
+      </style></title>
   </head>
