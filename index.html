@@ -54,20 +54,46 @@
         function getOfferParams(){
               var p=new URLSearchParams(window.location.search);
               if(p.get('offer')!=='1')return null;
-              return {decision:p.get('d')||'',reward:p.get('r')||'',hourly:p.get('h')||'',store:p.get('s')||'',reason:p.get('reason')||'',duration:p.get('dur')||'',confidence:p.get('c')||''};
+              return {
+                        decision:p.get('d')||'',
+                        reward:p.get('r')||'',
+                        hourly:p.get('h')||'',
+                        store:p.get('s')||'',
+                        reason:p.get('reason')||'',
+                        duration:p.get('dur')||'',
+                        confidence:p.get('c')||'',
+                        quest:p.get('quest')||'',
+                        coeff:p.get('coeff')||'',
+                        weather:p.get('w')||'',
+                        traffic:p.get('tr')||'',
+                        drop:p.get('drop')||'',
+                        rawReason:p.get('raw')||''
+              };
         }
 
         function buildOfferPrompt(o){
-              var d=o.decision==='accept'?'承諾':'拒否';
-            var t='【オファー判定結果を報告して】\n';
-              t+='判定: '+d+'\n';
-              if(o.store)t+='店舗: '+o.store+'\n';
-              if(o.reward)t+='報酬: ¥'+o.reward+'\n';
-              if(o.duration)t+='推定時間: '+o.duration+'分\n';
-              if(o.hourly)t+='推定時給: ¥'+o.hourly+'\n';
-              if(o.reason)t+='理由: '+o.reason+'\n';
-              if(o.confidence)t+='確信度: '+o.confidence+'点\n';
-              t+='\nKITTとして簡潔に（2文以内で）この結果をShujiに報告してください。判定理由を一言添えて。';
+              var d=o.decision==='accept'?'承諾推奨':'拒否推奨';
+              var t='【オファー判定が来た。KITTとして分析的かつ感情的にShujiに伝えて】\n';
+              t+='■判定: '+d+'\n';
+              if(o.store)t+='■店舗: '+o.store+'\n';
+              if(o.reward)t+='■報酬: ¥'+o.reward+'\n';
+              if(o.duration)t+='■推定: '+o.duration+'分\n';
+              if(o.hourly)t+='■時給換算: ¥'+o.hourly+'\n';
+              if(o.confidence)t+='■確信度: '+o.confidence+'点\n';
+              if(o.reason)t+='■判定理由: '+o.reason+'\n';
+              if(o.quest)t+='■クエスト状況: '+decodeURIComponent(o.quest)+'\n';
+              if(o.coeff)t+='■現在の係数: '+decodeURIComponent(o.coeff)+'\n';
+              if(o.weather)t+='■天気: '+decodeURIComponent(o.weather)+'\n';
+              if(o.traffic)t+='■交通状況: '+decodeURIComponent(o.traffic)+'\n';
+              if(o.drop)t+='■ドロップ先: '+decodeURIComponent(o.drop)+'\n';
+              if(o.rawReason)t+='■AI詳細理由: '+decodeURIComponent(o.rawReason)+'\n';
+              t+='\n【伝え方のルール】\n';
+              t+='- Shujiはオファー画面を見てるので報酬額・店名などの既知情報をただ読み上げるな\n';
+              t+='- 代わりに「なぜその判断なのか」の背景を伝えろ：\n';
+              t+='  例: クエスト残りX件だから取るべき、係数が今高い/低い、この時間帯はもうオーダー来にくい、ドロップ先が次のオファーに繋がりやすいエリア等\n';
+              t+='- 感情を込めろ。良いオファーなら「祭りだ！」「これは美味しい」等。悪いなら「時間の無駄です」「Shuji、我慢してください」等\n';
+              t+='- 2〜3文で簡潔に。配達中なので長い話は禁止\n';
+              t+='- 判定理由の論理的根拠（係数状況、需要予測、エリア戦略）を最低1つ含めろ\n';
               return t;
         }
 
@@ -110,7 +136,7 @@
               if(isActive){silenceTimer=setTimeout(function(){
                         if(isActive&&Date.now()-lastActivityTime>=SILENCE_TIMEOUT){
                                       log('Silence timeout - ending session');setStatus('Session ended (silence)');stopSession();
-                                      if(offerData){setTimeout(function(){window.close();},500)}
+                                      if(offerData){setTimeout(function(){window.close()},500)}
                         }
               },SILENCE_TIMEOUT)}
         }
@@ -129,7 +155,7 @@
                         if(!playbackCtx||playbackCtx.state==='closed'){playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
                         if(playbackCtx.state==='suspended')playbackCtx.resume();
                         var fullSystem=SYSTEM_BASE+(bqContext?'\n\n【BigQueryデータ】\n'+bqContext:'');
-                        if(offerData){fullSystem+='\n\n【モード】オファー判定報告モード。接続したらすぐに判定結果を報告して、Shujiの反応を待って。'}
+                        if(offerData){fullSystem+='\n\n【モード】オファー判定報告モード。Shujiは画面でオファー情報を見ている。既知情報の読み上げではなく、判定の裏にある分析・戦略・感情を伝えること。'}
                         var wsUrl='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
                         ws=new WebSocket(wsUrl);
                         ws.onopen=function(){log('WS connected');var msg={setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSystem}]}}};ws.send(JSON.stringify(msg))};
