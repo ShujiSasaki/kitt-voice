@@ -17,12 +17,11 @@ body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:1
 #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
 #visualizer.tts{border-color:#007aff;box-shadow:0 0 40px rgba(0,122,255,.4)}
 #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
-#btn{width:80px;height:80px;border-radius:50%;border:none;font-size:32px;cursor:pointer;background:#ff3b30;color:#fff;transition:all .2s;-webkit-tap-highlight-color:transparent}
-#btn:active{transform:scale(.9)}
-#btn.active{background:#34c759}
-#transcript{position:fixed;bottom:100px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:60px;overflow:hidden}
+#transcript{position:fixed;bottom:60px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:80px;overflow:hidden}
 #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
-#tts-indicator{position:fixed;top:20px;right:20px;font-size:11px;color:#34c759;display:none}
+#tts-indicator{position:fixed;top:60px;right:20px;font-size:11px;color:#34c759;display:none}
+#tap-prompt{position:fixed;bottom:140px;left:0;right:0;text-align:center;font-size:18px;color:#ff3b30;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
 #api-setup.hidden{display:none}
 #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
@@ -40,153 +39,134 @@ body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:1
 </div>
 <div id="status">Initializing...</div>
 <div id="visualizer"><span id="kitt-label">KITT</span></div>
-<button id="btn" onclick="toggleSession()">&#x1F3A4;</button>
-<div id="tts-indicator">&#x1F525; Firebase TTS Active</div>
+<div id="tap-prompt">Tap anywhere to activate KITT</div>
+<div id="tts-indicator">Firebase TTS Active</div>
 <div id="transcript"></div>
 <div id="debug"></div>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
 import{getDatabase,ref,onValue}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
-var FIREBASE_CONFIG={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
+var FC={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
 var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
-var BQ_WEBHOOK='https://hook.us2.make.com/iiofpiedm4jkxg9c2kf14agelq2api91';
-var SILENCE_TIMEOUT=10000;
-var SYSTEM_BASE='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。例：「そのオファーは承諾すべきではありません。時給換算で基準を下回っています」「お言葉ですが、それは非効率的かと」\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。';
-var bqContext='';
-var ws=null,audioCtx=null,playbackCtx=null,mediaStream=null,processor=null;
-var isActive=false,nextPlayTime=0,setupComplete=false,silenceTimer=null,lastActivityTime=0;
-var lastTtsTimestamp=0;
-var fbApp=initializeApp(FIREBASE_CONFIG);
-var fbDb=getDatabase(fbApp);
-var ttsRef=ref(fbDb,'offer_tts');
-function startFirebaseListener(){
-onValue(ttsRef,function(snapshot){
-var data=snapshot.val();
-if(!data||!data.text)return;
-var ts=data.timestamp||0;
-if(ts<=lastTtsTimestamp)return;
-lastTtsTimestamp=ts;
-log('Firebase TTS: '+data.text);
-speakTTS(data.text);
+var ST=10000;
+var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。';
+var ws=null,actx=null,pctx=null,ms=null,proc=null;
+var isOn=false,npt=0,setup=false,stmr=null,lastAct=0;
+var lastTs=0,ttsOK=false,go=false;
+var app=initializeApp(FC);var db=getDatabase(app);var tRef=ref(db,'offer_tts');
+function initFB(){
+onValue(tRef,function(snap){
+var d=snap.val();if(!d||!d.text)return;
+var t=d.timestamp||0;if(t<=lastTs)return;lastTs=t;
+lg('FB TTS:'+d.text);doTTS(d.text);
 });
-document.getElementById('tts-indicator').style.display='block';
-log('Firebase listener active');
+document.getElementById('tts-indicator').style.display='block';lg('FB listener on');
 }
-function speakTTS(text){
-if(!text)return;
+function doTTS(txt){
+if(!txt)return;
+if(!ttsOK){lg('TTS locked');return;}
 window.speechSynthesis.cancel();
-var utter=new SpeechSynthesisUtterance(text);
-utter.lang='ja-JP';
-utter.rate=1.1;
-utter.pitch=1.0;
-setVisual('tts');
-setStatus('Offer Report...');
-document.getElementById('transcript').textContent=text;
-utter.onend=function(){
-if(isActive){setVisual('listening');setStatus('Listening...');}
-else{setVisual('');setStatus('Tap to talk');}
-};
-utter.onerror=function(e){log('TTS error: '+e.error);};
-window.speechSynthesis.speak(utter);
+var u=new SpeechSynthesisUtterance(txt);
+u.lang='ja-JP';u.rate=1.1;u.pitch=1.0;
+setV('tts');setS('Offer Report...');
+document.getElementById('transcript').textContent=txt;
+u.onend=function(){if(isOn){setV('listening');setS('Listening...');}else{setV('');setS('KITT Active');}};
+u.onerror=function(e){lg('TTS err:'+e.error);};
+window.speechSynthesis.speak(u);
 }
-function log(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
+function unlock(){
+var u=new SpeechSynthesisUtterance('');u.volume=0;u.lang='ja-JP';
+window.speechSynthesis.speak(u);ttsOK=true;lg('TTS unlocked');
+}
+function lg(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
 function saveKeyAndStart(){
-var k=document.getElementById('api-key-input').value.trim();
-if(!k)return;
-localStorage.setItem('gemini_api_key',k);
-document.getElementById('api-setup').classList.add('hidden');
-setStatus('Tap to talk');
-startFirebaseListener();
+var k=document.getElementById('api-key-input').value.trim();if(!k)return;
+localStorage.setItem('gk',k);document.getElementById('api-setup').classList.add('hidden');
+setS('Tap anywhere to activate');initFB();
 }
-function getKey(){return localStorage.getItem('gemini_api_key')}
-if(getKey()){
-document.getElementById('api-setup').classList.add('hidden');
-setStatus('Tap to talk');
-startFirebaseListener();
+function gk(){return localStorage.getItem('gk')}
+if(gk()){document.getElementById('api-setup').classList.add('hidden');setS('Tap anywhere to activate');initFB();}
+function activate(){
+if(go)return;go=true;
+document.getElementById('tap-prompt').style.display='none';
+unlock();startWS();
 }
-function setStatus(t){document.getElementById('status').textContent=t}
-function setVisual(s){document.getElementById('visualizer').className=s}
-function resetSilenceTimer(){
-lastActivityTime=Date.now();
-if(silenceTimer)clearTimeout(silenceTimer);
-if(isActive){silenceTimer=setTimeout(function(){
-if(isActive&&Date.now()-lastActivityTime>=SILENCE_TIMEOUT){
-log('Silence timeout');setStatus('Session ended');stopSession();
+document.body.addEventListener('click',function(){if(!gk())return;if(!go)activate();});
+function setS(t){document.getElementById('status').textContent=t}
+function setV(s){document.getElementById('visualizer').className=s}
+function rstTmr(){
+lastAct=Date.now();if(stmr)clearTimeout(stmr);
+if(isOn){stmr=setTimeout(function(){
+if(isOn&&Date.now()-lastAct>=ST){lg('Silence - restart');stopWS();setTimeout(startWS,1000);}
+},ST)}
 }
-},SILENCE_TIMEOUT)}
-}
-function arrayBufferToBase64(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
-function base64ToArrayBuffer(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
-window.toggleSession=function(){if(isActive){stopSession()}else{startSession()}};
-window.saveKeyAndStart=saveKeyAndStart;
-function startSession(){
-var key=getKey();
-if(!key){document.getElementById('api-setup').classList.remove('hidden');return}
-if(isActive)return;isActive=true;setupComplete=false;nextPlayTime=0;
-document.getElementById('btn').classList.add('active');document.getElementById('btn').textContent=String.fromCodePoint(0x23F9);
-setStatus('Connecting...');setVisual('connecting');
+function a2b(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
+function b2a(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+function startWS(){
+var key=gk();if(!key)return;
+if(isOn)return;isOn=true;setup=false;npt=0;
+setS('Connecting...');setV('connecting');
 try{
-if(!playbackCtx||playbackCtx.state==='closed'){playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
-if(playbackCtx.state==='suspended')playbackCtx.resume();
-var fullSystem=SYSTEM_BASE+(bqContext?'\n\n【BigQueryデータ】\n'+bqContext:'');
-var wsUrl='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
-ws=new WebSocket(wsUrl);
-ws.onopen=function(){log('WS connected');var msg={setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSystem}]}}};ws.send(JSON.stringify(msg))};
+if(!pctx||pctx.state==='closed'){pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
+if(pctx.state==='suspended')pctx.resume();
+var url='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
+ws=new WebSocket(url);
+ws.onopen=function(){lg('WS ok');ws.send(JSON.stringify({setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:SYS}]}}}))};
 ws.onmessage=function(ev){
-function handle(d){
-if(d.setupComplete){log('Setup complete');setupComplete=true;setStatus('Listening...');setVisual('listening');startMic();resetSilenceTimer();return;}
+function h(d){
+if(d.setupComplete){lg('Ready');setup=true;setS('Listening...');setV('listening');startMic();rstTmr();return;}
 if(d.serverContent){
-var parts=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
-for(var i=0;i<parts.length;i++){
-if(parts[i].inlineData&&parts[i].inlineData.data){setVisual('speaking');setStatus('KITT is speaking...');scheduleAudioChunk(parts[i].inlineData.data);resetSilenceTimer()}
-if(parts[i].text){document.getElementById('transcript').textContent=parts[i].text}
+var p=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
+for(var i=0;i<p.length;i++){
+if(p[i].inlineData&&p[i].inlineData.data){setV('speaking');setS('KITT speaking...');playChunk(p[i].inlineData.data);rstTmr()}
+if(p[i].text){document.getElementById('transcript').textContent=p[i].text}
 }
-if(d.serverContent.turnComplete){setTimeout(function(){if(isActive){setVisual('listening');setStatus('Listening...');resetSilenceTimer()}},500)}
+if(d.serverContent.turnComplete){setTimeout(function(){if(isOn){setV('listening');setS('Listening...');rstTmr()}},500)}
 }
-if(d.error){log('Error: '+JSON.stringify(d.error));setStatus('Error: '+(d.error.message||'Unknown'))}
+if(d.error){lg('Err:'+JSON.stringify(d.error));setS('Error');stopWS();setTimeout(startWS,3000)}
 }
-if(ev.data instanceof Blob){ev.data.text().then(function(t){try{handle(JSON.parse(t))}catch(e){}})}
-else{try{handle(JSON.parse(ev.data))}catch(e){}}
+if(ev.data instanceof Blob){ev.data.text().then(function(t){try{h(JSON.parse(t))}catch(e){}})}
+else{try{h(JSON.parse(ev.data))}catch(e){}}
 };
-ws.onerror=function(){log('WS error');setStatus('Connection error');stopSession()};
-ws.onclose=function(e){log('WS closed: '+e.code);if(isActive){setStatus('Disconnected');stopSession()}}
-}catch(err){log('Start error: '+err.message);stopSession()}
-}
+ws.onerror=function(){lg('WS err');stopWS();setTimeout(startWS,3000)};
+ws.onclose=function(e){lg('WS close:'+e.code);if(isOn){isOn=false;setTimeout(startWS,3000)}}
+}catch(e){lg('Start err:'+e.message);stopWS();setTimeout(startWS,3000)}
+                                                                                                                                             }
 function startMic(){
 navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
-mediaStream=stream;audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();
-var src=audioCtx.createMediaStreamSource(stream);var bufSize=4096;processor=audioCtx.createScriptProcessor(bufSize,1,1);var inRate=audioCtx.sampleRate;var outRate=16000;
-processor.onaudioprocess=function(e){
+ms=stream;actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();
+var src=actx.createMediaStreamSource(stream);var bs=4096;proc=actx.createScriptProcessor(bs,1,1);var ir=actx.sampleRate;var or=16000;
+proc.onaudioprocess=function(e){
 var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;
-if(!ws||ws.readyState!==1||!setupComplete)return;
-var input=e.inputBuffer.getChannelData(0);var pcm;
-if(Math.abs(inRate-outRate)<100){pcm=input}else{var r=inRate/outRate;var len=Math.floor(input.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=input[Math.floor(i*r)]}
-var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)resetSilenceTimer();
-var int16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));int16[i]=s<0?s*32768:s*32767}
-try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:arrayBufferToBase64(int16.buffer)}]}}))}catch(err){}
+if(!ws||ws.readyState!==1||!setup)return;
+var inp=e.inputBuffer.getChannelData(0);var pcm;
+if(Math.abs(ir-or)<100){pcm=inp}else{var r=ir/or;var len=Math.floor(inp.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=inp[Math.floor(i*r)]}
+var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)rstTmr();
+var i16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));i16[i]=s<0?s*32768:s*32767}
+try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:a2b(i16.buffer)}]}}))}catch(x){}
 };
-src.connect(processor);var mute=audioCtx.createGain();mute.gain.setValueAtTime(0,audioCtx.currentTime);processor.connect(mute);mute.connect(audioCtx.destination);log('Mic active');
-}).catch(function(err){log('Mic error: '+err.message);setStatus('Mic access denied')})
+src.connect(proc);var mt=actx.createGain();mt.gain.setValueAtTime(0,actx.currentTime);proc.connect(mt);mt.connect(actx.destination);lg('Mic on');
+}).catch(function(e){lg('Mic err:'+e.message);setS('Mic denied')})
 }
-function scheduleAudioChunk(b64){
+function playChunk(b64){
 try{
-if(!playbackCtx||playbackCtx.state==='closed')playbackCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
-if(playbackCtx.state==='suspended')playbackCtx.resume();
-var ab=base64ToArrayBuffer(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
-var buf=playbackCtx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=playbackCtx.createBufferSource();s.buffer=buf;s.connect(playbackCtx.destination);
-var now=playbackCtx.currentTime;if(nextPlayTime<now)nextPlayTime=now;s.start(nextPlayTime);nextPlayTime+=buf.duration;
-}catch(err){log('Play err: '+err.message)}
+if(!pctx||pctx.state==='closed')pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+if(pctx.state==='suspended')pctx.resume();
+var ab=b2a(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
+var buf=pctx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=pctx.createBufferSource();s.buffer=buf;s.connect(pctx.destination);
+var now=pctx.currentTime;if(npt<now)npt=now;s.start(npt);npt+=buf.duration;
+}catch(e){lg('Play err:'+e.message)}
 }
-function stopSession(){
-isActive=false;setupComplete=false;nextPlayTime=0;
-if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null}
-document.getElementById('btn').classList.remove('active');document.getElementById('btn').textContent=String.fromCodePoint(0x1F3A4);setVisual('');
-if(processor){try{processor.disconnect()}catch(e){}processor=null}
-if(mediaStream){mediaStream.getTracks().forEach(function(t){t.stop()});mediaStream=null}
+function stopWS(){
+isOn=false;setup=false;npt=0;
+if(stmr){clearTimeout(stmr);stmr=null}
+setV('');
+if(proc){try{proc.disconnect()}catch(e){}proc=null}
+if(ms){ms.getTracks().forEach(function(t){t.stop()});ms=null}
 if(ws){try{ws.close()}catch(e){}ws=null}
-if(audioCtx&&audioCtx.state!=='closed'){audioCtx.close();audioCtx=null}
-setStatus('Tap to talk');
+if(actx&&actx.state!=='closed'){actx.close();actx=null}
 }
+window.saveKeyAndStart=saveKeyAndStart;
 </script>
 </body>
 </html>
