@@ -1,178 +1,210 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="KITT">
-<title>KITT Voice</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
-#status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
-#visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
-#visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
-#visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
-#visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
-#visualizer.tts{border-color:#007aff;box-shadow:0 0 40px rgba(0,122,255,.4)}
-#kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
-#transcript{position:fixed;bottom:60px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:80px;overflow:hidden}
-#debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
-#tts-indicator{position:fixed;top:60px;right:20px;font-size:11px;color:#34c759;display:none}
-#tap-prompt{position:fixed;bottom:140px;left:0;right:0;text-align:center;font-size:18px;color:#ff3b30;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
-#api-setup.hidden{display:none}
-#api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
-#api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
-#api-setup h2{margin-bottom:10px}
-#api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
-</style>
-</head>
-<body>
-<div id="api-setup">
-<h2>KITT Setup</h2>
-<p>Gemini API Key to start</p>
-<input id="api-key-input" type="password" placeholder="Gemini API Key">
-<button onclick="saveKeyAndStart()">Start KITT</button>
-</div>
-<div id="status">Initializing...</div>
-<div id="visualizer"><span id="kitt-label">KITT</span></div>
-<div id="tap-prompt">Tap anywhere to activate KITT</div>
-<div id="tts-indicator">Firebase TTS Active</div>
-<div id="transcript"></div>
-<div id="debug"></div>
-<script type="module">
-import{initializeApp}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
-import{getDatabase,ref,onValue}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
-var FC={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
-var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
-var ST=10000;
-var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。';
-var ws=null,actx=null,pctx=null,ms=null,proc=null;
-var isOn=false,npt=0,setup=false,stmr=null,lastAct=0;
-var lastTs=0,ttsOK=false,go=false;
-var app=initializeApp(FC);var db=getDatabase(app);var tRef=ref(db,'offer_tts');
-function initFB(){
-onValue(tRef,function(snap){
-var d=snap.val();if(!d||!d.text)return;
-var t=d.timestamp||0;if(t<=lastTs)return;lastTs=t;
-lg('FB TTS:'+d.text);doTTS(d.text);
-});
-document.getElementById('tts-indicator').style.display='block';lg('FB listener on');
-}
-function doTTS(txt){
-if(!txt)return;
-if(!ttsOK){lg('TTS locked');return;}
-setV('tts');setS('Offer Report...');
-document.getElementById('transcript').textContent=txt;
-if(ws&&ws.readyState===1&&setup){
-lg('TTS via Gemini');
-try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'\u30aa\u30d5\u30a1\u30fc\u5224\u5b9a\u30c7\u30fc\u30bf\u3002\u3053\u306e\u6570\u5024\u3092\u3082\u3068\u306bKITT\u3068\u3057\u3066\u5224\u65ad\u7406\u7531\u3092\u7c21\u6f54\u306b\u89e3\u8aac\u3057\u3066\u3002\u5e97\u540d\u3084\u91d1\u984d\u306f\u65e2\u306b\u901a\u77e5\u6e08\u307f\u306a\u306e\u3067\u7701\u7565\u3057\u3001\u306a\u305c\u3053\u306e\u5224\u65ad\u306b\u306a\u3063\u305f\u304b\u4fc2\u6570\u3084\u6761\u4ef6\u9762\u3092\u4e2d\u5fc3\u306b2\u6587\u7a0b\u5ea6\u3067: '+txt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
-}else{
-lg('TTS via Speech API');
-window.speechSynthesis.cancel();
-var u=new SpeechSynthesisUtterance(txt);
-u.lang='ja-JP';u.rate=1.1;u.pitch=1.0;
-u.onend=function(){if(isOn){setV('listening');setS('Listening...');}else{setV('');setS('KITT Active');}};
-u.onerror=function(e){lg('TTS err:'+e.error);};
-window.speechSynthesis.speak(u);
-}
-}
-function unlock(){
-var u=new SpeechSynthesisUtterance('');u.volume=0;u.lang='ja-JP';
-window.speechSynthesis.speak(u);ttsOK=true;lg('TTS unlocked');
-}
-function lg(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
-function saveKeyAndStart(){
-var k=document.getElementById('api-key-input').value.trim();if(!k)return;
-localStorage.setItem('gk',k);document.getElementById('api-setup').classList.add('hidden');
-setS('Tap anywhere to activate');initFB();
-}
-function gk(){return localStorage.getItem('gk')}
-if(gk()){document.getElementById('api-setup').classList.add('hidden');setS('Tap anywhere to activate');initFB();}
-function activate(){
-if(go)return;go=true;
-document.getElementById('tap-prompt').style.display='none';
-unlock();startWS();
-}
-document.body.addEventListener('click',function(){if(!gk())return;if(!go)activate();});
-function setS(t){document.getElementById('status').textContent=t}
-function setV(s){document.getElementById('visualizer').className=s}
-function rstTmr(){
-lastAct=Date.now();if(stmr)clearTimeout(stmr);
-if(isOn){stmr=setTimeout(function(){
-if(isOn&&Date.now()-lastAct>=ST){lg('Silence - restart');stopWS();setTimeout(startWS,1000);}
-},ST)}
-}
-function a2b(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
-function b2a(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
-function startWS(){
-var key=gk();if(!key)return;
-if(isOn)return;isOn=true;setup=false;npt=0;
-setS('Connecting...');setV('connecting');
-try{
-if(!pctx||pctx.state==='closed'){pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
-if(pctx.state==='suspended')pctx.resume();
-var url='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
-ws=new WebSocket(url);
-ws.onopen=function(){lg('WS ok');ws.send(JSON.stringify({setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:SYS}]}}}))};
-ws.onmessage=function(ev){
-function h(d){
-if(d.setupComplete){lg('Ready');setup=true;setS('Listening...');setV('listening');startMic();rstTmr();return;}
-if(d.serverContent){
-var p=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
-for(var i=0;i<p.length;i++){
-if(p[i].inlineData&&p[i].inlineData.data){setV('speaking');setS('KITT speaking...');playChunk(p[i].inlineData.data);rstTmr()}
-if(p[i].text){document.getElementById('transcript').textContent=p[i].text}
-}
-if(d.serverContent.turnComplete){setTimeout(function(){if(isOn){setV('listening');setS('Listening...');rstTmr()}},500)}
-}
-if(d.error){lg('Err:'+JSON.stringify(d.error));setS('Error');stopWS();setTimeout(startWS,3000)}
-}
-if(ev.data instanceof Blob){ev.data.text().then(function(t){try{h(JSON.parse(t))}catch(e){}})}
-else{try{h(JSON.parse(ev.data))}catch(e){}}
-};
-ws.onerror=function(){lg('WS err');stopWS();setTimeout(startWS,3000)};
-ws.onclose=function(e){lg('WS close:'+e.code);if(isOn){isOn=false;setTimeout(startWS,3000)}}
-}catch(e){lg('Start err:'+e.message);stopWS();setTimeout(startWS,3000)}
-                                                                                                                                             }
-function startMic(){
-navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
-ms=stream;actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();
-var src=actx.createMediaStreamSource(stream);var bs=4096;proc=actx.createScriptProcessor(bs,1,1);var ir=actx.sampleRate;var or=16000;
-proc.onaudioprocess=function(e){
-var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;
-if(!ws||ws.readyState!==1||!setup)return;
-var inp=e.inputBuffer.getChannelData(0);var pcm;
-if(Math.abs(ir-or)<100){pcm=inp}else{var r=ir/or;var len=Math.floor(inp.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=inp[Math.floor(i*r)]}
-var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)rstTmr();
-var i16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));i16[i]=s<0?s*32768:s*32767}
-try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:a2b(i16.buffer)}]}}))}catch(x){}
-};
-src.connect(proc);var mt=actx.createGain();mt.gain.setValueAtTime(0,actx.currentTime);proc.connect(mt);mt.connect(actx.destination);lg('Mic on');
-}).catch(function(e){lg('Mic err:'+e.message);setS('Mic denied')})
-}
-function playChunk(b64){
-try{
-if(!pctx||pctx.state==='closed')pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
-if(pctx.state==='suspended')pctx.resume();
-var ab=b2a(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
-var buf=pctx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=pctx.createBufferSource();s.buffer=buf;s.connect(pctx.destination);
-var now=pctx.currentTime;if(npt<now)npt=now;s.start(npt);npt+=buf.duration;
-}catch(e){lg('Play err:'+e.message)}
-}
-function stopWS(){
-isOn=false;setup=false;npt=0;
-if(stmr){clearTimeout(stmr);stmr=null}
-setV('');
-if(proc){try{proc.disconnect()}catch(e){}proc=null}
-if(ms){ms.getTracks().forEach(function(t){t.stop()});ms=null}
-if(ws){try{ws.close()}catch(e){}ws=null}
-if(actx&&actx.state!=='closed'){actx.close();actx=null}
-}
-window.saveKeyAndStart=saveKeyAndStart;
-</script>
-</body>
-</html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KITT">
+    <title>KITT Voice</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
+    #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
+    #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
+    #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
+    #visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
+    #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
+    #visualizer.tts{border-color:#007aff;box-shadow:0 0 40px rgba(0,122,255,.4)}
+    #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
+    #transcript{position:fixed;bottom:60px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:80px;overflow:hidden}
+    #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
+    #tts-indicator{position:fixed;top:60px;right:20px;font-size:11px;color:#34c759;display:none}
+    #tap-prompt{position:fixed;bottom:140px;left:0;right:0;text-align:center;font-size:18px;color:#ff3b30;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
+    #api-setup.hidden{display:none}
+    #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
+    #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
+    #api-setup h2{margin-bottom:10px}
+    #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
+    </style>
+  </head>
+  <body>
+    <div id="api-setup">
+      <h2>KITT Setup</h2>
+    <p>Gemini API Key to start</p>
+    <input id="api-key-input" type="password" placeholder="Gemini API Key">
+    <button onclick="saveKeyAndStart()">Start KITT</button>button>
+    </div>div>
+  <div id="status">Initializing...</div>div>
+  <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
+  <div id="tap-prompt">Tap anywhere to activate KITT</div>div>
+  <div id="tts-indicator">Firebase TTS Active</div>div>
+  <div id="transcript"></div>div>
+  <div id="debug"></div>div>
+  <script type="module">
+  import{initializeApp}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+  import{getDatabase,ref,onValue}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
+  var FC={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
+  var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
+  var ST=10000;
+  var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。\n\nあなたは以下のデータにリアルタイムでアクセスできます。オファーが届くとFirebase経由で最新データが注入されます:\n- オファー判定結果(承諾/拒否、推定時給、店名、報酬、距離、時間、比較、確信度、理由)\n- 現在地・GPS座標\n- 天気情報(気温、風速、天気コード)\n- 交通状況(所要時間、通常時間、渋滞度)\n- 係数データ(なんでもBOX: 基準時給、時間帯別平均時給、平均km単価、オファー間隔等)\nこれらのデータについて聞かれたら具体的な数値で答えてください。';
+  var ws=null,actx=null,pctx=null,ms=null,proc=null;
+  var isOn=false,npt=0,setup=false,stmr=null,lastAct=0;
+  var lastTs=0,ttsOK=false,go=false;
+  var kittData=null;
+  var app=initializeApp(FC);var db=getDatabase(app);var tRef=ref(db,'offer_tts');
+  function initFB(){
+    onValue(tRef,function(snap){
+      var d=snap.val();if(!d||!d.text)return;
+      var t=d.timestamp||0;if(t<=lastTs)return;lastTs=t;
+      if(d.offer||d.context){kittData=d;lg('Data updated: '+d.offer?.store_name);}
+      lg('FB TTS:'+d.text);doTTS(d);
+    });
+    document.getElementById('tts-indicator').style.display='block';lg('FB listener on');
+  }
+  function buildContext(d){
+    var lines=[];
+    if(d.offer){
+      var o=d.offer;
+      lines.push('【最新オファー判定】');
+      lines.push('判定:'+o.decision+' 店:'+o.store_name+' 報酬:'+o.reward+'円 距離:'+o.distance+'km 時間:'+o.duration+'分');
+      lines.push('推定時給:'+o.estimated_hourly_rate+'円 確信度:'+o.confidence+'% 比較:'+o.comparison);
+      lines.push('理由:'+o.reason);
+      lines.push('詳細:'+o.detail);
+    }
+      if(d.context){
+        var c=d.context;
+        lines.push('【環境】');
+        lines.push('現在地:'+c.location+' GPS:'+c.gps);
+        lines.push('天気:'+c.weather);
+        lines.push('交通:'+c.traffic);
+        if(c.coefficients)lines.push('【係数(なんでもBOX)】\n'+c.coefficients);
+      }
+        return lines.join('\n');
+  }
+  function doTTS(d){
+    var txt=d.text||d;
+    if(!txt)return;
+      if(!ttsOK){lg('TTS locked');return;}
+        setV('tts');setS('Offer Report...');
+    document.getElementById('transcript').textContent=typeof txt==='string'?txt:JSON.stringify(txt);
+    if(ws&&ws.readyState===1&&setup){
+      lg('TTS via Gemini');
+      var ctx=typeof d==='object'?buildContext(d):'';
+      var prompt='オファー判定データが届きました。';
+      if(ctx)prompt+='\n'+ctx+'\n';
+        prompt+='このデータをもとにKITTとして判断理由を簡潔に解説して。店名や金額は既に通知済みなので省略し、なぜこの判断になったか係数や条件面を中心に2文程度で。';
+  try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
+    }else{
+      lg('TTS via Speech API');
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(typeof txt==='string'?txt:JSON.stringify(txt));
+      u.lang='ja-JP';u.rate=1.1;u.pitch=1.0;
+      u.onend=function(){if(isOn){setV('listening');setS('Listening...');}else{setV('');setS('KITT Active');}};
+      u.onerror=function(e){lg('TTS err:'+e.error);};
+      window.speechSynthesis.speak(u);
+    }
+  }
+  function unlock(){
+    var u=new SpeechSynthesisUtterance('');u.volume=0;u.lang='ja-JP';
+    window.speechSynthesis.speak(u);ttsOK=true;lg('TTS unlocked');
+  }
+  function lg(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
+  function saveKeyAndStart(){
+    var k=document.getElementById('api-key-input').value.trim();if(!k)return;
+      localStorage.setItem('gk',k);document.getElementById('api-setup').classList.add('hidden');
+    setS('Tap anywhere to activate');initFB();
+  }
+  function gk(){return localStorage.getItem('gk')}
+  if(gk()){document.getElementById('api-setup').classList.add('hidden');setS('Tap anywhere to activate');initFB();}
+    function activate(){
+      if(go)return;go=true;
+      document.getElementById('tap-prompt').style.display='none';
+      unlock();startWS();
+    }
+  document.body.addEventListener('click',function(){if(!gk())return;if(!go)activate();});
+  function setS(t){document.getElementById('status').textContent=t}
+  function setV(s){document.getElementById('visualizer').className=s}
+  function rstTmr(){
+    lastAct=Date.now();if(stmr)clearTimeout(stmr);
+      if(isOn){stmr=setTimeout(function(){
+        if(isOn&&Date.now()-lastAct>=ST){lg('Silence - restart');stopWS();setTimeout(startWS,1000);}
+      },ST)}
+  }
+  function a2b(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
+  function b2a(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+  function startWS(){
+    var key=gk();if(!key)return;
+      if(isOn)return;isOn=true;setup=false;npt=0;
+    setS('Connecting...');setV('connecting');
+    try{
+      if(!pctx||pctx.state==='closed'){pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
+        if(pctx.state==='suspended')pctx.resume();
+          var fullSys=SYS;
+      if(kittData){fullSys+='\n\n【現在把握しているデータ】\n'+buildContext(kittData);}
+        var url='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
+      ws=new WebSocket(url);
+      ws.onopen=function(){lg('WS ok');ws.send(JSON.stringify({setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSys}]}}}))};
+      ws.onmessage=function(ev){
+        function h(d){
+          if(d.setupComplete){lg('Ready');setup=true;setS('Listening...');setV('listening');startMic();rstTmr();return;}
+            if(d.serverContent){
+              var p=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
+              for(var i=0;i<p.length;i++){
+                if(p[i].inlineData&&p[i].inlineData.data){setV('speaking');setS('KITT speaking...');playChunk(p[i].inlineData.data);rstTmr()}
+                  if(p[i].text){document.getElementById('transcript').textContent=p[i].text}
+              }
+              if(d.serverContent.turnComplete){setTimeout(function(){if(isOn){setV('listening');setS('Listening...');rstTmr()}},500)}
+            }
+              if(d.error){lg('Err:'+JSON.stringify(d.error));setS('Error');stopWS();setTimeout(startWS,3000)}
+        }
+        if(ev.data instanceof Blob){ev.data.text().then(function(t){try{h(JSON.parse(t))}catch(e){}})}
+        else{try{h(JSON.parse(ev.data))}catch(e){}}
+      };
+      ws.onerror=function(){lg('WS err');stopWS();setTimeout(startWS,3000)};
+      ws.onclose=function(e){lg('WS close:'+e.code);if(isOn){isOn=false;setTimeout(startWS,3000)}}
+    }catch(e){lg('Start err:'+e.message);stopWS();setTimeout(startWS,3000)}
+  }
+  function startMic(){
+    navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
+      ms=stream;actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();
+      var src=actx.createMediaStreamSource(stream);var bs=4096;proc=actx.createScriptProcessor(bs,1,1);var ir=actx.sampleRate;var or=16000;
+      proc.onaudioprocess=function(e){
+        var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;
+        if(!ws||ws.readyState!==1||!setup)return;
+        var inp=e.inputBuffer.getChannelData(0);var pcm;
+        if(Math.abs(ir-or)<100){pcm=inp}else{var r=ir/or;var len=Math.floor(inp.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=inp[Math.floor(i*r)]}
+        var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)rstTmr();
+        var i16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));i16[i]=s<0?s*32768:s*32767}
+        try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:a2b(i16.buffer)}]}}))}catch(x){}
+      };
+      src.connect(proc);var mt=actx.createGain();mt.gain.setValueAtTime(0,actx.currentTime);proc.connect(mt);mt.connect(actx.destination);lg('Mic on');
+    }).catch(function(e){lg('Mic err:'+e.message);setS('Mic denied')})
+  }
+  function playChunk(b64){
+    try{
+      if(!pctx||pctx.state==='closed')pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+        if(pctx.state==='suspended')pctx.resume();
+          var ab=b2a(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
+      var buf=pctx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=pctx.createBufferSource();s.buffer=buf;s.connect(pctx.destination);
+      var now=pctx.currentTime;if(npt<now)npt=now;s.start(npt);npt+=buf.duration;
+    }catch(e){lg('Play err:'+e.message)}
+  }
+  function stopWS(){
+    isOn=false;setup=false;npt=0;
+    if(stmr){clearTimeout(stmr);stmr=null}
+      setV('');
+    if(proc){try{proc.disconnect()}catch(e){}proc=null}
+      if(ms){ms.getTracks().forEach(function(t){t.stop()});ms=null}
+        if(ws){try{ws.close()}catch(e){}ws=null}
+          if(actx&&actx.state!=='closed'){actx.close();actx=null}
+  }
+  window.saveKeyAndStart=saveKeyAndStart;
+  </script>
+  </body>
+</html>html></p></h2>
+  </body>
+  </style></title>
+  </head>
