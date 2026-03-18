@@ -49,7 +49,7 @@
   var FC={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
   var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
   var ST=10000;
-  var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。\n\nあなたは以下のデータにリアルタイムでアクセスできます。オファーが届くとFirebase経由で最新データが注入されます:\n- オファー判定結果(承諾/拒否、推定時給、店名、報酬、距離、時間、比較、確信度、理由)\n- 現在地・GPS座標\n- 天気情報(気温、風速、天気コード)\n- 交通状況(所要時間、通常時間、渋滞度)\n- 係数データ(なんでもBOX: 基準時給、時間帯別平均時給、平均km単価、オファー間隔等)\nこれらのデータについて聞かれたら具体的な数値で答えてください。';
+  var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。\n\nあなたは以下のデータにリアルタイムでアクセスできます。オファーが届くとFirebase経由で最新データが注入されます:\n- オファー判定結果(承諾/拒否、推定時給、店名、報酬、距離、時間、比較、確信度、理由)\n- 現在地・GPS座標\n- 天気情報(気温、風速、天気コード)\n- 交通状況(所要時間、通常時間、渋滞度)\n- 係数データ(なんでもBOX: 基準時給、時間帯別平均時給、平均km単価、オファー間隔等)\n- クエスト情報(現在のクエスト条件、残り件数、ボーナス額、期限)\nこれらのデータについて聞かれたら具体的な数値で答えてください。\n\n【クエストについて】\nUberEatsのクエストとは、一定期間内に指定件数を配達すると追加ボーナスがもらえるインセンティブ制度です。例：「3/18-3/20の間に30件配達で1500円ボーナス」。クエスト達成が近い場合、通常なら拒否するオファーでも件数稼ぎのために承諾する判断が合理的な場合があります。クエストの残り件数・ボーナス額・期限を考慮して配達員にアドバイスしてください。係数データ内の"quest"フィールドに現在のクエスト条件が記載されています。';
   var ws=null,actx=null,pctx=null,ms=null,proc=null;
   var isOn=false,npt=0,setup=false,stmr=null,lastAct=0;
   var lastTs=0,ttsOK=false,go=false;
@@ -80,7 +80,16 @@
         lines.push('現在地:'+c.location+' GPS:'+c.gps);
         lines.push('天気:'+c.weather);
         lines.push('交通:'+c.traffic);
-        if(c.coefficients)lines.push('【係数(なんでもBOX)】\n'+c.coefficients);
+    if(c.coefficients){
+      var coefStr=c.coefficients;
+      lines.push('【係数(なんでもBOX)】\n'+coefStr);
+      try{
+        var coefObj=JSON.parse(coefStr);
+        if(coefObj.quest){
+          lines.push('【クエスト情報】\n'+coefObj.quest);
+        }
+      }catch(e){}
+    }
       }
         return lines.join('\n');
   }
@@ -95,8 +104,8 @@
       var ctx=typeof d==='object'?buildContext(d):'';
       var prompt='オファー判定データが届きました。';
       if(ctx)prompt+='\n'+ctx+'\n';
-        prompt+='このデータをもとにKITTとして判断理由を簡潔に解説して。店名や金額は既に通知済みなので省略し、なぜこの判断になったか係数や条件面を中心に2文程度で。';
-  try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
+        prompt+='このデータをもとにKITTとして判断理由を簡潔に解説して。店名や金額は既に通知済みなので省略し、なぜこの判断になったか係数や条件面を中心に2文程度で。クエスト情報がある場合はクエスト達成への影響も一言触れて。';
+      try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
     }else{
       lg('TTS via Speech API');
       window.speechSynthesis.cancel();
