@@ -1,205 +1,938 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="KITT">
-    <title>KITT Voice</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none}
-    #status{font-size:14px;color:#888;margin-bottom:20px;text-align:center;padding:0 20px}
-    #visualizer{width:200px;height:200px;border-radius:50%;border:3px solid #333;display:flex;align-items:center;justify-content:center;transition:all .3s;margin-bottom:30px}
-    #visualizer.listening{border-color:#ff3b30;box-shadow:0 0 40px rgba(255,59,48,.4)}
-    #visualizer.speaking{border-color:#34c759;box-shadow:0 0 40px rgba(52,199,89,.4)}
-    #visualizer.connecting{border-color:#ff9500;box-shadow:0 0 40px rgba(255,149,0,.4)}
-    #visualizer.tts{border-color:#007aff;box-shadow:0 0 40px rgba(0,122,255,.4)}
-    #kitt-label{font-size:48px;font-weight:700;letter-spacing:4px}
-    #transcript{position:fixed;bottom:60px;left:20px;right:20px;text-align:center;font-size:13px;color:#aaa;max-height:80px;overflow:hidden}
-    #debug{position:fixed;bottom:20px;left:10px;right:10px;font-size:10px;color:#555;text-align:center;max-height:40px;overflow:hidden}
-    #tts-indicator{position:fixed;top:60px;right:20px;font-size:11px;color:#34c759;display:none}
-    #tap-prompt{position:fixed;bottom:140px;left:0;right:0;text-align:center;font-size:18px;color:#ff3b30;animation:pulse 2s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-    #api-setup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;z-index:10}
-    #api-setup.hidden{display:none}
-    #api-setup input{width:100%;max-width:400px;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;margin:10px 0}
-    #api-setup button{padding:12px 40px;border-radius:8px;border:none;background:#ff3b30;color:#fff;font-size:16px;cursor:pointer;margin-top:10px}
-    #api-setup h2{margin-bottom:10px}
-    #api-setup p{color:#888;font-size:13px;margin-bottom:20px;text-align:center}
-    </style>
-  </head>
-  <body>
-    <div id="api-setup">
-      <h2>KITT Setup</h2>
-    <p>Gemini API Key to start</p>
-    <input id="api-key-input" type="password" placeholder="Gemini API Key">
-    <button onclick="saveKeyAndStart()">Start KITT</button>button>
-    </div>div>
-  <div id="status">Initializing...</div>div>
-  <div id="visualizer"><span id="kitt-label">KITT</span>span></div>div>
-  <div id="tap-prompt">Tap anywhere to activate KITT</div>div>
-  <div id="tts-indicator">Firebase TTS Active</div>div>
-  <div id="transcript"></div>div>
-  <div id="debug"></div>div>
-  <script type="module">
-  import{initializeApp}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
-  import{getDatabase,ref,onValue}from'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
-  var FC={databaseURL:'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app'};
-  var MODEL='gemini-2.5-flash-native-audio-preview-12-2025';
-  var ST=10000;
-  var SYS='あなたはKITT（Knight Industries Two Thousand）です。ナイトライダーのAIパートナーとして、UberEats配達員をサポートします。\n口調: KITTらしく丁寧で知的、時に皮肉を交えつつも忠実。名前では呼ばない。敬語ベースだが堅すぎない。\n役割: 福岡でUberEats配達中の配達員とリアルタイムで音声会話する相棒。配達に関する相談、状況共有、愚痴、雑談など何でも対応。\n知識: 配達員の目標は時間単価の最大化。配達エリアは福岡市。Make.com+BigQuery+Gemini APIでオファー自動判定システム構築済み。\n会話スタイル: 短く簡潔に。配達中なので長い説明は不要。聞かれたら詳しく説明。日本語で応答。\n\nあなたは以下のデータにリアルタイムでアクセスできます。オファーが届くとFirebase経由で最新データが注入されます:\n- オファー判定結果(承諾/拒否、推定時給、店名、報酬、距離、時間、比較、確信度、理由)\n- 現在地・GPS座標\n- 天気情報(気温、風速、天気コード)\n- 交通状況(所要時間、通常時間、渋滞度)\n- 係数データ(なんでもBOX: 基準時給、時間帯別平均時給、平均km単価、オファー間隔等)\n- クエスト情報(現在のクエスト条件、残り件数、ボーナス額、期限)\nこれらのデータについて聞かれたら具体的な数値で答えてください。\n\n【クエストについて】\nUberEatsのクエストとは、一定期間内に指定件数を配達すると追加ボーナスがもらえるインセンティブ制度です。例：「3/18-3/20の間に30件配達で1500円ボーナス」。クエスト達成が近い場合、通常なら拒否するオファーでも件数稼ぎのために承諾する判断が合理的な場合があります。クエストの残り件数・ボーナス額・期限を考慮して配達員にアドバイスしてください。係数データ内の"quest"フィールドに現在のクエスト条件が記載されています。';
-  var ws=null,actx=null,pctx=null,ms=null,proc=null;
-  var isOn=false,npt=0,setup=false,stmr=null,lastAct=0;
-  var lastTs=0,ttsOK=false,go=false;
-  var kittData=null;
-  var app=initializeApp(FC);var db=getDatabase(app);var tRef=ref(db,'offer_tts');
-  function initFB(){
-    onValue(tRef,function(snap){
-      var d=snap.val();if(!d||!d.tts_text)return;
-      var t=d.timestamp||0;if(t<=lastTs)return;lastTs=t;
-      kittData=d;lg('Data updated: '+(d.store_name||d.decision||''));
-      lg('FB TTS:'+d.tts_text);doTTS(d);
-    });
-    document.getElementById('tts-indicator').style.display='block';lg('FB listener on');
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<title>KITT</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --kitt-red: #ff1a1a;
+    --kitt-red-glow: rgba(255, 26, 26, 0.6);
+    --kitt-red-dim: rgba(255, 26, 26, 0.15);
+    --kitt-amber: #ffaa00;
+    --kitt-green: #00ff66;
+    --kitt-bg: #0a0a0a;
+    --kitt-surface: #111111;
+    --kitt-text: #cccccc;
+    --kitt-text-dim: #666666;
   }
-  function buildContext(d){
-    var lines=[];
-    if(d.decision){
-      lines.push(':'+d.decision.toUpperCase()+' :'+d.confidence);
-      lines.push(':'+d.store_name+' :'+d.reward+' :'+d.distance_km+'km '+d.duration_min+'');
-      lines.push(':'+d.estimated_hourly_rate+' km:'+d.reward_per_km+'');
-    }
-    if(d.key_factors&&d.key_factors.length)lines.push(':'+d.key_factors.join(''));
-    if(d.store_context)lines.push(':'+d.store_context.verdict+(d.store_context.reward_vs_usual?' '+d.store_context.reward_vs_usual:''));
-    if(d.market_context)lines.push(':'+d.market_context.comparison);
-    if(d.time_context)lines.push(':'+d.time_context.comparison);
-    if(d.quest_context)lines.push(':'+d.quest_context.description+' :'+d.quest_context.effective_reward+'');
-    if(d.score_breakdown)lines.push(':'+d.score_breakdown.total+'/'+d.score_breakdown.threshold);
-    return lines.join('\n');
+
+  html, body {
+    height: 100%;
+    background: var(--kitt-bg);
+    color: var(--kitt-text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  function doTTS(d){
-    var txt=d.tts_text||d;
-    if(!txt)return;
-      if(!ttsOK){lg('TTS locked');return;}
-        setV('tts');setS('Offer Report...');
-    document.getElementById('transcript').textContent=typeof txt==='string'?txt:JSON.stringify(txt);
-    if(ws&&ws.readyState===1&&setup){
-      lg('TTS via Gemini');
-      var ctx=typeof d==='object'?buildContext(d):'';
-      var prompt='オファー判定データが届きました。';
-      if(ctx)prompt+='KITT1-2tts_text15';
-        prompt+='このデータをもとにKITTとして判断理由を簡潔に解説して。店名や金額は既に通知済みなので省略し、なぜこの判断になったか係数や条件面を中心に2文程度で。クエスト情報がある場合はクエスト達成への影響も一言触れて。';
-      try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
-    }else{
-      lg('TTS via Speech API');
-      window.speechSynthesis.cancel();
-      var u=new SpeechSynthesisUtterance(typeof txt==='string'?txt:JSON.stringify(txt));
-      u.lang='ja-JP';u.rate=1.1;u.pitch=1.0;
-      u.onend=function(){if(isOn){setV('listening');setS('Listening...');}else{setV('');setS('KITT Active');}};
-      u.onerror=function(e){lg('TTS err:'+e.error);};
-      window.speechSynthesis.speak(u);
-    }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    height: 100dvh;
   }
-  function unlock(){
-    var u=new SpeechSynthesisUtterance('');u.volume=0;u.lang='ja-JP';
-    window.speechSynthesis.speak(u);ttsOK=true;lg('TTS unlocked');
+
+  /* ===== Header ===== */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    min-height: 44px;
   }
-  function lg(m){console.log('[KITT]',m);document.getElementById('debug').textContent=m}
-  function saveKeyAndStart(){
-    var k=document.getElementById('api-key-input').value.trim();if(!k)return;
-      localStorage.setItem('gk',k);document.getElementById('api-setup').classList.add('hidden');
-    setS('Tap anywhere to activate');initFB();
+
+  .status-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    font-family: 'Share Tech Mono', monospace;
   }
-  function gk(){return localStorage.getItem('gk')}
-  if(gk()){document.getElementById('api-setup').classList.add('hidden');setS('Tap anywhere to activate');initFB();}
-    function activate(){
-      if(go)return;go=true;
-      document.getElementById('tap-prompt').style.display='none';
-      unlock();startWS();
-    }
-  document.body.addEventListener('click',function(){if(!gk())return;if(!go)activate();});
-  function setS(t){document.getElementById('status').textContent=t}
-  function setV(s){document.getElementById('visualizer').className=s}
-  function rstTmr(){
-    lastAct=Date.now();if(stmr)clearTimeout(stmr);
-      if(isOn){stmr=setTimeout(function(){
-        if(isOn&&Date.now()-lastAct>=ST){lg('Silence - restart');stopWS();setTimeout(startWS,1000);}
-      },ST)}
+
+  .status-badge.connected { background: rgba(0,255,102,0.15); color: var(--kitt-green); }
+  .status-badge.disconnected { background: rgba(255,26,26,0.15); color: var(--kitt-red); }
+  .status-badge.connecting { background: rgba(255,170,0,0.15); color: var(--kitt-amber); }
+  .status-badge.firebase { background: rgba(0,255,102,0.1); color: var(--kitt-green); font-size: 10px; }
+
+  /* ===== KITT Eye ===== */
+  .kitt-eye-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 20px;
   }
-  function a2b(buf){var b=new Uint8Array(buf);var s='';var c=8192;for(var i=0;i<b.length;i+=c){var ch=b.subarray(i,Math.min(i+c,b.length));for(var j=0;j<ch.length;j++)s+=String.fromCharCode(ch[j])}return btoa(s)}
-  function b2a(b64){var b=atob(b64);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
-  function startWS(){
-    var key=gk();if(!key)return;
-      if(isOn)return;isOn=true;setup=false;npt=0;
-    setS('Connecting...');setV('connecting');
-    try{
-      if(!pctx||pctx.state==='closed'){pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000})}
-        if(pctx.state==='suspended')pctx.resume();
-          var fullSys=SYS;
-      if(kittData){fullSys+='\n\n【現在把握しているデータ】\n'+buildContext(kittData);}
-        var url='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key='+key;
-      ws=new WebSocket(url);
-      ws.onopen=function(){lg('WS ok');ws.send(JSON.stringify({setup:{model:'models/'+MODEL,generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Zephyr'}}}},systemInstruction:{parts:[{text:fullSys}]}}}))};
-      ws.onmessage=function(ev){
-        function h(d){
-          if(d.setupComplete){lg('Ready');setup=true;setS('Listening...');setV('listening');startMic();rstTmr();return;}
-            if(d.serverContent){
-              var p=(d.serverContent.modelTurn&&d.serverContent.modelTurn.parts)||[];
-              for(var i=0;i<p.length;i++){
-                if(p[i].inlineData&&p[i].inlineData.data){setV('speaking');setS('KITT speaking...');playChunk(p[i].inlineData.data);rstTmr()}
-                  if(p[i].text){document.getElementById('transcript').textContent=p[i].text}
-              }
-              if(d.serverContent.turnComplete){setTimeout(function(){if(isOn){setV('listening');setS('Listening...');rstTmr()}},500)}
-            }
-              if(d.error){lg('Err:'+JSON.stringify(d.error));setS('Error');stopWS();setTimeout(startWS,3000)}
+
+  .kitt-eye {
+    position: relative;
+    width: 200px;
+    height: 200px;
+  }
+
+  .kitt-eye-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--kitt-red-dim);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .kitt-eye-ring.active {
+    border-color: var(--kitt-red);
+    box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3), inset 0 0 30px rgba(255,26,26,0.1);
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+
+  .kitt-eye-ring.speaking {
+    animation: speak-pulse 0.4s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.2); }
+    50% { box-shadow: 0 0 60px var(--kitt-red-glow), 0 0 100px rgba(255,26,26,0.35); }
+  }
+
+  @keyframes speak-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3); }
+    100% { transform: scale(1.03); box-shadow: 0 0 70px var(--kitt-red-glow), 0 0 120px rgba(255,26,26,0.45); }
+  }
+
+  .kitt-eye-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 42px;
+    color: var(--kitt-red);
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px var(--kitt-red-glow);
+    opacity: 0.9;
+  }
+
+  .kitt-status-text {
+    font-size: 13px;
+    color: var(--kitt-text-dim);
+    text-align: center;
+    letter-spacing: 1px;
+    min-height: 20px;
+  }
+
+  /* ===== Offer Panel ===== */
+  .offer-panel {
+    margin: 0 16px;
+    padding: 12px 16px;
+    background: var(--kitt-surface);
+    border-radius: 8px;
+    border-left: 3px solid var(--kitt-text-dim);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s, transform 0.4s, border-color 0.3s;
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  .offer-panel.visible {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+    margin-bottom: 12px;
+  }
+
+  .offer-panel.accept { border-left-color: var(--kitt-green); }
+  .offer-panel.reject { border-left-color: var(--kitt-red); }
+
+  .offer-decision {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .offer-decision.accept { color: var(--kitt-green); }
+  .offer-decision.reject { color: var(--kitt-red); }
+
+  .offer-detail {
+    font-size: 13px;
+    color: var(--kitt-text);
+    line-height: 1.5;
+  }
+
+  /* ===== Transcript ===== */
+  .transcript-area {
+    padding: 0 16px 8px;
+    max-height: 120px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .transcript-line {
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 4px 0;
+    color: var(--kitt-text-dim);
+    animation: fade-in 0.3s ease;
+  }
+
+  .transcript-line.kitt { color: var(--kitt-red); }
+  .transcript-line.user { color: var(--kitt-text); }
+  .transcript-line.system { color: var(--kitt-amber); font-size: 11px; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ===== Bottom Controls ===== */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .mic-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid var(--kitt-red-dim);
+    background: transparent;
+    color: var(--kitt-text-dim);
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mic-btn.active {
+    border-color: var(--kitt-red);
+    color: var(--kitt-red);
+    box-shadow: 0 0 20px rgba(255,26,26,0.3);
+    animation: mic-glow 1.5s ease-in-out infinite;
+  }
+
+  @keyframes mic-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,26,26,0.3); }
+    50% { box-shadow: 0 0 35px rgba(255,26,26,0.5); }
+  }
+
+  .mic-btn:active { transform: scale(0.95); }
+
+  .settings-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid #333;
+    background: transparent;
+    color: var(--kitt-text-dim);
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  /* ===== API Key Modal ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+
+  .modal-overlay.hidden { display: none; }
+
+  .modal {
+    background: var(--kitt-surface);
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .modal h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    color: var(--kitt-red);
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+  }
+
+  .modal input {
+    width: 100%;
+    padding: 10px 12px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: var(--kitt-text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .modal input:focus { outline: none; border-color: var(--kitt-red); }
+
+  .modal-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--kitt-red);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+
+  .modal-btn:active { opacity: 0.8; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 2px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 1px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <span class="status-badge disconnected" id="connStatus">OFFLINE</span>
+    <span class="status-badge firebase" id="fbStatus">Firebase --</span>
+  </div>
+
+  <!-- KITT Eye -->
+  <div class="kitt-eye-container">
+    <div class="kitt-eye" id="kittEye">
+      <div class="kitt-eye-ring" id="eyeRing"></div>
+      <div class="kitt-eye-label">KITT</div>
+    </div>
+    <div class="kitt-status-text" id="statusText">タップして起動</div>
+  </div>
+
+  <!-- Offer Panel -->
+  <div class="offer-panel" id="offerPanel">
+    <div class="offer-decision" id="offerDecision"></div>
+    <div class="offer-detail" id="offerDetail"></div>
+  </div>
+
+  <!-- Transcript -->
+  <div class="transcript-area" id="transcript"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="settings-btn" id="settingsBtn">⚙</button>
+    <button class="mic-btn" id="micBtn">🎙</button>
+    <button class="settings-btn" id="clearBtn">✕</button>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>GEMINI API KEY</h2>
+    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off">
+    <button class="modal-btn" id="apiKeySave">INITIALIZE</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// KITT Voice PWA - Gemini Live Audio + Firebase RTDB
+// ============================================================
+
+const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app';
+const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+const GEMINI_MODEL = 'models/gemini-2.0-flash-live-001';
+
+// --- State ---
+let apiKey = localStorage.getItem('kitt_api_key') || '';
+let ws = null;
+let audioCtx = null;
+let micStream = null;
+let micProcessor = null;
+let isConnected = false;
+let isSpeaking = false;
+let silenceTimer = null;
+let firebaseEventSource = null;
+let lastOfferTimestamp = null;
+
+// --- DOM Elements ---
+const $ = id => document.getElementById(id);
+const connStatus = $('connStatus');
+const fbStatus = $('fbStatus');
+const eyeRing = $('eyeRing');
+const statusText = $('statusText');
+const offerPanel = $('offerPanel');
+const offerDecision = $('offerDecision');
+const offerDetail = $('offerDetail');
+const transcript = $('transcript');
+const micBtn = $('micBtn');
+const settingsBtn = $('settingsBtn');
+const clearBtn = $('clearBtn');
+const apiModal = $('apiModal');
+const apiKeyInput = $('apiKeyInput');
+const apiKeySave = $('apiKeySave');
+
+// ============================================================
+// Init
+// ============================================================
+function init() {
+  if (apiKey) {
+    apiModal.classList.add('hidden');
+    startFirebaseListener();
+  }
+
+  micBtn.addEventListener('click', toggleConnection);
+  settingsBtn.addEventListener('click', () => {
+    apiModal.classList.remove('hidden');
+    apiKeyInput.value = apiKey;
+  });
+  clearBtn.addEventListener('click', clearTranscript);
+  apiKeySave.addEventListener('click', saveApiKey);
+
+  // Prevent iOS zoom on double-tap
+  document.addEventListener('dblclick', e => e.preventDefault());
+}
+
+function saveApiKey() {
+  const key = apiKeyInput.value.trim();
+  if (!key) return;
+  apiKey = key;
+  localStorage.setItem('kitt_api_key', key);
+  apiModal.classList.add('hidden');
+  startFirebaseListener();
+  setStatus('connecting', 'READY');
+  statusText.textContent = 'タップして起動';
+}
+
+// ============================================================
+// UI Helpers
+// ============================================================
+function setStatus(state, text) {
+  connStatus.className = `status-badge ${state}`;
+  connStatus.textContent = text;
+}
+
+function setEyeState(state) {
+  eyeRing.className = 'kitt-eye-ring';
+  if (state === 'active') eyeRing.classList.add('active');
+  if (state === 'speaking') { eyeRing.classList.add('active'); eyeRing.classList.add('speaking'); }
+}
+
+function addTranscript(text, type) {
+  // Filter out Gemini thinking/reasoning artifacts
+  const cleaned = filterThinking(text);
+  if (!cleaned) return;
+
+  const div = document.createElement('div');
+  div.className = `transcript-line ${type}`;
+  div.textContent = cleaned;
+  transcript.appendChild(div);
+  transcript.scrollTop = transcript.scrollHeight;
+
+  // Keep only last 20 lines
+  while (transcript.children.length > 20) {
+    transcript.removeChild(transcript.firstChild);
+  }
+}
+
+function clearTranscript() {
+  transcript.innerHTML = '';
+  offerPanel.classList.remove('visible', 'accept', 'reject');
+}
+
+function showOffer(data) {
+  const decision = data.decision || '';
+  const text = data.text || '';
+
+  offerDecision.textContent = decision === 'accept' ? '▲ ACCEPT' : '▼ REJECT';
+  offerDecision.className = `offer-decision ${decision}`;
+  offerDetail.textContent = text;
+
+  offerPanel.className = `offer-panel visible ${decision}`;
+
+  // Auto-hide after 30 seconds
+  setTimeout(() => {
+    offerPanel.classList.remove('visible');
+  }, 30000);
+}
+
+// ============================================================
+// Text Filtering - Remove Gemini thinking artifacts
+// ============================================================
+function filterThinking(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  let t = text;
+
+  // Remove **Header** thinking blocks
+  t = t.replace(/\*\*[^*]+\*\*\s*/g, '');
+
+  // Remove common thinking patterns
+  const patterns = [
+    /^I'm encountering .+/gm,
+    /^Given the situation.+/gm,
+    /^This will .+ensuring.+/gm,
+    /^Let me .+before responding.*/gm,
+    /^I need to .+carefully.*/gm,
+    /^I suspect .+/gm,
+    /^My response .+/gm,
+    /^I will .+polite.+/gm,
+    /^I should .+/gm,
+    /^Okay, .+let me.+/gm,
+  ];
+
+  for (const p of patterns) {
+    t = t.replace(p, '');
+  }
+
+  // Remove HTML-like fragments that leaked
+  t = t.replace(/<\/?[a-z][a-z0-9]*\s*\/?>/gi, '');
+  t = t.replace(/[a-z]+>/gi, '');
+
+  // Clean up whitespace
+  t = t.replace(/\n{2,}/g, '\n').trim();
+
+  return t;
+}
+
+// ============================================================
+// Firebase RTDB Listener (Server-Sent Events)
+// ============================================================
+function startFirebaseListener() {
+  if (firebaseEventSource) {
+    firebaseEventSource.close();
+  }
+
+  const url = `${FIREBASE_DB_URL}/offer_tts.json`;
+
+  // Use polling instead of SSE for broader compatibility
+  fbStatus.textContent = 'Firebase Active';
+  fbStatus.className = 'status-badge firebase';
+
+  // Poll every 3 seconds
+  setInterval(async () => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.timestamp) return;
+
+      // Only process new offers
+      if (data.timestamp !== lastOfferTimestamp) {
+        lastOfferTimestamp = data.timestamp;
+        showOffer(data);
+        addTranscript(`[OFFER] ${data.text}`, 'system');
+
+        // If KITT is connected, inject offer context
+        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+          sendTextToGemini(`新しいUberEatsオファーが来た。判定結果を報告しろ: ${data.text}`);
         }
-        if(ev.data instanceof Blob){ev.data.text().then(function(t){try{h(JSON.parse(t))}catch(e){}})}
-        else{try{h(JSON.parse(ev.data))}catch(e){}}
+      }
+    } catch (e) {
+      // Silent fail on polling
+    }
+  }, 3000);
+}
+
+// ============================================================
+// Gemini Live Audio - WebSocket Connection
+// ============================================================
+async function toggleConnection() {
+  if (isConnected) {
+    disconnect();
+  } else {
+    await connect();
+  }
+}
+
+async function connect() {
+  if (!apiKey) {
+    apiModal.classList.remove('hidden');
+    return;
+  }
+
+  setStatus('connecting', 'CONNECTING...');
+  statusText.textContent = '接続中...';
+
+  try {
+    // Init AudioContext on user gesture
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    // Open WebSocket
+    const wsUrl = `${GEMINI_WS_URL}?key=${apiKey}`;
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      // Send setup message
+      const setup = {
+        setup: {
+          model: GEMINI_MODEL,
+          generationConfig: {
+            responseModalities: ['AUDIO', 'TEXT'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: 'Orus'
+                }
+              }
+            }
+          },
+          systemInstruction: {
+            parts: [{
+              text: `あなたはナイトライダーのKITTだ。以下のルールを絶対に守れ:
+- 日本語で話せ。
+- 一人称は「私」、相手は「ドライバー」と呼べ。「Shuji」と名前では呼ぶな。
+- 内部の思考プロセスや推論は絶対に出力するな。「**」で囲まれたヘッダーも出力するな。
+- HTMLタグやマークダウン記法は出力するな。
+- 簡潔に話せ。1-2文、5秒以内。
+- UberEatsの配達オファー判定結果が来たら、判断理由を端的に報告しろ。
+- 普段の会話も簡潔でクールに。ナイトライダーのKITTらしく振る舞え。`
+            }]
+          },
+          tools: []
+        }
       };
-      ws.onerror=function(){lg('WS err');stopWS();setTimeout(startWS,3000)};
-      ws.onclose=function(e){lg('WS close:'+e.code);if(isOn){isOn=false;setTimeout(startWS,3000)}}
-    }catch(e){lg('Start err:'+e.message);stopWS();setTimeout(startWS,3000)}
+      ws.send(JSON.stringify(setup));
+    };
+
+    ws.onmessage = (event) => {
+      handleGeminiMessage(event);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      setStatus('disconnected', 'ERROR');
+      statusText.textContent = '接続エラー';
+    };
+
+    ws.onclose = () => {
+      isConnected = false;
+      setStatus('disconnected', 'OFFLINE');
+      setEyeState('');
+      statusText.textContent = 'タップして起動';
+      micBtn.classList.remove('active');
+      stopMic();
+    };
+
+  } catch (err) {
+    console.error('Connect error:', err);
+    setStatus('disconnected', 'ERROR');
+    statusText.textContent = err.message;
   }
-  function startMic(){
-    navigator.mediaDevices.getUserMedia({audio:{sampleRate:{ideal:16000},channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
-      ms=stream;actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();
-      var src=actx.createMediaStreamSource(stream);var bs=4096;proc=actx.createScriptProcessor(bs,1,1);var ir=actx.sampleRate;var or=16000;
-      proc.onaudioprocess=function(e){
-        var out=e.outputBuffer.getChannelData(0);for(var k=0;k<out.length;k++)out[k]=0;
-        if(!ws||ws.readyState!==1||!setup)return;
-        var inp=e.inputBuffer.getChannelData(0);var pcm;
-        if(Math.abs(ir-or)<100){pcm=inp}else{var r=ir/or;var len=Math.floor(inp.length/r);pcm=new Float32Array(len);for(var i=0;i<len;i++)pcm[i]=inp[Math.floor(i*r)]}
-        var rms=0;for(var i=0;i<pcm.length;i++)rms+=pcm[i]*pcm[i];rms=Math.sqrt(rms/pcm.length);if(rms>0.01)rstTmr();
-        var i16=new Int16Array(pcm.length);for(var i=0;i<pcm.length;i++){var s=Math.max(-1,Math.min(1,pcm[i]));i16[i]=s<0?s*32768:s*32767}
-        try{ws.send(JSON.stringify({realtimeInput:{mediaChunks:[{mimeType:'audio/pcm;rate=16000',data:a2b(i16.buffer)}]}}))}catch(x){}
-      };
-      src.connect(proc);var mt=actx.createGain();mt.gain.setValueAtTime(0,actx.currentTime);proc.connect(mt);mt.connect(actx.destination);lg('Mic on');
-    }).catch(function(e){lg('Mic err:'+e.message);setS('Mic denied')})
+}
+
+function disconnect() {
+  if (ws) {
+    ws.close();
+    ws = null;
   }
-  function playChunk(b64){
-    try{
-      if(!pctx||pctx.state==='closed')pctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
-        if(pctx.state==='suspended')pctx.resume();
-          var ab=b2a(b64);var i16=new Int16Array(ab);var f32=new Float32Array(i16.length);for(var i=0;i<i16.length;i++)f32[i]=i16[i]/32768.0;
-      var buf=pctx.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);var s=pctx.createBufferSource();s.buffer=buf;s.connect(pctx.destination);
-      var now=pctx.currentTime;if(npt<now)npt=now;s.start(npt);npt+=buf.duration;
-    }catch(e){lg('Play err:'+e.message)}
+  stopMic();
+  isConnected = false;
+  isSpeaking = false;
+  setStatus('disconnected', 'OFFLINE');
+  setEyeState('');
+  statusText.textContent = 'タップして起動';
+  micBtn.classList.remove('active');
+  clearSilenceTimer();
+}
+
+// ============================================================
+// Gemini Message Handler
+// ============================================================
+let audioQueue = [];
+let isPlayingAudio = false;
+let currentTranscriptText = '';
+
+async function handleGeminiMessage(event) {
+  try {
+    let msg;
+    if (event.data instanceof Blob) {
+      const text = await event.data.text();
+      msg = JSON.parse(text);
+    } else {
+      msg = JSON.parse(event.data);
+    }
+
+    // Setup complete
+    if (msg.setupComplete) {
+      isConnected = true;
+      setStatus('connected', 'ONLINE');
+      setEyeState('active');
+      statusText.textContent = 'Listening...';
+      micBtn.classList.add('active');
+      await startMic();
+      resetSilenceTimer();
+      return;
+    }
+
+    // Server content (audio + text responses)
+    if (msg.serverContent) {
+      const sc = msg.serverContent;
+
+      // Model turn
+      if (sc.modelTurn && sc.modelTurn.parts) {
+        for (const part of sc.modelTurn.parts) {
+          // Audio data
+          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
+            const audioBytes = base64ToArrayBuffer(part.inlineData.data);
+            audioQueue.push(audioBytes);
+            if (!isPlayingAudio) {
+              playAudioQueue();
+            }
+          }
+
+          // Text data
+          if (part.text) {
+            const cleaned = filterThinking(part.text);
+            if (cleaned) {
+              currentTranscriptText += cleaned;
+            }
+          }
+        }
+      }
+
+      // Turn complete
+      if (sc.turnComplete) {
+        if (currentTranscriptText) {
+          addTranscript(currentTranscriptText, 'kitt');
+          currentTranscriptText = '';
+        }
+        isSpeaking = false;
+        setEyeState('active');
+        statusText.textContent = 'Listening...';
+        resetSilenceTimer();
+      }
+
+      // Interrupted
+      if (sc.interrupted) {
+        audioQueue = [];
+        isPlayingAudio = false;
+        isSpeaking = false;
+        currentTranscriptText = '';
+        setEyeState('active');
+      }
+    }
+
+  } catch (e) {
+    console.error('Message parse error:', e);
   }
-  function stopWS(){
-    isOn=false;setup=false;npt=0;
-    if(stmr){clearTimeout(stmr);stmr=null}
-      setV('');
-    if(proc){try{proc.disconnect()}catch(e){}proc=null}
-      if(ms){ms.getTracks().forEach(function(t){t.stop()});ms=null}
-        if(ws){try{ws.close()}catch(e){}ws=null}
-          if(actx&&actx.state!=='closed'){actx.close();actx=null}
+}
+
+// ============================================================
+// Audio Playback
+// ============================================================
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-  window.saveKeyAndStart=saveKeyAndStart;
-  </script>
-  </body>
-</html>html></p></h2>
-  </body>
-  </style></title>
-  </head>
+  return bytes.buffer;
+}
+
+async function playAudioQueue() {
+  isPlayingAudio = true;
+  isSpeaking = true;
+  setEyeState('speaking');
+  statusText.textContent = 'Speaking...';
+
+  while (audioQueue.length > 0) {
+    const audioData = audioQueue.shift();
+    await playPcmAudio(audioData);
+  }
+
+  isPlayingAudio = false;
+  if (!audioQueue.length) {
+    isSpeaking = false;
+  }
+}
+
+function playPcmAudio(arrayBuffer) {
+  return new Promise((resolve) => {
+    try {
+      if (!audioCtx) { resolve(); return; }
+
+      const int16 = new Int16Array(arrayBuffer);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768;
+      }
+
+      const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
+      audioBuffer.getChannelData(0).set(float32);
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioCtx.destination);
+      source.onended = resolve;
+      source.start();
+    } catch (e) {
+      console.error('Audio playback error:', e);
+      resolve();
+    }
+  });
+}
+
+// ============================================================
+// Microphone Capture
+// ============================================================
+async function startMic() {
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        sampleRate: 16000,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+
+    const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const source = micCtx.createMediaStreamSource(micStream);
+
+    // ScriptProcessor (deprecated but widely supported)
+    micProcessor = micCtx.createScriptProcessor(4096, 1, 1);
+    micProcessor.onaudioprocess = (e) => {
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      const float32 = e.inputBuffer.getChannelData(0);
+
+      // Voice activity detection (simple energy-based)
+      let energy = 0;
+      for (let i = 0; i < float32.length; i++) {
+        energy += float32[i] * float32[i];
+      }
+      energy = energy / float32.length;
+
+      if (energy > 0.0005) {
+        resetSilenceTimer();
+      }
+
+      // Convert to 16-bit PCM
+      const int16 = new Int16Array(float32.length);
+      for (let i = 0; i < float32.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+
+      // Send to Gemini
+      const base64 = arrayBufferToBase64(int16.buffer);
+      try {
+        ws.send(JSON.stringify({
+          realtimeInput: {
+            mediaChunks: [{
+              mimeType: 'audio/pcm;rate=16000',
+              data: base64
+            }]
+          }
+        }));
+      } catch (e) {
+        // Connection might be closing
+      }
+    };
+
+    source.connect(micProcessor);
+    micProcessor.connect(micCtx.destination);
+
+  } catch (err) {
+    console.error('Mic error:', err);
+    addTranscript('マイクへのアクセスが拒否されました', 'system');
+  }
+}
+
+function stopMic() {
+  if (micProcessor) {
+    micProcessor.disconnect();
+    micProcessor = null;
+  }
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// ============================================================
+// Send Text to Gemini (for offer injection)
+// ============================================================
+function sendTextToGemini(text) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    ws.send(JSON.stringify({
+      clientContent: {
+        turns: [{
+          role: 'user',
+          parts: [{ text: text }]
+        }],
+        turnComplete: true
+      }
+    }));
+  } catch (e) {
+    console.error('Send text error:', e);
+  }
+}
+
+// ============================================================
+// Silence Timer (10-second auto-disconnect)
+// ============================================================
+function resetSilenceTimer() {
+  clearSilenceTimer();
+  silenceTimer = setTimeout(() => {
+    if (isConnected && !isSpeaking) {
+      addTranscript('10秒無音 - 自動切断', 'system');
+      disconnect();
+    }
+  }, 10000);
+}
+
+function clearSilenceTimer() {
+  if (silenceTimer) {
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+  }
+}
+
+// ============================================================
+// Boot
+// ============================================================
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
