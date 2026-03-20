@@ -710,7 +710,7 @@ async function handleGeminiMessage(event) {
           }
 
           // Text data
-          if (part.text) {
+          if (false && part.text) {
             const cleaned = filterThinking(part.text);
             if (cleaned) {
               currentTranscriptText += cleaned;
