@@ -364,7 +364,7 @@
 
 const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app';
 const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-const GEMINI_MODEL = 'models/gemini-2.0-flash-live-001';
+const GEMINI_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
 
 // --- State ---
 let apiKey = localStorage.getItem('kitt_api_key') || '';
@@ -596,11 +596,11 @@ async function connect() {
         setup: {
           model: GEMINI_MODEL,
           generationConfig: {
-            responseModalities: ['AUDIO', 'TEXT'],
+            responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: 'Orus'
+                  voiceName: 'Zephyr'
                 }
               }
             }
