@@ -57,44 +57,30 @@
   var app=initializeApp(FC);var db=getDatabase(app);var tRef=ref(db,'offer_tts');
   function initFB(){
     onValue(tRef,function(snap){
-      var d=snap.val();if(!d||!d.text)return;
+      var d=snap.val();if(!d||!d.tts_text)return;
       var t=d.timestamp||0;if(t<=lastTs)return;lastTs=t;
-      if(d.offer||d.context){kittData=d;lg('Data updated: '+d.offer?.store_name);}
-      lg('FB TTS:'+d.text);doTTS(d);
+      kittData=d;lg('Data updated: '+(d.store_name||d.decision||''));
+      lg('FB TTS:'+d.tts_text);doTTS(d);
     });
     document.getElementById('tts-indicator').style.display='block';lg('FB listener on');
   }
   function buildContext(d){
     var lines=[];
-    if(d.offer){
-      var o=d.offer;
-      lines.push('【最新オファー判定】');
-      lines.push('判定:'+o.decision+' 店:'+o.store_name+' 報酬:'+o.reward+'円 距離:'+o.distance+'km 時間:'+o.duration+'分');
-      lines.push('推定時給:'+o.estimated_hourly_rate+'円 確信度:'+o.confidence+'% 比較:'+o.comparison);
-      lines.push('理由:'+o.reason);
-      lines.push('詳細:'+o.detail);
+    if(d.decision){
+      lines.push(':'+d.decision.toUpperCase()+' :'+d.confidence);
+      lines.push(':'+d.store_name+' :'+d.reward+' :'+d.distance_km+'km '+d.duration_min+'');
+      lines.push(':'+d.estimated_hourly_rate+' km:'+d.reward_per_km+'');
     }
-      if(d.context){
-        var c=d.context;
-        lines.push('【環境】');
-        lines.push('現在地:'+c.location+' GPS:'+c.gps);
-        lines.push('天気:'+c.weather);
-        lines.push('交通:'+c.traffic);
-    if(c.coefficients){
-      var coefStr=c.coefficients;
-      lines.push('【係数(なんでもBOX)】\n'+coefStr);
-      try{
-        var coefObj=JSON.parse(coefStr);
-        if(coefObj.quest){
-          lines.push('【クエスト情報】\n'+coefObj.quest);
-        }
-      }catch(e){}
-    }
-      }
-        return lines.join('\n');
+    if(d.key_factors&&d.key_factors.length)lines.push(':'+d.key_factors.join(''));
+    if(d.store_context)lines.push(':'+d.store_context.verdict+(d.store_context.reward_vs_usual?' '+d.store_context.reward_vs_usual:''));
+    if(d.market_context)lines.push(':'+d.market_context.comparison);
+    if(d.time_context)lines.push(':'+d.time_context.comparison);
+    if(d.quest_context)lines.push(':'+d.quest_context.description+' :'+d.quest_context.effective_reward+'');
+    if(d.score_breakdown)lines.push(':'+d.score_breakdown.total+'/'+d.score_breakdown.threshold);
+    return lines.join('\n');
   }
   function doTTS(d){
-    var txt=d.text||d;
+    var txt=d.tts_text||d;
     if(!txt)return;
       if(!ttsOK){lg('TTS locked');return;}
         setV('tts');setS('Offer Report...');
@@ -103,7 +89,7 @@
       lg('TTS via Gemini');
       var ctx=typeof d==='object'?buildContext(d):'';
       var prompt='オファー判定データが届きました。';
-      if(ctx)prompt+='\n'+ctx+'\n';
+      if(ctx)prompt+='KITT1-2tts_text15';
         prompt+='このデータをもとにKITTとして判断理由を簡潔に解説して。店名や金額は既に通知済みなので省略し、なぜこの判断になったか係数や条件面を中心に2文程度で。クエスト情報がある場合はクエスト達成への影響も一言触れて。';
       try{ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:prompt}]}],turnComplete:true}}));}catch(e){lg('WS send err:'+e.message);}
     }else{
