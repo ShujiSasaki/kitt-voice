@@ -633,11 +633,11 @@ async function connect() {
       statusText.textContent = '接続エラー';
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       isConnected = false;
       setStatus('disconnected', 'OFFLINE');
       setEyeState('');
-      statusText.textContent = 'タップして起動';
+      statusText.textContent = '切断(' + event.code + ')';
       micBtn.classList.remove('active');
       stopMic();
     };
