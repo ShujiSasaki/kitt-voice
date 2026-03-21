@@ -1,320 +1,333 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#000000">
-<title>KITT</title>
-<link rel="manifest" href="manifest.json">
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#000000">
+  <title>KITT</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  :root {
-    --kitt-red: #ff1a1a;
-    --kitt-red-glow: rgba(255, 26, 26, 0.6);
-    --kitt-red-dim: rgba(255, 26, 26, 0.15);
-    --kitt-amber: #ffaa00;
-    --kitt-green: #00ff66;
-    --kitt-bg: #0a0a0a;
-    --kitt-surface: #111111;
-    --kitt-text: #cccccc;
-    --kitt-text-dim: #666666;
-  }
+    :root {
+      --kitt-red: #ff1a1a;
+      --kitt-red-glow: rgba(255, 26, 26, 0.6);
+      --kitt-red-dim: rgba(255, 26, 26, 0.15);
+      --kitt-amber: #ffaa00;
+      --kitt-green: #00ff66;
+      --kitt-bg: #0a0a0a;
+      --kitt-surface: #111111;
+      --kitt-text: #cccccc;
+      --kitt-text-dim: #666666;
+    }
 
-  html, body {
-    height: 100%;
-    background: var(--kitt-bg);
-    color: var(--kitt-text);
-    font-family: 'Share Tech Mono', monospace;
-    overflow: hidden;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
+    html, body {
+      height: 100%;
+      background: var(--kitt-bg);
+      color: var(--kitt-text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  .app {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    height: 100dvh;
-  }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      height: 100dvh;
+    }
 
-  /* ===== Header ===== */
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    min-height: 44px;
-  }
+    /* ===== Header ===== */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      min-height: 44px;
+    }
 
-  .status-badge {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 3px;
-    letter-spacing: 0.5px;
-    font-family: 'Share Tech Mono', monospace;
-  }
+    .status-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      font-family: 'Share Tech Mono', monospace;
+    }
 
-  .status-badge.connected { background: rgba(0,255,102,0.15); color: var(--kitt-green); }
-  .status-badge.disconnected { background: rgba(255,26,26,0.15); color: var(--kitt-red); }
-  .status-badge.connecting { background: rgba(255,170,0,0.15); color: var(--kitt-amber); }
-  .status-badge.firebase { background: rgba(0,255,102,0.1); color: var(--kitt-green); font-size: 10px; }
+    .status-badge.connected { background: rgba(0,255,102,0.15); color: var(--kitt-green); }
+    .status-badge.disconnected { background: rgba(255,26,26,0.15); color: var(--kitt-red); }
+    .status-badge.connecting { background: rgba(255,170,0,0.15); color: var(--kitt-amber); }
+    .status-badge.firebase { background: rgba(0,255,102,0.1); color: var(--kitt-green); font-size: 10px; }
 
-  /* ===== KITT Eye ===== */
-  .kitt-eye-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 20px;
-  }
+    /* ===== KITT Eye ===== */
+    .kitt-eye-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 20px;
+    }
 
-  .kitt-eye {
-    position: relative;
-    width: 200px;
-    height: 200px;
-  }
+    .kitt-eye {
+      position: relative;
+      width: 200px;
+      height: 200px;
+    }
 
-  .kitt-eye-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 3px solid var(--kitt-red-dim);
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
+    .kitt-eye-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 3px solid var(--kitt-red-dim);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
 
-  .kitt-eye-ring.active {
-    border-color: var(--kitt-red);
-    box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3), inset 0 0 30px rgba(255,26,26,0.1);
-    animation: pulse-ring 2s ease-in-out infinite;
-  }
+    .kitt-eye-ring.active {
+      border-color: var(--kitt-red);
+      box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3), inset 0 0 30px rgba(255,26,26,0.1);
+      animation: pulse-ring 2s ease-in-out infinite;
+    }
 
-  .kitt-eye-ring.speaking {
-    animation: speak-pulse 0.4s ease-in-out infinite alternate;
-  }
+    .kitt-eye-ring.speaking {
+      animation: speak-pulse 0.4s ease-in-out infinite alternate;
+    }
 
-  @keyframes pulse-ring {
-    0%, 100% { box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.2); }
-    50% { box-shadow: 0 0 60px var(--kitt-red-glow), 0 0 100px rgba(255,26,26,0.35); }
-  }
+    @keyframes pulse-ring {
+      0%, 100% { box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.2); }
+      50% { box-shadow: 0 0 60px var(--kitt-red-glow), 0 0 100px rgba(255,26,26,0.35); }
+    }
 
-  @keyframes speak-pulse {
-    0% { transform: scale(1); box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3); }
-    100% { transform: scale(1.03); box-shadow: 0 0 70px var(--kitt-red-glow), 0 0 120px rgba(255,26,26,0.45); }
-  }
+    @keyframes speak-pulse {
+      0% { transform: scale(1); box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3); }
+      100% { transform: scale(1.03); box-shadow: 0 0 70px var(--kitt-red-glow), 0 0 120px rgba(255,26,26,0.45); }
+    }
 
-  .kitt-eye-label {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    font-size: 42px;
-    color: var(--kitt-red);
-    letter-spacing: 6px;
-    text-shadow: 0 0 20px var(--kitt-red-glow);
-    opacity: 0.9;
-  }
+    .kitt-eye-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 42px;
+      color: var(--kitt-red);
+      letter-spacing: 6px;
+      text-shadow: 0 0 20px var(--kitt-red-glow);
+      opacity: 0.9;
+    }
 
-  .kitt-status-text {
-    font-size: 13px;
-    color: var(--kitt-text-dim);
-    text-align: center;
-    letter-spacing: 1px;
-    min-height: 20px;
-  }
+    .kitt-status-text {
+      font-size: 13px;
+      color: var(--kitt-text-dim);
+      text-align: center;
+      letter-spacing: 1px;
+      min-height: 20px;
+    }
 
-  /* ===== Offer Panel ===== */
-  .offer-panel {
-    margin: 0 16px;
-    padding: 12px 16px;
-    background: var(--kitt-surface);
-    border-radius: 8px;
-    border-left: 3px solid var(--kitt-text-dim);
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.4s, transform 0.4s, border-color 0.3s;
-    max-height: 0;
-    overflow: hidden;
-  }
+    /* ===== Offer Panel ===== */
+    .offer-panel {
+      margin: 0 16px;
+      padding: 12px 16px;
+      background: var(--kitt-surface);
+      border-radius: 8px;
+      border-left: 3px solid var(--kitt-text-dim);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.4s, transform 0.4s, border-color 0.3s;
+      max-height: 0;
+      overflow: hidden;
+    }
 
-  .offer-panel.visible {
-    opacity: 1;
-    transform: translateY(0);
-    max-height: 200px;
-    margin-bottom: 12px;
-  }
+    .offer-panel.visible {
+      opacity: 1;
+      transform: translateY(0);
+      max-height: 250px;
+      margin-bottom: 12px;
+    }
 
-  .offer-panel.accept { border-left-color: var(--kitt-green); }
-  .offer-panel.reject { border-left-color: var(--kitt-red); }
+    .offer-panel.accept { border-left-color: var(--kitt-green); }
+    .offer-panel.reject { border-left-color: var(--kitt-red); }
 
-  .offer-decision {
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-  }
+    .offer-decision {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
 
-  .offer-decision.accept { color: var(--kitt-green); }
-  .offer-decision.reject { color: var(--kitt-red); }
+    .offer-decision.accept { color: var(--kitt-green); }
+    .offer-decision.reject { color: var(--kitt-red); }
 
-  .offer-detail {
-    font-size: 13px;
-    color: var(--kitt-text);
-    line-height: 1.5;
-  }
+    .offer-detail {
+      font-size: 13px;
+      color: var(--kitt-text);
+      line-height: 1.5;
+    }
 
-  /* ===== Transcript ===== */
-  .transcript-area {
-    padding: 0 16px 8px;
-    max-height: 120px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+    .offer-metrics {
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--kitt-text-dim);
+    }
 
-  .transcript-line {
-    font-size: 13px;
-    line-height: 1.5;
-    padding: 4px 0;
-    color: var(--kitt-text-dim);
-    animation: fade-in 0.3s ease;
-  }
+    .offer-metrics span {
+      white-space: nowrap;
+    }
 
-  .transcript-line.kitt { color: var(--kitt-red); }
-  .transcript-line.user { color: var(--kitt-text); }
-  .transcript-line.system { color: var(--kitt-amber); font-size: 11px; }
+    /* ===== Transcript ===== */
+    .transcript-area {
+      padding: 0 16px 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+    .transcript-line {
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 4px 0;
+      color: var(--kitt-text-dim);
+      animation: fade-in 0.3s ease;
+    }
 
-  /* ===== Bottom Controls ===== */
-  .controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-  }
+    .transcript-line.kitt { color: var(--kitt-red); }
+    .transcript-line.user { color: var(--kitt-text); }
+    .transcript-line.system { color: var(--kitt-amber); font-size: 11px; }
 
-  .mic-btn {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 2px solid var(--kitt-red-dim);
-    background: transparent;
-    color: var(--kitt-text-dim);
-    font-size: 24px;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-  .mic-btn.active {
-    border-color: var(--kitt-red);
-    color: var(--kitt-red);
-    box-shadow: 0 0 20px rgba(255,26,26,0.3);
-    animation: mic-glow 1.5s ease-in-out infinite;
-  }
+    /* ===== Bottom Controls ===== */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
 
-  @keyframes mic-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(255,26,26,0.3); }
-    50% { box-shadow: 0 0 35px rgba(255,26,26,0.5); }
-  }
+    .mic-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 2px solid var(--kitt-red-dim);
+      background: transparent;
+      color: var(--kitt-text-dim);
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  .mic-btn:active { transform: scale(0.95); }
+    .mic-btn.active {
+      border-color: var(--kitt-red);
+      color: var(--kitt-red);
+      box-shadow: 0 0 20px rgba(255,26,26,0.3);
+      animation: mic-glow 1.5s ease-in-out infinite;
+    }
 
-  .settings-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid #333;
-    background: transparent;
-    color: var(--kitt-text-dim);
-    font-size: 18px;
-    cursor: pointer;
-  }
+    @keyframes mic-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(255,26,26,0.3); }
+      50% { box-shadow: 0 0 35px rgba(255,26,26,0.5); }
+    }
 
-  /* ===== API Key Modal ===== */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-  }
+    .mic-btn:active { transform: scale(0.95); }
 
-  .modal-overlay.hidden { display: none; }
+    .settings-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid #333;
+      background: transparent;
+      color: var(--kitt-text-dim);
+      font-size: 18px;
+      cursor: pointer;
+    }
 
-  .modal {
-    background: var(--kitt-surface);
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 24px;
-    width: 100%;
-    max-width: 360px;
-  }
+    /* ===== API Key Modal ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
 
-  .modal h2 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 16px;
-    color: var(--kitt-red);
-    margin-bottom: 16px;
-    letter-spacing: 2px;
-  }
+    .modal-overlay.hidden { display: none; }
 
-  .modal input {
-    width: 100%;
-    padding: 10px 12px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 6px;
-    color: var(--kitt-text);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
+    .modal {
+      background: var(--kitt-surface);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 360px;
+    }
 
-  .modal input:focus { outline: none; border-color: var(--kitt-red); }
+    .modal h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      color: var(--kitt-red);
+      margin-bottom: 16px;
+      letter-spacing: 2px;
+    }
 
-  .modal-btn {
-    width: 100%;
-    padding: 10px;
-    background: var(--kitt-red);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px;
-    letter-spacing: 1px;
-    cursor: pointer;
-  }
+    .modal input {
+      width: 100%;
+      padding: 10px 12px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: var(--kitt-text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
 
-  .modal-btn:active { opacity: 0.8; }
+    .modal input:focus { outline: none; border-color: var(--kitt-red); }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 2px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #333; border-radius: 1px; }
-</style>
+    .modal-btn {
+      width: 100%;
+      padding: 10px;
+      background: var(--kitt-red);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .modal-btn:active { opacity: 0.8; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 1px; }
+  </style>
 </head>
 <body>
+
 <div class="app">
   <!-- Header -->
   <div class="header">
@@ -335,6 +348,7 @@
   <div class="offer-panel" id="offerPanel">
     <div class="offer-decision" id="offerDecision"></div>
     <div class="offer-detail" id="offerDetail"></div>
+    <div class="offer-metrics" id="offerMetrics"></div>
   </div>
 
   <!-- Transcript -->
@@ -360,6 +374,7 @@
 <script>
 // ============================================================
 // KITT Voice PWA - Gemini Live Audio + Firebase RTDB
+// Updated: 2026-03-21 - New RTDB structure support
 // ============================================================
 
 const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -377,6 +392,7 @@ let isSpeaking = false;
 let silenceTimer = null;
 let firebaseEventSource = null;
 let lastOfferTimestamp = null;
+let firebasePollTimer = null;
 
 // --- DOM Elements ---
 const $ = id => document.getElementById(id);
@@ -387,6 +403,7 @@ const statusText = $('statusText');
 const offerPanel = $('offerPanel');
 const offerDecision = $('offerDecision');
 const offerDetail = $('offerDetail');
+const offerMetrics = $('offerMetrics');
 const transcript = $('transcript');
 const micBtn = $('micBtn');
 const settingsBtn = $('settingsBtn');
@@ -438,20 +455,21 @@ function setStatus(state, text) {
 function setEyeState(state) {
   eyeRing.className = 'kitt-eye-ring';
   if (state === 'active') eyeRing.classList.add('active');
-  if (state === 'speaking') { eyeRing.classList.add('active'); eyeRing.classList.add('speaking'); }
+  if (state === 'speaking') {
+    eyeRing.classList.add('active');
+    eyeRing.classList.add('speaking');
+  }
 }
 
 function addTranscript(text, type) {
   // Filter out Gemini thinking/reasoning artifacts
   const cleaned = filterThinking(text);
   if (!cleaned) return;
-
   const div = document.createElement('div');
   div.className = `transcript-line ${type}`;
   div.textContent = cleaned;
   transcript.appendChild(div);
   transcript.scrollTop = transcript.scrollHeight;
-
   // Keep only last 20 lines
   while (transcript.children.length > 20) {
     transcript.removeChild(transcript.firstChild);
@@ -463,14 +481,44 @@ function clearTranscript() {
   offerPanel.classList.remove('visible', 'accept', 'reject');
 }
 
+// ============================================================
+// [UPDATED] Show Offer - New RTDB structure
+// Old: { text, timestamp, decision }
+// New: { offer: {...}, context: {...}, timestamp }
+// ============================================================
 function showOffer(data) {
-  const decision = data.decision || '';
-  const text = data.text || '';
+  // Support both old and new structure
+  const offer = data.offer || data;
+  const decision = offer.decision || '';
+  const storeName = offer.store_name || '';
+  const reward = offer.reward || 0;
+  const distanceKm = offer.distance_km || 0;
+  const durationMin = offer.duration_min || 0;
+  const hourlyRate = offer.estimated_hourly_rate || 0;
+  const reason = offer.reason || '';
+  const score = offer.score;
+  const confidence = offer.confidence || '';
 
+  // Decision header
   offerDecision.textContent = decision === 'accept' ? '▲ ACCEPT' : '▼ REJECT';
   offerDecision.className = `offer-decision ${decision}`;
-  offerDetail.textContent = text;
 
+  // Detail line: store name + reason
+  const detailParts = [];
+  if (storeName) detailParts.push(storeName);
+  if (reason) detailParts.push(reason);
+  offerDetail.textContent = detailParts.join(' — ') || `${reward}円 / ${distanceKm}km`;
+
+  // Metrics line: reward, distance, hourly rate, score
+  const metricParts = [];
+  if (reward) metricParts.push(`¥${reward}`);
+  if (distanceKm) metricParts.push(`${distanceKm}km`);
+  if (durationMin) metricParts.push(`${durationMin}分`);
+  if (hourlyRate) metricParts.push(`¥${Math.round(hourlyRate)}/h`);
+  if (score != null) metricParts.push(`S:${typeof score === 'number' ? score.toFixed(2) : score}`);
+  offerMetrics.innerHTML = metricParts.map(m => `<span>${m}</span>`).join('');
+
+  // Panel styling
   offerPanel.className = `offer-panel visible ${decision}`;
 
   // Auto-hide after 30 seconds
@@ -480,11 +528,47 @@ function showOffer(data) {
 }
 
 // ============================================================
+// [UPDATED] Build Gemini injection text from structured data
+// ============================================================
+function buildOfferInjectionText(data) {
+  const offer = data.offer || {};
+  const context = data.context || {};
+  const sd = offer.score_detail || {};
+  const scores = sd.scores || {};
+
+  const parts = [];
+  parts.push(`判定: ${offer.decision === 'accept' ? 'アクセプト' : 'リジェクト'}`);
+  if (offer.store_name) parts.push(`店: ${offer.store_name}`);
+  if (offer.reward) parts.push(`報酬: ${offer.reward}円`);
+  if (offer.distance_km) parts.push(`距離: ${offer.distance_km}km`);
+  if (offer.duration_min) parts.push(`${offer.duration_min}分`);
+  if (offer.estimated_hourly_rate) parts.push(`時給換算: ${Math.round(offer.estimated_hourly_rate)}円`);
+  if (offer.reason) parts.push(`理由: ${offer.reason}`);
+  if (offer.confidence) parts.push(`確信度: ${offer.confidence}`);
+
+  // Add score breakdown for richer KITT commentary
+  if (scores.hourly_rate != null) {
+    const hr = scores.hourly_rate;
+    if (hr > 1.3) parts.push('時給スコア非常に高い');
+    else if (hr < 0.7) parts.push('時給スコア低い');
+  }
+  if (scores.reward_per_km != null) {
+    const rpk = scores.reward_per_km;
+    if (rpk > 1.3) parts.push('km単価効率良い');
+    else if (rpk < 0.7) parts.push('km単価悪い');
+  }
+
+  // Time slot average for context
+  if (sd.timeSlotAvg) parts.push(`この時間帯の平均時給: ${Math.round(sd.timeSlotAvg)}円`);
+
+  return parts.join('、');
+}
+
+// ============================================================
 // Text Filtering - Remove Gemini thinking artifacts
 // ============================================================
 function filterThinking(text) {
   if (!text || typeof text !== 'string') return '';
-
   let t = text;
 
   // Remove **Header** thinking blocks
@@ -503,7 +587,6 @@ function filterThinking(text) {
     /^I should .+/gm,
     /^Okay, .+let me.+/gm,
   ];
-
   for (const p of patterns) {
     t = t.replace(p, '');
   }
@@ -514,26 +597,26 @@ function filterThinking(text) {
 
   // Clean up whitespace
   t = t.replace(/\n{2,}/g, '\n').trim();
-
   return t;
 }
 
 // ============================================================
-// Firebase RTDB Listener (Server-Sent Events)
+// [UPDATED] Firebase RTDB Listener (Polling)
+// Now handles: { offer: {...}, context: {...}, timestamp }
 // ============================================================
 function startFirebaseListener() {
-  if (firebaseEventSource) {
-    firebaseEventSource.close();
+  // Clear previous timer if any
+  if (firebasePollTimer) {
+    clearInterval(firebasePollTimer);
   }
 
   const url = `${FIREBASE_DB_URL}/offer_tts.json`;
 
-  // Use polling instead of SSE for broader compatibility
   fbStatus.textContent = 'Firebase Active';
   fbStatus.className = 'status-badge firebase';
 
   // Poll every 3 seconds
-  setInterval(async () => {
+  firebasePollTimer = setInterval(async () => {
     try {
       const res = await fetch(url);
       if (!res.ok) return;
@@ -543,12 +626,21 @@ function startFirebaseListener() {
       // Only process new offers
       if (data.timestamp !== lastOfferTimestamp) {
         lastOfferTimestamp = data.timestamp;
-        showOffer(data);
-        addTranscript(`[OFFER] ${data.text}`, 'system');
 
-        // If KITT is connected, inject offer context
+        // Show offer in UI (works with new structure)
+        showOffer(data);
+
+        // Build transcript summary
+        const offer = data.offer || {};
+        const summaryText = offer.store_name
+          ? `${offer.decision === 'accept' ? 'ACCEPT' : 'REJECT'} ${offer.store_name} ¥${offer.reward || 0}/${offer.distance_km || 0}km`
+          : (offer.reason || 'new offer');
+        addTranscript(`[OFFER] ${summaryText}`, 'system');
+
+        // If KITT is connected, inject structured offer data for voice report
         if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-          sendTextToGemini(`新しいUberEatsオファーが来た。判定結果を報告しろ: ${data.text}`);
+          const injectionText = buildOfferInjectionText(data);
+          sendTextToGemini(`新しいUberEatsオファーが来た。以下のデータで判定結果を報告しろ: ${injectionText}`);
         }
       }
     } catch (e) {
@@ -599,9 +691,7 @@ async function connect() {
             responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: 'Zephyr'
-                }
+                prebuiltVoiceConfig: { voiceName: 'Zephyr' }
               }
             }
           },
@@ -614,6 +704,8 @@ async function connect() {
 - HTMLタグやマークダウン記法は出力するな。
 - 簡潔に話せ。1-2文、5秒以内。
 - UberEatsの配達オファー判定結果が来たら、判断理由を端的に報告しろ。
+  例: 「アクセプト。時給2800円換算で効率的です」「リジェクト。距離の割に報酬が低い」
+  スコアの数値を読み上げる必要はない。人間が理解できる理由だけ伝えろ。
 - 普段の会話も簡潔でクールに。ナイトライダーのKITTらしく振る舞え。`
             }]
           },
@@ -709,7 +801,7 @@ async function handleGeminiMessage(event) {
             }
           }
 
-          // Text data
+          // Text data (disabled - audio only mode)
           if (false && part.text) {
             const cleaned = filterThinking(part.text);
             if (cleaned) {
@@ -740,7 +832,6 @@ async function handleGeminiMessage(event) {
         setEyeState('active');
       }
     }
-
   } catch (e) {
     console.error('Message parse error:', e);
   }
@@ -779,16 +870,13 @@ function playPcmAudio(arrayBuffer) {
   return new Promise((resolve) => {
     try {
       if (!audioCtx) { resolve(); return; }
-
       const int16 = new Int16Array(arrayBuffer);
       const float32 = new Float32Array(int16.length);
       for (let i = 0; i < int16.length; i++) {
         float32[i] = int16[i] / 32768;
       }
-
       const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
       audioBuffer.getChannelData(0).set(float32);
-
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioCtx.destination);
@@ -832,7 +920,6 @@ async function startMic() {
         energy += float32[i] * float32[i];
       }
       energy = energy / float32.length;
-
       if (energy > 0.0005) {
         resetSilenceTimer();
       }
