@@ -641,6 +641,7 @@ function startFirebaseListener() {
         if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
           const injectionText = buildOfferInjectionText(data);
           sendTextToGemini(`新しいUberEatsオファーが来た。以下のデータで判定結果を報告しろ: ${injectionText}`);
+          resetSilenceTimer(); // Keep KITT alive when offers arrive
         }
       }
     } catch (e) {
@@ -1003,10 +1004,10 @@ function resetSilenceTimer() {
   clearSilenceTimer();
   silenceTimer = setTimeout(() => {
     if (isConnected && !isSpeaking) {
-      addTranscript('10秒無音 - 自動切断', 'system');
+      addTranscript('2分無音 - 自動切断', 'system');
       disconnect();
     }
-  }, 10000);
+  }, 120000);
 }
 
 function clearSilenceTimer() {
