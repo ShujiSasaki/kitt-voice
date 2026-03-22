@@ -362,6 +362,9 @@
   </div>
 </div>
 
+<!-- Silent audio keepalive for iOS background -->
+<audio id="keepalive-audio" loop playsinline preload="auto"></audio>
+
 <!-- API Key Modal -->
 <div class="modal-overlay" id="apiModal">
   <div class="modal">
@@ -374,12 +377,14 @@
 <script>
 // ============================================================
 // KITT Voice PWA - Gemini Live Audio + Firebase RTDB
-// Updated: 2026-03-21 - New RTDB structure support
+// Updated: 2026-03-22 - Background keepalive + auto-reconnect
 // ============================================================
 
 const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app';
 const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 const GEMINI_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
+// Silent MP3 for iOS background keepalive (1s, base64-encoded)
+const SILENCE_B64 = 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAoAAARCgAQEBYWHR0dIyMpKSkvLzU1NTs7QUFBSEhOTk5UVFpaWmBgZmZmbGxycnJ5eX9/f4WFi4uLkZGXl5ednaOjo6qqsLCwtra8vLzCwsjIyM7O1dXV29vh4eHn5+3t7fPz+fn5//8AAAAATGF2YzYwLjMxAAAAAAAAAAAAAAAAJAV8AAAAAAAAEQrbF4fMAAAAAAD/+xDEAAPAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsQpg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMRTg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxH0DwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxKcDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE0IPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 
 // --- State ---
 let apiKey = localStorage.getItem('kitt_api_key') || '';
@@ -393,6 +398,8 @@ let silenceTimer = null;
 let firebaseEventSource = null;
 let lastOfferTimestamp = null;
 let firebasePollTimer = null;
+let keepaliveActive = false;
+let geminiReconnectTimer = null;
 
 // --- DOM Elements ---
 const $ = id => document.getElementById(id);
@@ -411,6 +418,92 @@ const clearBtn = $('clearBtn');
 const apiModal = $('apiModal');
 const apiKeyInput = $('apiKeyInput');
 const apiKeySave = $('apiKeySave');
+
+// ============================================================
+// iOS Background Keepalive - Silent Audio Loop
+// ============================================================
+// iOS Safari kills JS in background tabs, UNLESS audio is playing.
+// We loop a silent MP3 to keep the tab alive so Firebase polling
+// and Gemini WebSocket survive when YouTube/TVer/Radiko is in front.
+
+function startKeepalive() {
+  if (keepaliveActive) return;
+  const audio = $('keepalive-audio');
+  if (!audio) return;
+
+  if (!audio.src || audio.src === '' || audio.src === window.location.href) {
+    audio.src = 'data:audio/mp3;base64,' + SILENCE_B64;
+  }
+  audio.volume = 0.01; // Inaudible but iOS sees it as "playing"
+
+  const p = audio.play();
+  if (p !== undefined) {
+    p.then(() => {
+      keepaliveActive = true;
+      console.log('🔋 Keepalive: ON');
+    }).catch(e => {
+      console.warn('🔋 Keepalive: failed -', e.message);
+    });
+  }
+}
+
+function stopKeepalive() {
+  const audio = $('keepalive-audio');
+  if (audio) { audio.pause(); audio.currentTime = 0; }
+  keepaliveActive = false;
+  console.log('🔋 Keepalive: OFF');
+}
+
+// Resume keepalive if iOS paused it when we return to foreground
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // Resume keepalive audio if it was active
+    if (keepaliveActive) {
+      const audio = $('keepalive-audio');
+      if (audio && audio.paused) {
+        audio.play().catch(() => {});
+        console.log('🔋 Keepalive: resumed on visibility');
+      }
+    }
+    // Check Gemini WebSocket - reconnect if dropped
+    if (isConnected && ws && ws.readyState === WebSocket.CLOSED) {
+      console.log('🔄 Gemini dropped while backgrounded, reconnecting...');
+      addTranscript('バックグラウンド復帰 - 再接続中', 'system');
+      reconnectGemini();
+    }
+  }
+});
+
+// ============================================================
+// Gemini Auto-Reconnect (background WebSocket drops)
+// ============================================================
+function startGeminiReconnectMonitor() {
+  if (geminiReconnectTimer) clearInterval(geminiReconnectTimer);
+  geminiReconnectTimer = setInterval(() => {
+    if (isConnected && ws && ws.readyState === WebSocket.CLOSED) {
+      console.log('🔄 Gemini WebSocket closed, auto-reconnecting...');
+      reconnectGemini();
+    }
+  }, 15000); // Check every 15 seconds
+}
+
+function stopGeminiReconnectMonitor() {
+  if (geminiReconnectTimer) {
+    clearInterval(geminiReconnectTimer);
+    geminiReconnectTimer = null;
+  }
+}
+
+async function reconnectGemini() {
+  // Close old connection cleanly
+  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  isConnected = false;
+  isSpeaking = false;
+  stopMic();
+
+  // Re-connect (reuses existing connect logic)
+  await connect();
+}
 
 // ============================================================
 // Init
@@ -483,8 +576,6 @@ function clearTranscript() {
 
 // ============================================================
 // [UPDATED] Show Offer - New RTDB structure
-// Old: { text, timestamp, decision }
-// New: { offer: {...}, context: {...}, timestamp }
 // ============================================================
 function showOffer(data) {
   // Support both old and new structure
@@ -499,17 +590,14 @@ function showOffer(data) {
   const score = offer.score;
   const confidence = offer.confidence || '';
 
-  // Decision header
   offerDecision.textContent = decision === 'accept' ? '▲ ACCEPT' : '▼ REJECT';
   offerDecision.className = `offer-decision ${decision}`;
 
-  // Detail line: store name + reason
   const detailParts = [];
   if (storeName) detailParts.push(storeName);
   if (reason) detailParts.push(reason);
   offerDetail.textContent = detailParts.join(' — ') || `${reward}円 / ${distanceKm}km`;
 
-  // Metrics line: reward, distance, hourly rate, score
   const metricParts = [];
   if (reward) metricParts.push(`¥${reward}`);
   if (distanceKm) metricParts.push(`${distanceKm}km`);
@@ -518,17 +606,15 @@ function showOffer(data) {
   if (score != null) metricParts.push(`S:${typeof score === 'number' ? score.toFixed(2) : score}`);
   offerMetrics.innerHTML = metricParts.map(m => `<span>${m}</span>`).join('');
 
-  // Panel styling
   offerPanel.className = `offer-panel visible ${decision}`;
 
-  // Auto-hide after 30 seconds
   setTimeout(() => {
     offerPanel.classList.remove('visible');
   }, 30000);
 }
 
 // ============================================================
-// [UPDATED] Build Gemini injection text from structured data
+// Build Gemini injection text from structured data
 // ============================================================
 function buildOfferInjectionText(data) {
   const offer = data.offer || {};
@@ -546,7 +632,6 @@ function buildOfferInjectionText(data) {
   if (offer.reason) parts.push(`理由: ${offer.reason}`);
   if (offer.confidence) parts.push(`確信度: ${offer.confidence}`);
 
-  // Add score breakdown for richer KITT commentary
   if (scores.hourly_rate != null) {
     const hr = scores.hourly_rate;
     if (hr > 1.3) parts.push('時給スコア非常に高い');
@@ -558,7 +643,6 @@ function buildOfferInjectionText(data) {
     else if (rpk < 0.7) parts.push('km単価悪い');
   }
 
-  // Time slot average for context
   if (sd.timeSlotAvg) parts.push(`この時間帯の平均時給: ${Math.round(sd.timeSlotAvg)}円`);
 
   return parts.join('、');
@@ -571,10 +655,8 @@ function filterThinking(text) {
   if (!text || typeof text !== 'string') return '';
   let t = text;
 
-  // Remove **Header** thinking blocks
   t = t.replace(/\*\*[^*]+\*\*\s*/g, '');
 
-  // Remove common thinking patterns
   const patterns = [
     /^I'm encountering .+/gm,
     /^Given the situation.+/gm,
@@ -591,21 +673,16 @@ function filterThinking(text) {
     t = t.replace(p, '');
   }
 
-  // Remove HTML-like fragments that leaked
   t = t.replace(/<\/?[a-z][a-z0-9]*\s*\/?>/gi, '');
   t = t.replace(/[a-z]+>/gi, '');
-
-  // Clean up whitespace
   t = t.replace(/\n{2,}/g, '\n').trim();
   return t;
 }
 
 // ============================================================
-// [UPDATED] Firebase RTDB Listener (Polling)
-// Now handles: { offer: {...}, context: {...}, timestamp }
+// Firebase RTDB Listener (Polling)
 // ============================================================
 function startFirebaseListener() {
-  // Clear previous timer if any
   if (firebasePollTimer) {
     clearInterval(firebasePollTimer);
   }
@@ -615,7 +692,6 @@ function startFirebaseListener() {
   fbStatus.textContent = 'Firebase Active';
   fbStatus.className = 'status-badge firebase';
 
-  // Poll every 3 seconds
   firebasePollTimer = setInterval(async () => {
     try {
       const res = await fetch(url);
@@ -623,25 +699,21 @@ function startFirebaseListener() {
       const data = await res.json();
       if (!data || !data.timestamp) return;
 
-      // Only process new offers
       if (data.timestamp !== lastOfferTimestamp) {
         lastOfferTimestamp = data.timestamp;
 
-        // Show offer in UI (works with new structure)
         showOffer(data);
 
-        // Build transcript summary
         const offer = data.offer || {};
         const summaryText = offer.store_name
           ? `${offer.decision === 'accept' ? 'ACCEPT' : 'REJECT'} ${offer.store_name} ¥${offer.reward || 0}/${offer.distance_km || 0}km`
           : (offer.reason || 'new offer');
         addTranscript(`[OFFER] ${summaryText}`, 'system');
 
-        // If KITT is connected, inject structured offer data for voice report
         if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
           const injectionText = buildOfferInjectionText(data);
           sendTextToGemini(`新しいUberEatsオファーが来た。以下のデータで判定結果を報告しろ: ${injectionText}`);
-          resetSilenceTimer(); // Keep KITT alive when offers arrive
+          resetSilenceTimer();
         }
       }
     } catch (e) {
@@ -679,12 +751,14 @@ async function connect() {
       await audioCtx.resume();
     }
 
+    // Start keepalive (must be in user gesture context for iOS)
+    startKeepalive();
+
     // Open WebSocket
     const wsUrl = `${GEMINI_WS_URL}?key=${apiKey}`;
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      // Send setup message
       const setup = {
         setup: {
           model: GEMINI_MODEL,
@@ -733,6 +807,7 @@ async function connect() {
       statusText.textContent = '切断(' + event.code + ')';
       micBtn.classList.remove('active');
       stopMic();
+      // NOTE: Don't stop keepalive here - auto-reconnect may fire
     };
 
   } catch (err) {
@@ -743,11 +818,13 @@ async function connect() {
 }
 
 function disconnect() {
+  stopGeminiReconnectMonitor();
   if (ws) {
     ws.close();
     ws = null;
   }
   stopMic();
+  stopKeepalive();
   isConnected = false;
   isSpeaking = false;
   setStatus('disconnected', 'OFFLINE');
@@ -783,6 +860,7 @@ async function handleGeminiMessage(event) {
       micBtn.classList.add('active');
       await startMic();
       resetSilenceTimer();
+      startGeminiReconnectMonitor();
       return;
     }
 
@@ -790,10 +868,8 @@ async function handleGeminiMessage(event) {
     if (msg.serverContent) {
       const sc = msg.serverContent;
 
-      // Model turn
       if (sc.modelTurn && sc.modelTurn.parts) {
         for (const part of sc.modelTurn.parts) {
-          // Audio data
           if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
             const audioBytes = base64ToArrayBuffer(part.inlineData.data);
             audioQueue.push(audioBytes);
@@ -802,7 +878,6 @@ async function handleGeminiMessage(event) {
             }
           }
 
-          // Text data (disabled - audio only mode)
           if (false && part.text) {
             const cleaned = filterThinking(part.text);
             if (cleaned) {
@@ -812,7 +887,6 @@ async function handleGeminiMessage(event) {
         }
       }
 
-      // Turn complete
       if (sc.turnComplete) {
         if (currentTranscriptText) {
           addTranscript(currentTranscriptText, 'kitt');
@@ -824,7 +898,6 @@ async function handleGeminiMessage(event) {
         resetSilenceTimer();
       }
 
-      // Interrupted
       if (sc.interrupted) {
         audioQueue = [];
         isPlayingAudio = false;
@@ -871,6 +944,10 @@ function playPcmAudio(arrayBuffer) {
   return new Promise((resolve) => {
     try {
       if (!audioCtx) { resolve(); return; }
+      // Resume AudioContext if suspended (iOS background recovery)
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
       const int16 = new Int16Array(arrayBuffer);
       const float32 = new Float32Array(int16.length);
       for (let i = 0; i < int16.length; i++) {
@@ -908,14 +985,12 @@ async function startMic() {
     const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     const source = micCtx.createMediaStreamSource(micStream);
 
-    // ScriptProcessor (deprecated but widely supported)
     micProcessor = micCtx.createScriptProcessor(4096, 1, 1);
     micProcessor.onaudioprocess = (e) => {
       if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
 
       const float32 = e.inputBuffer.getChannelData(0);
 
-      // Voice activity detection (simple energy-based)
       let energy = 0;
       for (let i = 0; i < float32.length; i++) {
         energy += float32[i] * float32[i];
@@ -925,14 +1000,12 @@ async function startMic() {
         resetSilenceTimer();
       }
 
-      // Convert to 16-bit PCM
       const int16 = new Int16Array(float32.length);
       for (let i = 0; i < float32.length; i++) {
         const s = Math.max(-1, Math.min(1, float32[i]));
         int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
 
-      // Send to Gemini
       const base64 = arrayBufferToBase64(int16.buffer);
       try {
         ws.send(JSON.stringify({
@@ -998,7 +1071,7 @@ function sendTextToGemini(text) {
 }
 
 // ============================================================
-// Silence Timer (10-second auto-disconnect)
+// Silence Timer (120-second auto-disconnect)
 // ============================================================
 function resetSilenceTimer() {
   clearSilenceTimer();
