@@ -1,1099 +1,878 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="theme-color" content="#000000">
-  <title>KITT</title>
-  <link rel="manifest" href="manifest.json">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>KITT</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0a;--red:#e03030;--red-dim:#801818;--amber:#ff9500;
+  --green:#30d060;--cyan:#00e5ff;--text:#e8e8e8;--text-dim:#666;
+  --card:#141414;--border:#222;--overlay-bg:rgba(10,10,10,0.92);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Orbitron',monospace;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+/* === Tab Bar === */
+#tab-bar{display:flex;height:44px;background:#111;border-bottom:1px solid var(--border);position:relative;z-index:100}
+.tab{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);cursor:pointer;transition:color .2s,border-color .2s;border-bottom:2px solid transparent;user-select:none}
+.tab.active{color:var(--red);border-bottom-color:var(--red)}
+.tab:active{opacity:.7}
 
-    :root {
-      --kitt-red: #ff1a1a;
-      --kitt-red-glow: rgba(255, 26, 26, 0.6);
-      --kitt-red-dim: rgba(255, 26, 26, 0.15);
-      --kitt-amber: #ffaa00;
-      --kitt-green: #00ff66;
-      --kitt-bg: #0a0a0a;
-      --kitt-surface: #111111;
-      --kitt-text: #cccccc;
-      --kitt-text-dim: #666666;
-    }
+/* === Panels === */
+#panels{position:relative;height:calc(100% - 44px);overflow:hidden}
+.panel{position:absolute;inset:0;display:none;flex-direction:column}
+.panel.active{display:flex}
 
-    html, body {
-      height: 100%;
-      background: var(--kitt-bg);
-      color: var(--kitt-text);
-      font-family: 'Share Tech Mono', monospace;
-      overflow: hidden;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
+/* === KITT Panel === */
+#kitt-panel{background:var(--bg);align-items:center;justify-content:center}
+#kitt-status{position:absolute;top:8px;left:12px;font-size:9px;letter-spacing:1px;color:var(--text-dim)}
+#kitt-status .online{color:var(--green)}
+#kitt-status .error{color:var(--red)}
 
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      height: 100dvh;
-    }
+#scanner-wrap{width:200px;height:12px;background:#1a0000;border-radius:6px;overflow:hidden;position:relative;margin-bottom:20px}
+#scanner-bar{width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--red),transparent);position:absolute;left:0;animation:scan 2s ease-in-out infinite alternate;border-radius:6px}
+@keyframes scan{0%{left:-10%}100%{left:70%}}
+#scanner-wrap.paused #scanner-bar{animation-play-state:paused;opacity:.3}
 
-    /* ===== Header ===== */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      min-height: 44px;
-    }
+#kitt-label{font-size:28px;font-weight:900;letter-spacing:8px;margin-bottom:8px}
+#kitt-sub{font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:24px}
 
-    .status-badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 3px;
-      letter-spacing: 0.5px;
-      font-family: 'Share Tech Mono', monospace;
-    }
+#gemini-btn{width:64px;height:64px;border-radius:50%;border:2px solid var(--red-dim);background:rgba(224,48,48,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s}
+#gemini-btn:active{transform:scale(.9)}
+#gemini-btn.connected{border-color:var(--green);background:rgba(48,208,96,.1);box-shadow:0 0 20px rgba(48,208,96,.2)}
+#gemini-btn.connecting{border-color:var(--amber);animation:pulse-border 1s infinite}
+@keyframes pulse-border{0%,100%{border-color:var(--amber)}50%{border-color:transparent}}
+#gemini-btn svg{width:28px;height:28px;fill:var(--red)}
+#gemini-btn.connected svg{fill:var(--green)}
 
-    .status-badge.connected { background: rgba(0,255,102,0.15); color: var(--kitt-green); }
-    .status-badge.disconnected { background: rgba(255,26,26,0.15); color: var(--kitt-red); }
-    .status-badge.connecting { background: rgba(255,170,0,0.15); color: var(--kitt-amber); }
-    .status-badge.firebase { background: rgba(0,255,102,0.1); color: var(--kitt-green); font-size: 10px; }
+#gemini-status{font-size:9px;color:var(--text-dim);margin-top:12px;letter-spacing:1px;height:14px}
 
-    /* ===== KITT Eye ===== */
-    .kitt-eye-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      padding: 20px;
-    }
+/* === YouTube Panel === */
+#yt-panel{background:#000}
+#yt-search-bar{display:flex;padding:6px;gap:6px;background:#111;border-bottom:1px solid var(--border)}
+#yt-search-bar input{flex:1;background:#1a1a1a;border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:'Orbitron',monospace;font-size:11px;outline:none}
+#yt-search-bar input:focus{border-color:var(--red)}
+#yt-search-bar button{background:var(--red);border:none;border-radius:4px;padding:6px 14px;color:#fff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px}
+#yt-player-wrap{flex:1;position:relative;background:#000}
+#yt-player{width:100%;height:100%}
+#yt-overlay{display:none;position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.85));pointer-events:none}
+#yt-now-playing{font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#yt-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;gap:8px;padding:20px;text-align:center}
+#yt-placeholder.hidden{display:none}
+#yt-history{margin-top:12px;width:100%;max-width:320px}
+.yt-hist-item{padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.yt-hist-item:active{background:#1a1a1a}
 
-    .kitt-eye {
-      position: relative;
-      width: 200px;
-      height: 200px;
-    }
+/* === SoundCloud Panel === */
+#sc-panel{align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;letter-spacing:2px}
 
-    .kitt-eye-ring {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      border: 3px solid var(--kitt-red-dim);
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
+/* === Offer Overlay === */
+#offer-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--overlay-bg);flex-direction:column;align-items:center;justify-content:center;animation:fade-in .3s}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+#offer-overlay.accept{border:3px solid var(--green)}
+#offer-overlay.reject{border:3px solid var(--red)}
+#offer-decision{font-size:36px;font-weight:900;letter-spacing:6px;margin-bottom:8px}
+#offer-decision.accept{color:var(--green)}
+#offer-decision.reject{color:var(--red)}
+#offer-hourly{font-size:18px;font-weight:700;margin-bottom:4px}
+#offer-detail{font-size:11px;color:var(--text-dim);margin-bottom:4px;text-align:center;line-height:1.6}
+#offer-reason{font-size:10px;color:var(--amber);margin-bottom:16px;text-align:center;max-width:280px}
+#offer-dismiss{padding:10px 32px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:10px;cursor:pointer;letter-spacing:2px}
 
-    .kitt-eye-ring.active {
-      border-color: var(--kitt-red);
-      box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3), inset 0 0 30px rgba(255,26,26,0.1);
-      animation: pulse-ring 2s ease-in-out infinite;
-    }
+/* === Settings === */
+#settings-overlay{display:none;position:fixed;inset:0;z-index:300;background:var(--overlay-bg);padding:20px;overflow-y:auto}
+#settings-overlay.show{display:block}
+#settings-overlay h2{font-size:14px;letter-spacing:3px;margin-bottom:16px;color:var(--red)}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:10px}
+.setting-row label{color:var(--text-dim);letter-spacing:1px}
+.setting-row input[type=text],.setting-row input[type=number]{background:#1a1a1a;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-family:'Orbitron',monospace;font-size:10px;width:120px;text-align:right}
+#settings-close{margin-top:16px;padding:8px 24px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:10px;cursor:pointer;border-radius:4px;letter-spacing:2px}
+#api-key-input{width:200px!important;font-size:9px!important}
 
-    .kitt-eye-ring.speaking {
-      animation: speak-pulse 0.4s ease-in-out infinite alternate;
-    }
-
-    @keyframes pulse-ring {
-      0%, 100% { box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.2); }
-      50% { box-shadow: 0 0 60px var(--kitt-red-glow), 0 0 100px rgba(255,26,26,0.35); }
-    }
-
-    @keyframes speak-pulse {
-      0% { transform: scale(1); box-shadow: 0 0 40px var(--kitt-red-glow), 0 0 80px rgba(255,26,26,0.3); }
-      100% { transform: scale(1.03); box-shadow: 0 0 70px var(--kitt-red-glow), 0 0 120px rgba(255,26,26,0.45); }
-    }
-
-    .kitt-eye-label {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-family: 'Orbitron', sans-serif;
-      font-weight: 900;
-      font-size: 42px;
-      color: var(--kitt-red);
-      letter-spacing: 6px;
-      text-shadow: 0 0 20px var(--kitt-red-glow);
-      opacity: 0.9;
-    }
-
-    .kitt-status-text {
-      font-size: 13px;
-      color: var(--kitt-text-dim);
-      text-align: center;
-      letter-spacing: 1px;
-      min-height: 20px;
-    }
-
-    /* ===== Offer Panel ===== */
-    .offer-panel {
-      margin: 0 16px;
-      padding: 12px 16px;
-      background: var(--kitt-surface);
-      border-radius: 8px;
-      border-left: 3px solid var(--kitt-text-dim);
-      opacity: 0;
-      transform: translateY(10px);
-      transition: opacity 0.4s, transform 0.4s, border-color 0.3s;
-      max-height: 0;
-      overflow: hidden;
-    }
-
-    .offer-panel.visible {
-      opacity: 1;
-      transform: translateY(0);
-      max-height: 250px;
-      margin-bottom: 12px;
-    }
-
-    .offer-panel.accept { border-left-color: var(--kitt-green); }
-    .offer-panel.reject { border-left-color: var(--kitt-red); }
-
-    .offer-decision {
-      font-family: 'Orbitron', sans-serif;
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 2px;
-      margin-bottom: 6px;
-    }
-
-    .offer-decision.accept { color: var(--kitt-green); }
-    .offer-decision.reject { color: var(--kitt-red); }
-
-    .offer-detail {
-      font-size: 13px;
-      color: var(--kitt-text);
-      line-height: 1.5;
-    }
-
-    .offer-metrics {
-      display: flex;
-      gap: 12px;
-      margin-top: 6px;
-      font-size: 11px;
-      color: var(--kitt-text-dim);
-    }
-
-    .offer-metrics span {
-      white-space: nowrap;
-    }
-
-    /* ===== Transcript ===== */
-    .transcript-area {
-      padding: 0 16px 8px;
-      max-height: 120px;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .transcript-line {
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 4px 0;
-      color: var(--kitt-text-dim);
-      animation: fade-in 0.3s ease;
-    }
-
-    .transcript-line.kitt { color: var(--kitt-red); }
-    .transcript-line.user { color: var(--kitt-text); }
-    .transcript-line.system { color: var(--kitt-amber); font-size: 11px; }
-
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ===== Bottom Controls ===== */
-    .controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 16px;
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
-    }
-
-    .mic-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      border: 2px solid var(--kitt-red-dim);
-      background: transparent;
-      color: var(--kitt-text-dim);
-      font-size: 24px;
-      cursor: pointer;
-      transition: all 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .mic-btn.active {
-      border-color: var(--kitt-red);
-      color: var(--kitt-red);
-      box-shadow: 0 0 20px rgba(255,26,26,0.3);
-      animation: mic-glow 1.5s ease-in-out infinite;
-    }
-
-    @keyframes mic-glow {
-      0%, 100% { box-shadow: 0 0 20px rgba(255,26,26,0.3); }
-      50% { box-shadow: 0 0 35px rgba(255,26,26,0.5); }
-    }
-
-    .mic-btn:active { transform: scale(0.95); }
-
-    .settings-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid #333;
-      background: transparent;
-      color: var(--kitt-text-dim);
-      font-size: 18px;
-      cursor: pointer;
-    }
-
-    /* ===== API Key Modal ===== */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      padding: 20px;
-    }
-
-    .modal-overlay.hidden { display: none; }
-
-    .modal {
-      background: var(--kitt-surface);
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 24px;
-      width: 100%;
-      max-width: 360px;
-    }
-
-    .modal h2 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 16px;
-      color: var(--kitt-red);
-      margin-bottom: 16px;
-      letter-spacing: 2px;
-    }
-
-    .modal input {
-      width: 100%;
-      padding: 10px 12px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 6px;
-      color: var(--kitt-text);
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 13px;
-      margin-bottom: 16px;
-    }
-
-    .modal input:focus { outline: none; border-color: var(--kitt-red); }
-
-    .modal-btn {
-      width: 100%;
-      padding: 10px;
-      background: var(--kitt-red);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 13px;
-      letter-spacing: 1px;
-      cursor: pointer;
-    }
-
-    .modal-btn:active { opacity: 0.8; }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 2px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #333; border-radius: 1px; }
-  </style>
+/* === Log === */
+#log-bar{position:fixed;bottom:0;left:0;right:0;height:20px;background:#0d0d0d;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:8px;color:var(--text-dim);z-index:50;overflow:hidden}
+</style>
 </head>
 <body>
 
-<div class="app">
-  <!-- Header -->
-  <div class="header">
-    <span class="status-badge disconnected" id="connStatus">OFFLINE</span>
-    <span class="status-badge firebase" id="fbStatus">Firebase --</span>
-  </div>
+<!-- Tab Bar -->
+<div id="tab-bar">
+  <div class="tab active" data-panel="kitt">KITT</div>
+  <div class="tab" data-panel="yt">YouTube</div>
+  <div class="tab" data-panel="sc">SoundCloud</div>
+  <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
+</div>
 
-  <!-- KITT Eye -->
-  <div class="kitt-eye-container">
-    <div class="kitt-eye" id="kittEye">
-      <div class="kitt-eye-ring" id="eyeRing"></div>
-      <div class="kitt-eye-label">KITT</div>
+<!-- Panels -->
+<div id="panels">
+  <!-- KITT Panel -->
+  <div id="kitt-panel" class="panel active">
+    <div id="kitt-status"><span id="fb-status">OFFLINE</span> Â· Firebase <span id="fb-latency">--</span></div>
+    <div id="scanner-wrap"><div id="scanner-bar"></div></div>
+    <div id="kitt-label">KITT</div>
+    <div id="kitt-sub">UBER EATS AI JUDGE</div>
+    <div id="gemini-btn" onclick="toggleGemini()">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
     </div>
-    <div class="kitt-status-text" id="statusText">タップして起動</div>
+    <div id="gemini-status">ã¿ãããã¦èµ·å</div>
   </div>
 
-  <!-- Offer Panel -->
-  <div class="offer-panel" id="offerPanel">
-    <div class="offer-decision" id="offerDecision"></div>
-    <div class="offer-detail" id="offerDetail"></div>
-    <div class="offer-metrics" id="offerMetrics"></div>
+  <!-- YouTube Panel -->
+  <div id="yt-panel" class="panel">
+    <div id="yt-search-bar">
+      <input type="text" id="yt-input" placeholder="YouTubeãæ¤ç´¢ / URLãè²¼ãä»ã" enterkeyhint="search">
+      <button onclick="ytSearch()">â¶</button>
+    </div>
+    <div id="yt-placeholder">
+      <div>â¶ YouTube</div>
+      <div style="font-size:9px">æ¤ç´¢ã¾ãã¯URLã§åçéå§</div>
+      <div id="yt-history"></div>
+    </div>
+    <div id="yt-player-wrap" style="display:none">
+      <div id="yt-player"></div>
+      <div id="yt-overlay"><div id="yt-now-playing"></div></div>
+    </div>
   </div>
 
-  <!-- Transcript -->
-  <div class="transcript-area" id="transcript"></div>
-
-  <!-- Controls -->
-  <div class="controls">
-    <button class="settings-btn" id="settingsBtn">⚙</button>
-    <button class="mic-btn" id="micBtn">🎙</button>
-    <button class="settings-btn" id="clearBtn">✕</button>
-  </div>
+  <!-- SoundCloud Panel -->
+  <div id="sc-panel" class="panel">COMING SOON</div>
 </div>
 
-<!-- Silent audio keepalive for iOS background -->
-<audio id="keepalive-audio" loop playsinline preload="auto"></audio>
-
-<!-- API Key Modal -->
-<div class="modal-overlay" id="apiModal">
-  <div class="modal">
-    <h2>GEMINI API KEY</h2>
-    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off">
-    <button class="modal-btn" id="apiKeySave">INITIALIZE</button>
-  </div>
+<!-- Offer Overlay -->
+<div id="offer-overlay">
+  <div id="offer-decision"></div>
+  <div id="offer-hourly"></div>
+  <div id="offer-detail"></div>
+  <div id="offer-reason"></div>
+  <button id="offer-dismiss" onclick="dismissOffer()">OK</button>
 </div>
 
+<!-- Settings -->
+<div id="settings-overlay">
+  <h2>â SETTINGS</h2>
+  <div class="setting-row"><label>GEMINI API KEY</label><input type="text" id="api-key-input"></div>
+  <div class="setting-row"><label>FIREBASE URL</label><input type="text" id="fb-url-input" value=""></div>
+  <div class="setting-row"><label>POLLING SEC</label><input type="number" id="poll-sec-input" value="3" min="1" max="30"></div>
+  <div class="setting-row"><label>AUTO DISCONNECT SEC</label><input type="number" id="auto-dc-input" value="120" min="30" max="600"></div>
+  <div class="setting-row"><label>YT DUCK VOLUME</label><input type="number" id="duck-vol-input" value="5" min="0" max="100"></div>
+  <div class="setting-row"><label>YT NORMAL VOLUME</label><input type="number" id="normal-vol-input" value="70" min="0" max="100"></div>
+  <button id="settings-close" onclick="saveSettings()">SAVE & CLOSE</button>
+</div>
+
+<!-- Log Bar -->
+<div id="log-bar"><span id="log-text">KITT YouTube Edition v1.0 ready</span></div>
+
+<!-- Keepalive silent audio (background Firebase polling survival) -->
+<audio id="keepalive" loop playsinline>
+  <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA4AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAA" type="audio/mp3">
+</audio>
+
+<!-- YouTube IFrame API -->
 <script>
 // ============================================================
-// KITT Voice PWA - Gemini Live Audio + Firebase RTDB
-// Updated: 2026-03-22 - Background keepalive + auto-reconnect
+// Config & State
 // ============================================================
+const DEFAULT_CONFIG = {
+  geminiApiKey: 'AIzaSyCGr0cVLJlo8FCKz_aBIDKv4pmKV07tUBo',
+  firebaseUrl: 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app',
+  pollingSec: 3,
+  autoDisconnectSec: 120,
+  duckVolume: 5,
+  normalVolume: 70
+};
 
-const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app';
-const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-const GEMINI_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
-// Silent MP3 for iOS background keepalive (1s, base64-encoded)
-const SILENCE_B64 = 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAoAAARCgAQEBYWHR0dIyMpKSkvLzU1NTs7QUFBSEhOTk5UVFpaWmBgZmZmbGxycnJ5eX9/f4WFi4uLkZGXl5ednaOjo6qqsLCwtra8vLzCwsjIyM7O1dXV29vh4eHn5+3t7fPz+fn5//8AAAAATGF2YzYwLjMxAAAAAAAAAAAAAAAAJAV8AAAAAAAAEQrbF4fMAAAAAAD/+xDEAAPAAAGkAAAAIAAANIAAAARMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsQpg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMRTg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxH0DwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxKcDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE0IPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBV//sQxNYDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xLE1YPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xDE1gPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EsTVg8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EMTWA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sSxNWDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+let config = {...DEFAULT_CONFIG};
+let state = {
+  activePanel: 'kitt',
+  geminiWs: null,
+  geminiConnected: false,
+  geminiConnecting: false,
+  firebasePolling: null,
+  lastOfferTimestamp: null,
+  ytPlayer: null,
+  ytReady: false,
+  ytPlaying: false,
+  ytCurrentVolume: 70,
+  offerVisible: false,
+  autoDisconnectTimer: null,
+  geminiSessionStart: null,
+  ytHistory: []
+};
 
-// --- State ---
-let apiKey = localStorage.getItem('kitt_api_key') || '';
-let ws = null;
-let audioCtx = null;
-let micStream = null;
-let micProcessor = null;
-let isConnected = false;
-let isSpeaking = false;
-let silenceTimer = null;
-let firebaseEventSource = null;
-let lastOfferTimestamp = null;
-let firebasePollTimer = null;
-let keepaliveActive = false;
-let geminiReconnectTimer = null;
+// Load saved config
+try {
+  const saved = JSON.parse(localStorage.getItem('kitt-yt-config') || '{}');
+  config = {...DEFAULT_CONFIG, ...saved};
+} catch(e) {}
 
-// --- DOM Elements ---
-const $ = id => document.getElementById(id);
-const connStatus = $('connStatus');
-const fbStatus = $('fbStatus');
-const eyeRing = $('eyeRing');
-const statusText = $('statusText');
-const offerPanel = $('offerPanel');
-const offerDecision = $('offerDecision');
-const offerDetail = $('offerDetail');
-const offerMetrics = $('offerMetrics');
-const transcript = $('transcript');
-const micBtn = $('micBtn');
-const settingsBtn = $('settingsBtn');
-const clearBtn = $('clearBtn');
-const apiModal = $('apiModal');
-const apiKeyInput = $('apiKeyInput');
-const apiKeySave = $('apiKeySave');
+// Load YT history
+try {
+  state.ytHistory = JSON.parse(localStorage.getItem('kitt-yt-history') || '[]');
+} catch(e) {}
 
 // ============================================================
-// iOS Background Keepalive - Silent Audio Loop
+// Tab Navigation
 // ============================================================
-// iOS Safari kills JS in background tabs, UNLESS audio is playing.
-// We loop a silent MP3 to keep the tab alive so Firebase polling
-// and Gemini WebSocket survive when YouTube/TVer/Radiko is in front.
-
-function startKeepalive() {
-  if (keepaliveActive) return;
-  const audio = $('keepalive-audio');
-  if (!audio) return;
-
-  if (!audio.src || audio.src === '' || audio.src === window.location.href) {
-    audio.src = 'data:audio/mp3;base64,' + SILENCE_B64;
-  }
-  audio.volume = 0.01; // Inaudible but iOS sees it as "playing"
-
-  const p = audio.play();
-  if (p !== undefined) {
-    p.then(() => {
-      keepaliveActive = true;
-      console.log('🔋 Keepalive: ON');
-    }).catch(e => {
-      console.warn('🔋 Keepalive: failed -', e.message);
-    });
-  }
-}
-
-function stopKeepalive() {
-  const audio = $('keepalive-audio');
-  if (audio) { audio.pause(); audio.currentTime = 0; }
-  keepaliveActive = false;
-  console.log('🔋 Keepalive: OFF');
-}
-
-// Resume keepalive if iOS paused it when we return to foreground
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    // Resume keepalive audio if it was active
-    if (keepaliveActive) {
-      const audio = $('keepalive-audio');
-      if (audio && audio.paused) {
-        audio.play().catch(() => {});
-        console.log('🔋 Keepalive: resumed on visibility');
-      }
-    }
-    // Check Gemini WebSocket - reconnect if dropped
-    if (isConnected && ws && ws.readyState === WebSocket.CLOSED) {
-      console.log('🔄 Gemini dropped while backgrounded, reconnecting...');
-      addTranscript('バックグラウンド復帰 - 再接続中', 'system');
-      reconnectGemini();
-    }
-  }
+document.querySelectorAll('.tab[data-panel]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const panel = tab.dataset.panel;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(panel + '-panel').classList.add('active');
+    state.activePanel = panel;
+  });
 });
 
 // ============================================================
-// Gemini Auto-Reconnect (background WebSocket drops)
+// Settings
 // ============================================================
-function startGeminiReconnectMonitor() {
-  if (geminiReconnectTimer) clearInterval(geminiReconnectTimer);
-  geminiReconnectTimer = setInterval(() => {
-    if (isConnected && ws && ws.readyState === WebSocket.CLOSED) {
-      console.log('🔄 Gemini WebSocket closed, auto-reconnecting...');
-      reconnectGemini();
-    }
-  }, 15000); // Check every 15 seconds
+function toggleSettings() {
+  const el = document.getElementById('settings-overlay');
+  if (el.classList.contains('show')) {
+    saveSettings();
+  } else {
+    document.getElementById('api-key-input').value = config.geminiApiKey;
+    document.getElementById('fb-url-input').value = config.firebaseUrl;
+    document.getElementById('poll-sec-input').value = config.pollingSec;
+    document.getElementById('auto-dc-input').value = config.autoDisconnectSec;
+    document.getElementById('duck-vol-input').value = config.duckVolume;
+    document.getElementById('normal-vol-input').value = config.normalVolume;
+    el.classList.add('show');
+  }
+}
+function saveSettings() {
+  config.geminiApiKey = document.getElementById('api-key-input').value.trim();
+  config.firebaseUrl = document.getElementById('fb-url-input').value.trim();
+  config.pollingSec = parseInt(document.getElementById('poll-sec-input').value) || 3;
+  config.autoDisconnectSec = parseInt(document.getElementById('auto-dc-input').value) || 120;
+  config.duckVolume = parseInt(document.getElementById('duck-vol-input').value) || 5;
+  config.normalVolume = parseInt(document.getElementById('normal-vol-input').value) || 70;
+  try { localStorage.setItem('kitt-yt-config', JSON.stringify(config)); } catch(e) {}
+  document.getElementById('settings-overlay').classList.remove('show');
+  log('Settings saved');
 }
 
-function stopGeminiReconnectMonitor() {
-  if (geminiReconnectTimer) {
-    clearInterval(geminiReconnectTimer);
-    geminiReconnectTimer = null;
+// ============================================================
+// Logging
+// ============================================================
+function log(msg) {
+  const el = document.getElementById('log-text');
+  const t = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  el.textContent = `[${t}] ${msg}`;
+  console.log(`[KITT] ${msg}`);
+}
+
+// ============================================================
+// Firebase RTDB Polling
+// ============================================================
+function startFirebasePolling() {
+  if (state.firebasePolling) return;
+  log('Firebase polling started');
+  pollFirebase(); // immediate first poll
+  state.firebasePolling = setInterval(pollFirebase, config.pollingSec * 1000);
+}
+
+function stopFirebasePolling() {
+  if (state.firebasePolling) {
+    clearInterval(state.firebasePolling);
+    state.firebasePolling = null;
+    log('Firebase polling stopped');
   }
 }
 
-async function reconnectGemini() {
-  // Close old connection cleanly
-  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
-  isConnected = false;
-  isSpeaking = false;
-  stopMic();
+async function pollFirebase() {
+  const t0 = Date.now();
+  try {
+    const resp = await fetch(config.firebaseUrl + '/offer_tts.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const latency = Date.now() - t0;
+    updateFirebaseStatus('online', latency);
 
-  // Re-connect (reuses existing connect logic)
-  await connect();
-}
+    if (!data || !data.timestamp) return;
+    if (data.timestamp === state.lastOfferTimestamp) return;
 
-// ============================================================
-// Init
-// ============================================================
-function init() {
-  if (apiKey) {
-    apiModal.classList.add('hidden');
-    startFirebaseListener();
-  }
-
-  micBtn.addEventListener('click', toggleConnection);
-  settingsBtn.addEventListener('click', () => {
-    apiModal.classList.remove('hidden');
-    apiKeyInput.value = apiKey;
-  });
-  clearBtn.addEventListener('click', clearTranscript);
-  apiKeySave.addEventListener('click', saveApiKey);
-
-  // Prevent iOS zoom on double-tap
-  document.addEventListener('dblclick', e => e.preventDefault());
-}
-
-function saveApiKey() {
-  const key = apiKeyInput.value.trim();
-  if (!key) return;
-  apiKey = key;
-  localStorage.setItem('kitt_api_key', key);
-  apiModal.classList.add('hidden');
-  startFirebaseListener();
-  setStatus('connecting', 'READY');
-  statusText.textContent = 'タップして起動';
-}
-
-// ============================================================
-// UI Helpers
-// ============================================================
-function setStatus(state, text) {
-  connStatus.className = `status-badge ${state}`;
-  connStatus.textContent = text;
-}
-
-function setEyeState(state) {
-  eyeRing.className = 'kitt-eye-ring';
-  if (state === 'active') eyeRing.classList.add('active');
-  if (state === 'speaking') {
-    eyeRing.classList.add('active');
-    eyeRing.classList.add('speaking');
+    // New offer detected!
+    state.lastOfferTimestamp = data.timestamp;
+    log('NEW OFFER detected');
+    handleNewOffer(data);
+  } catch (e) {
+    updateFirebaseStatus('error', null);
+    log('Firebase error: ' + e.message);
   }
 }
 
-function addTranscript(text, type) {
-  // Filter out Gemini thinking/reasoning artifacts
-  const cleaned = filterThinking(text);
-  if (!cleaned) return;
-  const div = document.createElement('div');
-  div.className = `transcript-line ${type}`;
-  div.textContent = cleaned;
-  transcript.appendChild(div);
-  transcript.scrollTop = transcript.scrollHeight;
-  // Keep only last 20 lines
-  while (transcript.children.length > 20) {
-    transcript.removeChild(transcript.firstChild);
+function updateFirebaseStatus(status, latency) {
+  const el = document.getElementById('fb-status');
+  const latEl = document.getElementById('fb-latency');
+  el.textContent = status === 'online' ? 'ONLINE' : 'ERROR';
+  el.className = status;
+  latEl.textContent = latency ? latency + 'ms' : '--';
+}
+
+// ============================================================
+// Offer Handling
+// ============================================================
+function handleNewOffer(data) {
+  // Parse offer data - support both structured and legacy format
+  let offer, context;
+  if (data.offer) {
+    offer = data.offer;
+    context = data.context || {};
+  } else {
+    // Legacy: {text, timestamp}
+    offer = { reason: data.text || '' };
+    context = {};
   }
+
+  const decision = (offer.decision || '').toLowerCase();
+  const isAccept = decision === 'accept';
+
+  // 1. Duck YouTube volume
+  duckYouTubeVolume();
+
+  // 2. Show overlay
+  showOfferOverlay(offer, isAccept);
+
+  // 3. Send to Gemini for voice report (if connected)
+  if (state.geminiConnected) {
+    sendOfferToGemini(offer, context);
+    resetAutoDisconnect(); // reset timer on new offer
+  }
+
+  // 4. Play keepalive to prevent suspension
+  tryPlayKeepalive();
 }
 
-function clearTranscript() {
-  transcript.innerHTML = '';
-  offerPanel.classList.remove('visible', 'accept', 'reject');
-}
+function showOfferOverlay(offer, isAccept) {
+  const overlay = document.getElementById('offer-overlay');
+  const decEl = document.getElementById('offer-decision');
+  const hourlyEl = document.getElementById('offer-hourly');
+  const detailEl = document.getElementById('offer-detail');
+  const reasonEl = document.getElementById('offer-reason');
 
-// ============================================================
-// [UPDATED] Show Offer - New RTDB structure
-// ============================================================
-function showOffer(data) {
-  // Support both old and new structure
-  const offer = data.offer || data;
-  const decision = offer.decision || '';
-  const storeName = offer.store_name || '';
-  const reward = offer.reward || 0;
-  const distanceKm = offer.distance_km || 0;
-  const durationMin = offer.duration_min || 0;
-  const hourlyRate = offer.estimated_hourly_rate || 0;
-  const reason = offer.reason || '';
-  const score = offer.score;
-  const confidence = offer.confidence || '';
+  overlay.className = isAccept ? 'accept' : 'reject';
+  decEl.className = isAccept ? 'accept' : 'reject';
+  decEl.textContent = isAccept ? 'ACCEPT' : 'REJECT';
 
-  offerDecision.textContent = decision === 'accept' ? '▲ ACCEPT' : '▼ REJECT';
-  offerDecision.className = `offer-decision ${decision}`;
-
-  const detailParts = [];
-  if (storeName) detailParts.push(storeName);
-  if (reason) detailParts.push(reason);
-  offerDetail.textContent = detailParts.join(' — ') || `${reward}円 / ${distanceKm}km`;
-
-  const metricParts = [];
-  if (reward) metricParts.push(`¥${reward}`);
-  if (distanceKm) metricParts.push(`${distanceKm}km`);
-  if (durationMin) metricParts.push(`${durationMin}分`);
-  if (hourlyRate) metricParts.push(`¥${Math.round(hourlyRate)}/h`);
-  if (score != null) metricParts.push(`S:${typeof score === 'number' ? score.toFixed(2) : score}`);
-  offerMetrics.innerHTML = metricParts.map(m => `<span>${m}</span>`).join('');
-
-  offerPanel.className = `offer-panel visible ${decision}`;
-
-  setTimeout(() => {
-    offerPanel.classList.remove('visible');
-  }, 30000);
-}
-
-// ============================================================
-// Build Gemini injection text from structured data
-// ============================================================
-function buildOfferInjectionText(data) {
-  const offer = data.offer || {};
-  const context = data.context || {};
-  const sd = offer.score_detail || {};
-  const scores = sd.scores || {};
+  const hourly = offer.estimated_hourly_rate || offer.hourly || 0;
+  hourlyEl.textContent = hourly > 0 ? `Â¥${Math.round(hourly).toLocaleString()}/h` : '';
 
   const parts = [];
-  parts.push(`判定: ${offer.decision === 'accept' ? 'アクセプト' : 'リジェクト'}`);
-  if (offer.store_name) parts.push(`店: ${offer.store_name}`);
-  if (offer.reward) parts.push(`報酬: ${offer.reward}円`);
-  if (offer.distance_km) parts.push(`距離: ${offer.distance_km}km`);
-  if (offer.duration_min) parts.push(`${offer.duration_min}分`);
-  if (offer.estimated_hourly_rate) parts.push(`時給換算: ${Math.round(offer.estimated_hourly_rate)}円`);
-  if (offer.reason) parts.push(`理由: ${offer.reason}`);
-  if (offer.confidence) parts.push(`確信度: ${offer.confidence}`);
+  if (offer.store_name) parts.push(offer.store_name);
+  if (offer.reward) parts.push(`Â¥${offer.reward}`);
+  if (offer.distance_km) parts.push(`${offer.distance_km}km`);
+  if (offer.duration_min) parts.push(`${offer.duration_min}å`);
+  detailEl.textContent = parts.join(' Â· ');
 
-  if (scores.hourly_rate != null) {
-    const hr = scores.hourly_rate;
-    if (hr > 1.3) parts.push('時給スコア非常に高い');
-    else if (hr < 0.7) parts.push('時給スコア低い');
-  }
-  if (scores.reward_per_km != null) {
-    const rpk = scores.reward_per_km;
-    if (rpk > 1.3) parts.push('km単価効率良い');
-    else if (rpk < 0.7) parts.push('km単価悪い');
-  }
+  reasonEl.textContent = offer.reason || '';
 
-  if (sd.timeSlotAvg) parts.push(`この時間帯の平均時給: ${Math.round(sd.timeSlotAvg)}円`);
+  overlay.style.display = 'flex';
+  state.offerVisible = true;
+}
 
-  return parts.join('、');
+function dismissOffer() {
+  document.getElementById('offer-overlay').style.display = 'none';
+  state.offerVisible = false;
+  restoreYouTubeVolume();
 }
 
 // ============================================================
-// Text Filtering - Remove Gemini thinking artifacts
+// YouTube Volume Ducking
 // ============================================================
-function filterThinking(text) {
-  if (!text || typeof text !== 'string') return '';
-  let t = text;
+function duckYouTubeVolume() {
+  if (!state.ytPlayer || !state.ytReady) return;
+  try {
+    state.ytCurrentVolume = state.ytPlayer.getVolume();
+    // Smooth fade
+    const current = state.ytCurrentVolume;
+    const target = config.duckVolume;
+    const steps = 8;
+    const stepSize = (current - target) / steps;
+    let step = 0;
+    const fadeInterval = setInterval(() => {
+      step++;
+      const vol = Math.round(current - stepSize * step);
+      try { state.ytPlayer.setVolume(Math.max(vol, target)); } catch(e) {}
+      if (step >= steps) clearInterval(fadeInterval);
+    }, 50);
+    log(`YT volume ducking ${current} â ${target}`);
+  } catch(e) { log('YT duck error: ' + e.message); }
+}
 
-  t = t.replace(/\*\*[^*]+\*\*\s*/g, '');
-
-  const patterns = [
-    /^I'm encountering .+/gm,
-    /^Given the situation.+/gm,
-    /^This will .+ensuring.+/gm,
-    /^Let me .+before responding.*/gm,
-    /^I need to .+carefully.*/gm,
-    /^I suspect .+/gm,
-    /^My response .+/gm,
-    /^I will .+polite.+/gm,
-    /^I should .+/gm,
-    /^Okay, .+let me.+/gm,
-  ];
-  for (const p of patterns) {
-    t = t.replace(p, '');
-  }
-
-  t = t.replace(/<\/?[a-z][a-z0-9]*\s*\/?>/gi, '');
-  t = t.replace(/[a-z]+>/gi, '');
-  t = t.replace(/\n{2,}/g, '\n').trim();
-  return t;
+function restoreYouTubeVolume() {
+  if (!state.ytPlayer || !state.ytReady) return;
+  try {
+    const target = state.ytCurrentVolume || config.normalVolume;
+    const current = state.ytPlayer.getVolume();
+    const steps = 10;
+    const stepSize = (target - current) / steps;
+    let step = 0;
+    const fadeInterval = setInterval(() => {
+      step++;
+      const vol = Math.round(current + stepSize * step);
+      try { state.ytPlayer.setVolume(Math.min(vol, target)); } catch(e) {}
+      if (step >= steps) clearInterval(fadeInterval);
+    }, 80);
+    log(`YT volume restoring â ${target}`);
+  } catch(e) { log('YT restore error: ' + e.message); }
 }
 
 // ============================================================
-// Firebase RTDB Listener (Polling)
+// YouTube Player
 // ============================================================
-function startFirebaseListener() {
-  if (firebasePollTimer) {
-    clearInterval(firebasePollTimer);
+let ytApiReady = false;
+function onYouTubeIframeAPIReady() {
+  ytApiReady = true;
+  log('YouTube IFrame API ready');
+}
+
+function initYtPlayer(videoId) {
+  const wrap = document.getElementById('yt-player-wrap');
+  const placeholder = document.getElementById('yt-placeholder');
+  wrap.style.display = 'flex';
+  placeholder.classList.add('hidden');
+
+  if (state.ytPlayer) {
+    try { state.ytPlayer.destroy(); } catch(e) {}
   }
+  document.getElementById('yt-player').innerHTML = '';
 
-  const url = `${FIREBASE_DB_URL}/offer_tts.json`;
+  // Create a div for the player
+  const div = document.createElement('div');
+  div.id = 'yt-player-inner';
+  div.style.cssText = 'width:100%;height:100%';
+  document.getElementById('yt-player').appendChild(div);
 
-  fbStatus.textContent = 'Firebase Active';
-  fbStatus.className = 'status-badge firebase';
-
-  firebasePollTimer = setInterval(async () => {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!data || !data.timestamp) return;
-
-      if (data.timestamp !== lastOfferTimestamp) {
-        lastOfferTimestamp = data.timestamp;
-
-        showOffer(data);
-
-        const offer = data.offer || {};
-        const summaryText = offer.store_name
-          ? `${offer.decision === 'accept' ? 'ACCEPT' : 'REJECT'} ${offer.store_name} ¥${offer.reward || 0}/${offer.distance_km || 0}km`
-          : (offer.reason || 'new offer');
-        addTranscript(`[OFFER] ${summaryText}`, 'system');
-
-        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-          const injectionText = buildOfferInjectionText(data);
-          sendTextToGemini(`新しいUberEatsオファーが来た。以下のデータで判定結果を報告しろ: ${injectionText}`);
-          resetSilenceTimer();
-        }
+  state.ytPlayer = new YT.Player('yt-player-inner', {
+    videoId: videoId,
+    playerVars: {
+      autoplay: 1,
+      playsinline: 1,
+      modestbranding: 1,
+      rel: 0,
+      fs: 0
+    },
+    events: {
+      onReady: (e) => {
+        state.ytReady = true;
+        e.target.setVolume(config.normalVolume);
+        log('YT player ready: ' + videoId);
+      },
+      onStateChange: (e) => {
+        state.ytPlaying = e.data === YT.PlayerState.PLAYING;
       }
-    } catch (e) {
-      // Silent fail on polling
     }
-  }, 3000);
+  });
 }
 
-// ============================================================
-// Gemini Live Audio - WebSocket Connection
-// ============================================================
-async function toggleConnection() {
-  if (isConnected) {
-    disconnect();
-  } else {
-    await connect();
-  }
-}
+function ytSearch() {
+  const input = document.getElementById('yt-input').value.trim();
+  if (!input) return;
 
-async function connect() {
-  if (!apiKey) {
-    apiModal.classList.remove('hidden');
+  // Check if it's a YouTube URL
+  const videoId = extractYtVideoId(input);
+  if (videoId) {
+    playYtVideo(videoId, input);
     return;
   }
 
-  setStatus('connecting', 'CONNECTING...');
-  statusText.textContent = '接続中...';
+  // Search via YouTube Data API (no key needed for oEmbed approach)
+  // Simple approach: construct a search URL and use invidious or direct
+  // For simplicity, use the video ID input / URL approach
+  // and for search terms, open YouTube search
+  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(input)}`;
+  // Can't embed search results, so let's use a simple approach
+  log('æ¤ç´¢: ' + input + ' â URLãç´æ¥è²¼ãä»ãã¦ãã ãã');
+  document.getElementById('yt-input').value = '';
+
+  // Actually, let's try to use an iframe for search
+  // Better approach: just tell user to paste URL
+  alert('YouTubeã®URLãç´æ¥è²¼ãä»ãã¦ãã ãã\nä¾: https://youtube.com/watch?v=xxxxx');
+}
+
+function playYtVideo(videoId, title) {
+  if (ytApiReady) {
+    initYtPlayer(videoId);
+  } else {
+    // Load API first
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    // Wait for API
+    const check = setInterval(() => {
+      if (ytApiReady) {
+        clearInterval(check);
+        initYtPlayer(videoId);
+      }
+    }, 200);
+  }
+
+  // Save to history
+  const entry = { videoId, title: title || videoId, time: Date.now() };
+  state.ytHistory = [entry, ...state.ytHistory.filter(h => h.videoId !== videoId)].slice(0, 10);
+  try { localStorage.setItem('kitt-yt-history', JSON.stringify(state.ytHistory)); } catch(e) {}
+  renderYtHistory();
+  document.getElementById('yt-input').value = '';
+}
+
+function extractYtVideoId(input) {
+  // youtube.com/watch?v=ID
+  let m = input.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  // youtu.be/ID
+  m = input.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  // youtube.com/embed/ID
+  m = input.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  // youtube.com/shorts/ID
+  m = input.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (m) return m[1];
+  // Raw 11-char ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  return null;
+}
+
+function renderYtHistory() {
+  const el = document.getElementById('yt-history');
+  el.innerHTML = state.ytHistory.map(h =>
+    `<div class="yt-hist-item" onclick="playYtVideo('${h.videoId}','${(h.title||'').replace(/'/g,'\\\'')}')">${h.title || h.videoId}</div>`
+  ).join('');
+}
+
+// ============================================================
+// Gemini Live Audio (WebSocket)
+// ============================================================
+const GEMINI_WS_MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
+const GEMINI_VOICE = 'Zephyr';
+const KITT_SYSTEM = `ããªãã¯KITTãUberEatsééå¡ã®AIãã¼ããã¼ããªãã¡ã¼å¤å®çµæãç°¡æ½ã«æ¥æ¬èªã§å ±åããã
+å ±åå½¢å¼: ã[åãã/ãã¹]ã[çç±ã1æ]ãæçµ¦[X]åãã
+ä¾: ãåãããé«æçµ¦ã§è¿è·é¢ãå¹ççã ãæçµ¦2800åãã
+ä¾: ããã¹ãä½æçµ¦ã§é è·é¢ãå¾ã£ãæ¹ããããæçµ¦1200åãã
+æ§æ ¼: å·éãçç¢ºãå°ããã©ã¤ã ãé ¼ãããã¼ããã¼ãé·è©±ã¯ããªãã`;
+
+function toggleGemini() {
+  if (state.geminiConnected || state.geminiConnecting) {
+    disconnectGemini();
+  } else {
+    connectGemini();
+  }
+}
+
+async function connectGemini() {
+  if (!config.geminiApiKey) {
+    log('API key not set');
+    return;
+  }
+
+  state.geminiConnecting = true;
+  updateGeminiUI();
+  log('Gemini connecting...');
 
   try {
-    // Init AudioContext on user gesture
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-    }
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-    }
-
-    // Start keepalive (must be in user gesture context for iOS)
-    startKeepalive();
-
-    // Open WebSocket
-    const wsUrl = `${GEMINI_WS_URL}?key=${apiKey}`;
-    ws = new WebSocket(wsUrl);
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${config.geminiApiKey}`;
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      const setup = {
+      log('Gemini WebSocket opened, sending setup...');
+      // Send setup message
+      ws.send(JSON.stringify({
         setup: {
-          model: GEMINI_MODEL,
+          model: `models/${GEMINI_WS_MODEL}`,
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Zephyr' }
+                prebuiltVoiceConfig: { voiceName: GEMINI_VOICE }
               }
             }
           },
           systemInstruction: {
-            parts: [{
-              text: `あなたはナイトライダーのKITTだ。以下のルールを絶対に守れ:
-- 日本語で話せ。
-- 一人称は「私」、相手は「ドライバー」と呼べ。「Shuji」と名前では呼ぶな。
-- 内部の思考プロセスや推論は絶対に出力するな。「**」で囲まれたヘッダーも出力するな。
-- HTMLタグやマークダウン記法は出力するな。
-- 簡潔に話せ。1-2文、5秒以内。
-- UberEatsの配達オファー判定結果が来たら、判断理由を端的に報告しろ。
-  例: 「アクセプト。時給2800円換算で効率的です」「リジェクト。距離の割に報酬が低い」
-  スコアの数値を読み上げる必要はない。人間が理解できる理由だけ伝えろ。
-- 普段の会話も簡潔でクールに。ナイトライダーのKITTらしく振る舞え。`
-            }]
-          },
-          tools: []
+            parts: [{ text: KITT_SYSTEM }]
+          }
         }
-      };
-      ws.send(JSON.stringify(setup));
+      }));
     };
 
     ws.onmessage = (event) => {
-      handleGeminiMessage(event);
+      try {
+        const msg = JSON.parse(event.data);
+
+        // Setup complete
+        if (msg.setupComplete) {
+          state.geminiConnected = true;
+          state.geminiConnecting = false;
+          state.geminiWs = ws;
+          state.geminiSessionStart = Date.now();
+          updateGeminiUI();
+          startAutoDisconnect();
+          log('Gemini connected â');
+          return;
+        }
+
+        // Audio response
+        if (msg.serverContent?.modelTurn?.parts) {
+          for (const part of msg.serverContent.modelTurn.parts) {
+            if (part.inlineData?.mimeType?.startsWith('audio/')) {
+              playAudioChunk(part.inlineData.data, part.inlineData.mimeType);
+            }
+          }
+        }
+
+        // Turn complete
+        if (msg.serverContent?.turnComplete) {
+          log('Gemini turn complete');
+          // Restore volume after a short delay
+          setTimeout(() => {
+            if (!state.offerVisible) restoreYouTubeVolume();
+          }, 500);
+        }
+      } catch(e) {
+        // Binary audio data handled separately
+        if (event.data instanceof Blob) {
+          // Handle binary audio
+        }
+      }
     };
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      setStatus('disconnected', 'ERROR');
-      statusText.textContent = '接続エラー';
+    ws.onerror = (e) => {
+      log('Gemini error');
+      console.error('Gemini WS error:', e);
     };
 
-    ws.onclose = (event) => {
-      isConnected = false;
-      setStatus('disconnected', 'OFFLINE');
-      setEyeState('');
-      statusText.textContent = '切断(' + event.code + ')';
-      micBtn.classList.remove('active');
-      stopMic();
-      // NOTE: Don't stop keepalive here - auto-reconnect may fire
+    ws.onclose = (e) => {
+      log(`Gemini disconnected (code ${e.code})`);
+      state.geminiConnected = false;
+      state.geminiConnecting = false;
+      state.geminiWs = null;
+      updateGeminiUI();
+      clearAutoDisconnect();
     };
 
-  } catch (err) {
-    console.error('Connect error:', err);
-    setStatus('disconnected', 'ERROR');
-    statusText.textContent = err.message;
+  } catch(e) {
+    log('Gemini connection failed: ' + e.message);
+    state.geminiConnecting = false;
+    updateGeminiUI();
   }
 }
 
-function disconnect() {
-  stopGeminiReconnectMonitor();
-  if (ws) {
-    ws.close();
-    ws = null;
+function disconnectGemini() {
+  if (state.geminiWs) {
+    try { state.geminiWs.close(); } catch(e) {}
   }
-  stopMic();
-  stopKeepalive();
-  isConnected = false;
-  isSpeaking = false;
-  setStatus('disconnected', 'OFFLINE');
-  setEyeState('');
-  statusText.textContent = 'タップして起動';
-  micBtn.classList.remove('active');
-  clearSilenceTimer();
+  state.geminiConnected = false;
+  state.geminiConnecting = false;
+  state.geminiWs = null;
+  updateGeminiUI();
+  clearAutoDisconnect();
+  log('Gemini disconnected');
 }
 
-// ============================================================
-// Gemini Message Handler
-// ============================================================
-let audioQueue = [];
-let isPlayingAudio = false;
-let currentTranscriptText = '';
+function sendOfferToGemini(offer, context) {
+  if (!state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
 
-async function handleGeminiMessage(event) {
+  const decision = offer.decision || 'unknown';
+  const hourly = offer.estimated_hourly_rate || 0;
+  const store = offer.store_name || 'ä¸æ';
+  const reward = offer.reward || 0;
+  const dist = offer.distance_km || 0;
+  const dur = offer.duration_min || 0;
+  const reason = offer.reason || '';
+  const score = offer.score || 0;
+  const confidence = offer.confidence || '';
+
+  const prompt = `æ°ãããªãã¡ã¼ãå¤å®çµæãå ±åãã¦ã
+å¤å®: ${decision.toUpperCase()}
+åºå: ${store}
+å ±é¬: ${reward}å
+è·é¢: ${dist}km
+æè¦: ${dur}å
+æ¨å®æçµ¦: ${Math.round(hourly)}å
+ã¹ã³ã¢: ${score}
+ä¿¡é ¼åº¦: ${confidence}
+çç±: ${reason}
+ç°¡æ½ã«å ±åãã¦ã`;
+
   try {
-    let msg;
-    if (event.data instanceof Blob) {
-      const text = await event.data.text();
-      msg = JSON.parse(text);
-    } else {
-      msg = JSON.parse(event.data);
-    }
-
-    // Setup complete
-    if (msg.setupComplete) {
-      isConnected = true;
-      setStatus('connected', 'ONLINE');
-      setEyeState('active');
-      statusText.textContent = 'Listening...';
-      micBtn.classList.add('active');
-      await startMic();
-      resetSilenceTimer();
-      startGeminiReconnectMonitor();
-      return;
-    }
-
-    // Server content (audio + text responses)
-    if (msg.serverContent) {
-      const sc = msg.serverContent;
-
-      if (sc.modelTurn && sc.modelTurn.parts) {
-        for (const part of sc.modelTurn.parts) {
-          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
-            const audioBytes = base64ToArrayBuffer(part.inlineData.data);
-            audioQueue.push(audioBytes);
-            if (!isPlayingAudio) {
-              playAudioQueue();
-            }
-          }
-
-          if (false && part.text) {
-            const cleaned = filterThinking(part.text);
-            if (cleaned) {
-              currentTranscriptText += cleaned;
-            }
-          }
-        }
+    state.geminiWs.send(JSON.stringify({
+      clientContent: {
+        turns: [{ role: 'user', parts: [{ text: prompt }] }],
+        turnComplete: true
       }
-
-      if (sc.turnComplete) {
-        if (currentTranscriptText) {
-          addTranscript(currentTranscriptText, 'kitt');
-          currentTranscriptText = '';
-        }
-        isSpeaking = false;
-        setEyeState('active');
-        statusText.textContent = 'Listening...';
-        resetSilenceTimer();
-      }
-
-      if (sc.interrupted) {
-        audioQueue = [];
-        isPlayingAudio = false;
-        isSpeaking = false;
-        currentTranscriptText = '';
-        setEyeState('active');
-      }
-    }
-  } catch (e) {
-    console.error('Message parse error:', e);
+    }));
+    log('Offer sent to Gemini');
+  } catch(e) {
+    log('Gemini send error: ' + e.message);
   }
 }
 
 // ============================================================
 // Audio Playback
 // ============================================================
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+const audioQueue = [];
+let isPlayingAudio = false;
+
+function playAudioChunk(base64Data, mimeType) {
+  try {
+    const raw = atob(base64Data);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+
+    // PCM 16-bit LE @ 24kHz
+    const pcm16 = new Int16Array(bytes.buffer);
+    const float32 = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768;
+
+    audioQueue.push(float32);
+    if (!isPlayingAudio) processAudioQueue();
+  } catch(e) {
+    log('Audio decode error: ' + e.message);
   }
-  return bytes.buffer;
 }
 
-async function playAudioQueue() {
+function processAudioQueue() {
+  if (audioQueue.length === 0) {
+    isPlayingAudio = false;
+    return;
+  }
   isPlayingAudio = true;
-  isSpeaking = true;
-  setEyeState('speaking');
-  statusText.textContent = 'Speaking...';
 
-  while (audioQueue.length > 0) {
-    const audioData = audioQueue.shift();
-    await playPcmAudio(audioData);
+  // Resume AudioContext if suspended (iOS requirement)
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
 
-  isPlayingAudio = false;
-  if (!audioQueue.length) {
-    isSpeaking = false;
+  const samples = audioQueue.shift();
+  const buffer = audioCtx.createBuffer(1, samples.length, 24000);
+  buffer.getChannelData(0).set(samples);
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioCtx.destination);
+  source.onended = () => processAudioQueue();
+  source.start();
+}
+
+// ============================================================
+// Auto Disconnect
+// ============================================================
+function startAutoDisconnect() {
+  clearAutoDisconnect();
+  state.autoDisconnectTimer = setTimeout(() => {
+    log('Auto disconnect (timeout)');
+    disconnectGemini();
+  }, config.autoDisconnectSec * 1000);
+}
+
+function resetAutoDisconnect() {
+  if (state.geminiConnected) startAutoDisconnect();
+}
+
+function clearAutoDisconnect() {
+  if (state.autoDisconnectTimer) {
+    clearTimeout(state.autoDisconnectTimer);
+    state.autoDisconnectTimer = null;
   }
 }
 
-function playPcmAudio(arrayBuffer) {
-  return new Promise((resolve) => {
-    try {
-      if (!audioCtx) { resolve(); return; }
-      // Resume AudioContext if suspended (iOS background recovery)
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+// ============================================================
+// UI Updates
+// ============================================================
+function updateGeminiUI() {
+  const btn = document.getElementById('gemini-btn');
+  const status = document.getElementById('gemini-status');
+  const scanner = document.getElementById('scanner-wrap');
+
+  btn.classList.remove('connected', 'connecting');
+  if (state.geminiConnected) {
+    btn.classList.add('connected');
+    status.textContent = 'CONNECTED';
+    scanner.classList.remove('paused');
+  } else if (state.geminiConnecting) {
+    btn.classList.add('connecting');
+    status.textContent = 'CONNECTING...';
+    scanner.classList.add('paused');
+  } else {
+    status.textContent = 'ã¿ãããã¦èµ·å';
+    scanner.classList.add('paused');
+  }
+}
+
+// ============================================================
+// Keepalive
+// ============================================================
+function tryPlayKeepalive() {
+  const audio = document.getElementById('keepalive');
+  try {
+    audio.play().catch(() => {});
+  } catch(e) {}
+}
+
+// ============================================================
+// Init
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Start Firebase polling immediately
+  startFirebasePolling();
+
+  // Render YT history
+  renderYtHistory();
+
+  // Load YouTube IFrame API
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+
+  // Handle yt-input enter key
+  document.getElementById('yt-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = e.target.value.trim();
+      const videoId = extractYtVideoId(val);
+      if (videoId) {
+        playYtVideo(videoId, val);
+      } else {
+        ytSearch();
       }
-      const int16 = new Int16Array(arrayBuffer);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) {
-        float32[i] = int16[i] / 32768;
-      }
-      const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
-      audioBuffer.getChannelData(0).set(float32);
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioCtx.destination);
-      source.onended = resolve;
-      source.start();
-    } catch (e) {
-      console.error('Audio playback error:', e);
-      resolve();
     }
   });
-}
 
-// ============================================================
-// Microphone Capture
-// ============================================================
-async function startMic() {
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: 16000,
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
+  // Resume AudioContext on first tap (iOS requirement)
+  document.addEventListener('touchstart', () => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    tryPlayKeepalive();
+  }, { once: true });
 
-    const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    const source = micCtx.createMediaStreamSource(micStream);
+  log('KITT YouTube Edition initialized');
+  updateGeminiUI();
+});
 
-    micProcessor = micCtx.createScriptProcessor(4096, 1, 1);
-    micProcessor.onaudioprocess = (e) => {
-      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
-
-      const float32 = e.inputBuffer.getChannelData(0);
-
-      let energy = 0;
-      for (let i = 0; i < float32.length; i++) {
-        energy += float32[i] * float32[i];
-      }
-      energy = energy / float32.length;
-      if (energy > 0.0005) {
-        resetSilenceTimer();
-      }
-
-      const int16 = new Int16Array(float32.length);
-      for (let i = 0; i < float32.length; i++) {
-        const s = Math.max(-1, Math.min(1, float32[i]));
-        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-
-      const base64 = arrayBufferToBase64(int16.buffer);
-      try {
-        ws.send(JSON.stringify({
-          realtimeInput: {
-            mediaChunks: [{
-              mimeType: 'audio/pcm;rate=16000',
-              data: base64
-            }]
-          }
-        }));
-      } catch (e) {
-        // Connection might be closing
-      }
-    };
-
-    source.connect(micProcessor);
-    micProcessor.connect(micCtx.destination);
-
-  } catch (err) {
-    console.error('Mic error:', err);
-    addTranscript('マイクへのアクセスが拒否されました', 'system');
-  }
-}
-
-function stopMic() {
-  if (micProcessor) {
-    micProcessor.disconnect();
-    micProcessor = null;
-  }
-  if (micStream) {
-    micStream.getTracks().forEach(t => t.stop());
-    micStream = null;
-  }
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-// ============================================================
-// Send Text to Gemini (for offer injection)
-// ============================================================
-function sendTextToGemini(text) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  try {
-    ws.send(JSON.stringify({
-      clientContent: {
-        turns: [{
-          role: 'user',
-          parts: [{ text: text }]
-        }],
-        turnComplete: true
-      }
-    }));
-  } catch (e) {
-    console.error('Send text error:', e);
-  }
-}
-
-// ============================================================
-// Silence Timer (120-second auto-disconnect)
-// ============================================================
-function resetSilenceTimer() {
-  clearSilenceTimer();
-  silenceTimer = setTimeout(() => {
-    if (isConnected && !isSpeaking) {
-      addTranscript('2分無音 - 自動切断', 'system');
-      disconnect();
+// Visibility change â reconnect Gemini on foreground return
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    log('App foregrounded');
+    // Check if Gemini was connected but WS died
+    if (state.geminiWs && state.geminiWs.readyState !== WebSocket.OPEN) {
+      log('Gemini WS dead, reconnecting...');
+      state.geminiConnected = false;
+      state.geminiWs = null;
+      updateGeminiUI();
+      // Auto-reconnect
+      connectGemini();
     }
-  }, 120000);
-}
-
-function clearSilenceTimer() {
-  if (silenceTimer) {
-    clearTimeout(silenceTimer);
-    silenceTimer = null;
+    // Resume AudioContext
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Check for missed offers
+    pollFirebase();
   }
-}
-
-// ============================================================
-// Boot
-// ============================================================
-document.addEventListener('DOMContentLoaded', init);
+});
 </script>
 </body>
 </html>
