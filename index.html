@@ -66,6 +66,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #yt-history{margin-top:12px;width:100%;max-width:320px}
 .yt-hist-item{padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yt-hist-item:active{background:#1a1a1a}
+#yt-search-results{width:100%;max-width:360px;max-height:50vh;overflow-y:auto;margin-bottom:8px}
+.yt-result{display:flex;gap:8px;padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;align-items:center}
+.yt-result:active{background:#1a1a1a}
+.yt-result img{width:80px;height:45px;object-fit:cover;border-radius:2px;flex-shrink:0}
+.yt-result-info{flex:1;overflow:hidden}
+.yt-result-title{font-size:9px;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.yt-result-ch{font-size:8px;color:var(--text-dim);margin-top:2px}
+.yt-searching{text-align:center;font-size:10px;color:var(--amber);padding:12px}
 
 /* === SoundCloud Panel === */
 #sc-panel{align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;letter-spacing:2px}
@@ -104,32 +112,33 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="tab active" data-panel="kitt">KITT</div>
   <div class="tab" data-panel="yt">YouTube</div>
   <div class="tab" data-panel="sc">SoundCloud</div>
-  <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
+  <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">⚙</div>
 </div>
 
 <!-- Panels -->
 <div id="panels">
   <!-- KITT Panel -->
   <div id="kitt-panel" class="panel active">
-    <div id="kitt-status"><span id="fb-status">OFFLINE</span> Â· Firebase <span id="fb-latency">--</span></div>
+    <div id="kitt-status"><span id="fb-status">OFFLINE</span> · Firebase <span id="fb-latency">--</span></div>
     <div id="scanner-wrap"><div id="scanner-bar"></div></div>
     <div id="kitt-label">KITT</div>
     <div id="kitt-sub">UBER EATS AI JUDGE</div>
     <div id="gemini-btn" onclick="toggleGemini()">
       <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
     </div>
-    <div id="gemini-status">ã¿ãããã¦èµ·å</div>
+    <div id="gemini-status">タップして起動</div>
   </div>
 
   <!-- YouTube Panel -->
   <div id="yt-panel" class="panel">
     <div id="yt-search-bar">
-      <input type="text" id="yt-input" placeholder="YouTubeãæ¤ç´¢ / URLãè²¼ãä»ã" enterkeyhint="search">
-      <button onclick="ytSearch()">â¶</button>
+      <input type="text" id="yt-input" placeholder="YouTubeを検索 / URLを貼り付け" enterkeyhint="search">
+      <button onclick="ytSearch()">▶</button>
     </div>
     <div id="yt-placeholder">
-      <div>â¶ YouTube</div>
-      <div style="font-size:9px">æ¤ç´¢ã¾ãã¯URLã§åçéå§</div>
+      <div>▶ YouTube</div>
+      <div style="font-size:9px">検索またはURLで再生開始</div>
+      <div id="yt-search-results"></div>
       <div id="yt-history"></div>
     </div>
     <div id="yt-player-wrap" style="display:none">
@@ -153,7 +162,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- Settings -->
 <div id="settings-overlay">
-  <h2>â SETTINGS</h2>
+  <h2>⚙ SETTINGS</h2>
   <div class="setting-row"><label>GEMINI API KEY</label><input type="text" id="api-key-input"></div>
   <div class="setting-row"><label>FIREBASE URL</label><input type="text" id="fb-url-input" value=""></div>
   <div class="setting-row"><label>POLLING SEC</label><input type="number" id="poll-sec-input" value="3" min="1" max="30"></div>
@@ -168,7 +177,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- Keepalive silent audio (background Firebase polling survival) -->
 <audio id="keepalive" loop playsinline>
-  <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA4AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAA" type="audio/mp3">
+  <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAA" type="audio/mp3">
 </audio>
 
 <!-- YouTube IFrame API -->
@@ -361,14 +370,14 @@ function showOfferOverlay(offer, isAccept) {
   decEl.textContent = isAccept ? 'ACCEPT' : 'REJECT';
 
   const hourly = offer.estimated_hourly_rate || offer.hourly || 0;
-  hourlyEl.textContent = hourly > 0 ? `Â¥${Math.round(hourly).toLocaleString()}/h` : '';
+  hourlyEl.textContent = hourly > 0 ? `¥${Math.round(hourly).toLocaleString()}/h` : '';
 
   const parts = [];
   if (offer.store_name) parts.push(offer.store_name);
-  if (offer.reward) parts.push(`Â¥${offer.reward}`);
+  if (offer.reward) parts.push(`¥${offer.reward}`);
   if (offer.distance_km) parts.push(`${offer.distance_km}km`);
-  if (offer.duration_min) parts.push(`${offer.duration_min}å`);
-  detailEl.textContent = parts.join(' Â· ');
+  if (offer.duration_min) parts.push(`${offer.duration_min}分`);
+  detailEl.textContent = parts.join(' · ');
 
   reasonEl.textContent = offer.reason || '';
 
@@ -401,7 +410,7 @@ function duckYouTubeVolume() {
       try { state.ytPlayer.setVolume(Math.max(vol, target)); } catch(e) {}
       if (step >= steps) clearInterval(fadeInterval);
     }, 50);
-    log(`YT volume ducking ${current} â ${target}`);
+    log(`YT volume ducking ${current} → ${target}`);
   } catch(e) { log('YT duck error: ' + e.message); }
 }
 
@@ -419,7 +428,7 @@ function restoreYouTubeVolume() {
       try { state.ytPlayer.setVolume(Math.min(vol, target)); } catch(e) {}
       if (step >= steps) clearInterval(fadeInterval);
     }, 80);
-    log(`YT volume restoring â ${target}`);
+    log(`YT volume restoring → ${target}`);
   } catch(e) { log('YT restore error: ' + e.message); }
 }
 
@@ -471,7 +480,7 @@ function initYtPlayer(videoId) {
   });
 }
 
-function ytSearch() {
+async function ytSearch() {
   const input = document.getElementById('yt-input').value.trim();
   if (!input) return;
 
@@ -482,18 +491,49 @@ function ytSearch() {
     return;
   }
 
-  // Search via YouTube Data API (no key needed for oEmbed approach)
-  // Simple approach: construct a search URL and use invidious or direct
-  // For simplicity, use the video ID input / URL approach
-  // and for search terms, open YouTube search
-  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(input)}`;
-  // Can't embed search results, so let's use a simple approach
-  log('æ¤ç´¢: ' + input + ' â URLãç´æ¥è²¼ãä»ãã¦ãã ãã');
+  // Search via Piped API (free, no API key needed)
+  const resultsEl = document.getElementById('yt-search-results');
+  resultsEl.innerHTML = '<div class="yt-searching">検索中...</div>';
   document.getElementById('yt-input').value = '';
+  log('Searching: ' + input);
 
-  // Actually, let's try to use an iframe for search
-  // Better approach: just tell user to paste URL
-  alert('YouTubeã®URLãç´æ¥è²¼ãä»ãã¦ãã ãã\nä¾: https://youtube.com/watch?v=xxxxx');
+  const pipedInstances = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://api.piped.yt'
+  ];
+
+  for (const api of pipedInstances) {
+    try {
+      const resp = await fetch(api + '/search?q=' + encodeURIComponent(input) + '&filter=videos');
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const items = (data.items || []).filter(i => i.type === 'stream').slice(0, 8);
+      if (items.length === 0) {
+        resultsEl.innerHTML = '<div class="yt-searching">結果なし</div>';
+        return;
+      }
+      resultsEl.innerHTML = items.map(item => {
+        const vid = (item.url || '').replace('/watch?v=', '');
+        const thumb = item.thumbnail || '';
+        const title = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const ch = item.uploaderName || '';
+        return `<div class="yt-result" onclick="playYtVideo('${vid}','${title}')">
+          <img src="${thumb}" loading="lazy" onerror="this.style.display='none'">
+          <div class="yt-result-info">
+            <div class="yt-result-title">${item.title || ''}</div>
+            <div class="yt-result-ch">${ch}</div>
+          </div>
+        </div>`;
+      }).join('');
+      log(items.length + ' results from ' + api);
+      return;
+    } catch(e) {
+      log('Search error (' + api + '): ' + e.message);
+      continue;
+    }
+  }
+  resultsEl.innerHTML = '<div class="yt-searching">検索失敗。URLを貼り付けてください</div>';
 }
 
 function playYtVideo(videoId, title) {
@@ -518,6 +558,7 @@ function playYtVideo(videoId, title) {
   state.ytHistory = [entry, ...state.ytHistory.filter(h => h.videoId !== videoId)].slice(0, 10);
   try { localStorage.setItem('kitt-yt-history', JSON.stringify(state.ytHistory)); } catch(e) {}
   renderYtHistory();
+  document.getElementById('yt-search-results').innerHTML = '';
   document.getElementById('yt-input').value = '';
 }
 
@@ -551,11 +592,11 @@ function renderYtHistory() {
 // ============================================================
 const GEMINI_WS_MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
 const GEMINI_VOICE = 'Zephyr';
-const KITT_SYSTEM = `ããªãã¯KITTãUberEatsééå¡ã®AIãã¼ããã¼ããªãã¡ã¼å¤å®çµæãç°¡æ½ã«æ¥æ¬èªã§å ±åããã
-å ±åå½¢å¼: ã[åãã/ãã¹]ã[çç±ã1æ]ãæçµ¦[X]åãã
-ä¾: ãåãããé«æçµ¦ã§è¿è·é¢ãå¹ççã ãæçµ¦2800åãã
-ä¾: ããã¹ãä½æçµ¦ã§é è·é¢ãå¾ã£ãæ¹ããããæçµ¦1200åãã
-æ§æ ¼: å·éãçç¢ºãå°ããã©ã¤ã ãé ¼ãããã¼ããã¼ãé·è©±ã¯ããªãã`;
+const KITT_SYSTEM = `あなたはKITT。UberEats配達員のAIパートナー。オファー判定結果を簡潔に日本語で報告する。
+報告形式: 「[受けろ/パス]。[理由を1文]。時給[X]円。」
+例: 「受けろ。高時給で近距離、効率的だ。時給2800円。」
+例: 「パス。低時給で遠距離、待った方がいい。時給1200円。」
+性格: 冷静、的確、少しドライだが頼れるパートナー。長話はしない。`;
 
 function toggleGemini() {
   if (state.geminiConnected || state.geminiConnecting) {
@@ -612,7 +653,7 @@ async function connectGemini() {
           state.geminiSessionStart = Date.now();
           updateGeminiUI();
           startAutoDisconnect();
-          log('Gemini connected â');
+          log('Gemini connected ✓');
           return;
         }
 
@@ -679,7 +720,7 @@ function sendOfferToGemini(offer, context) {
 
   const decision = offer.decision || 'unknown';
   const hourly = offer.estimated_hourly_rate || 0;
-  const store = offer.store_name || 'ä¸æ';
+  const store = offer.store_name || '不明';
   const reward = offer.reward || 0;
   const dist = offer.distance_km || 0;
   const dur = offer.duration_min || 0;
@@ -687,17 +728,17 @@ function sendOfferToGemini(offer, context) {
   const score = offer.score || 0;
   const confidence = offer.confidence || '';
 
-  const prompt = `æ°ãããªãã¡ã¼ãå¤å®çµæãå ±åãã¦ã
-å¤å®: ${decision.toUpperCase()}
-åºå: ${store}
-å ±é¬: ${reward}å
-è·é¢: ${dist}km
-æè¦: ${dur}å
-æ¨å®æçµ¦: ${Math.round(hourly)}å
-ã¹ã³ã¢: ${score}
-ä¿¡é ¼åº¦: ${confidence}
-çç±: ${reason}
-ç°¡æ½ã«å ±åãã¦ã`;
+  const prompt = `新しいオファー。判定結果を報告して。
+判定: ${decision.toUpperCase()}
+店名: ${store}
+報酬: ${reward}円
+距離: ${dist}km
+所要: ${dur}分
+推定時給: ${Math.round(hourly)}円
+スコア: ${score}
+信頼度: ${confidence}
+理由: ${reason}
+簡潔に報告して。`;
 
   try {
     state.geminiWs.send(JSON.stringify({
@@ -800,7 +841,7 @@ function updateGeminiUI() {
     status.textContent = 'CONNECTING...';
     scanner.classList.add('paused');
   } else {
-    status.textContent = 'ã¿ãããã¦èµ·å';
+    status.textContent = 'タップして起動';
     scanner.classList.add('paused');
   }
 }
@@ -854,7 +895,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateGeminiUI();
 });
 
-// Visibility change â reconnect Gemini on foreground return
+// Visibility change — reconnect Gemini on foreground return
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     log('App foregrounded');
