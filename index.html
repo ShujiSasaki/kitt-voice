@@ -497,27 +497,21 @@ async function ytSearch() {
   document.getElementById('yt-input').value = '';
   log('Searching: ' + input);
 
-  const pipedInstances = [
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://api.piped.yt'
-  ];
-
-  for (const api of pipedInstances) {
-    try {
-      const resp = await fetch(api + '/search?q=' + encodeURIComponent(input) + '&filter=videos');
-      if (!resp.ok) continue;
+  const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
+  try {
+    const resp = await fetch(cfSearchUrl + '?q=' + encodeURIComponent(input));
+    if (resp.ok) {
       const data = await resp.json();
-      const items = (data.items || []).filter(i => i.type === 'stream').slice(0, 8);
+      const items = data.results || [];
       if (items.length === 0) {
-        resultsEl.innerHTML = '<div class="yt-searching">結果なし</div>';
+        resultsEl.innerHTML = '<div class="yt-searching">\u7d50\u679c\u306a\u3057</div>';
         return;
       }
       resultsEl.innerHTML = items.map(item => {
-        const vid = (item.url || '').replace('/watch?v=', '');
+        const vid = item.videoId || '';
         const thumb = item.thumbnail || '';
         const title = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const ch = item.uploaderName || '';
+        const ch = item.channel || '';
         return `<div class="yt-result" onclick="playYtVideo('${vid}','${title}')">
           <img src="${thumb}" loading="lazy" onerror="this.style.display='none'">
           <div class="yt-result-info">
@@ -526,14 +520,13 @@ async function ytSearch() {
           </div>
         </div>`;
       }).join('');
-      log(items.length + ' results from ' + api);
+      log(items.length + ' results from CF');
       return;
-    } catch(e) {
-      log('Search error (' + api + '): ' + e.message);
-      continue;
     }
+  } catch(e) {
+    log('Search error: ' + e.message);
   }
-  resultsEl.innerHTML = '<div class="yt-searching">検索失敗。URLを貼り付けてください</div>';
+  resultsEl.innerHTML = '<div class="yt-searching">\u691c\u7d22\u5931\u6557\u3002URL\u3092\u8cbc\u308a\u4ed8\u3051\u3066\u304f\u3060\u3055\u3044</div>'
 }
 
 function playYtVideo(videoId, title) {
