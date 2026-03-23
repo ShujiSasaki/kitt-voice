@@ -708,6 +708,8 @@ async function connectGemini() {
         // Setup complete
         if (msg.setupComplete) {
           state.geminiConnected = true;
+          // Auto-greeting on connect
+          ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: 'KITT, 起動した。短く挨拶して。' }] }], turnComplete: true } }));
           state.geminiConnecting = false;
           state.geminiWs = ws;
           state.geminiSessionStart = Date.now();
