@@ -574,7 +574,17 @@ async function ytSearch() {
     }, 200);
   }
 
-  // Save to history
+function playYtVideo(videoId, title) {
+  if (ytApiReady) {
+    initYtPlayer(videoId);
+  } else {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    const check = setInterval(() => {
+      if (ytApiReady) { clearInterval(check); initYtPlayer(videoId); }
+    }, 200);
+  }
   const entry = { videoId, title: title || videoId, time: Date.now() };
   state.ytHistory = [entry, ...state.ytHistory.filter(h => h.videoId !== videoId)].slice(0, 10);
   try { localStorage.setItem('kitt-yt-history', JSON.stringify(state.ytHistory)); } catch(e) {}
