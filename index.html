@@ -840,8 +840,11 @@ function playAudioChunk(base64Data, mimeType) {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.connect(ctx.destination);
-      src.start();
-      console.log('[KITT] Audio playing ' + float32.length + ' samples');
+      if (!window._nextPlayTime || window._nextPlayTime < ctx.currentTime) {
+        window._nextPlayTime = ctx.currentTime;
+      }
+      src.start(window._nextPlayTime);
+      window._nextPlayTime += buffer.duration;
     } catch(e) { console.log('[KITT] playAudio error: ' + e.message); }
   }
 
