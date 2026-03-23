@@ -61,18 +61,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #yt-player{width:100%;height:100%}
 #yt-overlay{display:none;position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.85));pointer-events:none}
 #yt-now-playing{font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#yt-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;gap:8px;padding:20px;text-align:center}
+#yt-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;color:var(--text-dim);font-size:11px;gap:8px;padding:12px;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
 #yt-placeholder.hidden{display:none}
 #yt-history{margin-top:12px;width:100%;max-width:320px}
 .yt-hist-item{padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yt-hist-item:active{background:#1a1a1a}
-#yt-search-results{width:100%;max-width:360px;max-height:50vh;overflow-y:auto;margin-bottom:8px}
-.yt-result{display:flex;gap:8px;padding:8px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;align-items:center}
-.yt-result:active{background:#1a1a1a}
-.yt-result img{width:80px;height:45px;object-fit:cover;border-radius:2px;flex-shrink:0}
-.yt-result-info{flex:1;overflow:hidden}
-.yt-result-title{font-size:9px;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.yt-result-ch{font-size:8px;color:var(--text-dim);margin-top:2px}
+#yt-search-results{width:100%;max-width:100%;padding:0 4px}
+.yt-result{display:flex;flex-direction:column;padding:0;border:none;border-radius:8px;margin-bottom:16px;cursor:pointer;overflow:hidden;background:var(--card)}
+.yt-result:active{opacity:.8}
+.yt-result img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:0;flex-shrink:0}
+.yt-result-info{padding:8px 10px 10px}
+.yt-result-title{font-size:12px;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:-apple-system,sans-serif}
+.yt-result-ch{font-size:10px;color:var(--text-dim);margin-top:4px;font-family:-apple-system,sans-serif}
 .yt-searching{text-align:center;font-size:10px;color:var(--amber);padding:12px}
 
 /* === SoundCloud Panel === */
@@ -102,6 +102,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #api-key-input{width:200px!important;font-size:9px!important}
 
 /* === Log === */
+#yt-intro.hidden{display:none}
 #log-bar{position:fixed;bottom:0;left:0;right:0;height:20px;background:#0d0d0d;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:8px;color:var(--text-dim);z-index:50;overflow:hidden}
 </style>
 </head>
@@ -136,8 +137,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button onclick="ytSearch()">▶</button>
     </div>
     <div id="yt-placeholder">
-      <div>▶ YouTube</div>
-      <div style="font-size:9px">検索またはURLで再生開始</div>
+      <div id="yt-intro"><div>▶ YouTube</div>
+      <div style="font-size:9px">検索またはURLで再生開始</div></div>
       <div id="yt-search-results"></div>
       <div id="yt-history"></div>
     </div>
@@ -495,6 +496,7 @@ async function ytSearch() {
   const resultsEl = document.getElementById('yt-search-results');
   resultsEl.innerHTML = '<div class="yt-searching">検索中...</div>';
   document.getElementById('yt-input').value = '';
+  document.getElementById('yt-intro').classList.add('hidden');
   log('Searching: ' + input);
 
   const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
@@ -512,8 +514,12 @@ async function ytSearch() {
         const thumb = item.thumbnail || '';
         const title = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const ch = item.channel || '';
+        const dur = item.duration || '';
         return `<div class="yt-result" onclick="playYtVideo('${vid}','${title}')">
-          <img src="${thumb}" loading="lazy" onerror="this.style.display='none'">
+          <div style="position:relative">
+            <img src="${thumb}" loading="lazy" onerror="this.style.display='none'">
+            ${dur ? `<span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.8);color:#fff;font-size:10px;padding:1px 4px;border-radius:2px;font-family:-apple-system,sans-serif">${dur}</span>` : ''}
+          </div>
           <div class="yt-result-info">
             <div class="yt-result-title">${item.title || ''}</div>
             <div class="yt-result-ch">${ch}</div>
