@@ -102,6 +102,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #api-key-input{width:200px!important;font-size:9px!important}
 
 /* === Log === */
+.yt-load-more{width:100%;padding:14px;margin:8px 0 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-dim);font-family:'Orbitron',monospace;font-size:11px;cursor:pointer;text-align:center;letter-spacing:1px}
+.yt-load-more:active{background:#222}
 #yt-intro.hidden{display:none}
 #log-bar{position:fixed;bottom:0;left:0;right:0;height:20px;background:#0d0d0d;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:8px;color:var(--text-dim);z-index:50;overflow:hidden}
 </style>
@@ -210,7 +212,9 @@ let state = {
   offerVisible: false,
   autoDisconnectTimer: null,
   geminiSessionStart: null,
-  ytHistory: []
+  ytHistory: [],
+  ytContinuation: null,
+  ytLastQuery: null
 };
 
 // Load saved config
@@ -483,7 +487,7 @@ function initYtPlayer(videoId) {
 
 async function ytSearch() {
   const input = document.getElementById('yt-input').value.trim();
-  if (!input) return;
+  if (!input && !state.ytContinuation) return;
 
   // Check if it's a YouTube URL
   const videoId = extractYtVideoId(input);
@@ -500,16 +504,32 @@ async function ytSearch() {
   log('Searching: ' + input);
 
   const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
+  const isLoadMore = state.ytContinuation && input === '';
+  const query = isLoadMore ? state.ytLastQuery : input;
+  
+  if (!isLoadMore) {
+    resultsEl.innerHTML = '<div class="yt-searching">\u691c\u7d22\u4e2d...</div>';
+    state.ytContinuation = null;
+    state.ytLastQuery = query;
+  }
+  document.getElementById('yt-input').value = '';
+  document.getElementById('yt-intro').classList.add('hidden');
+  log('Searching: ' + query + (isLoadMore ? ' (more)' : ''));
   try {
-    const resp = await fetch(cfSearchUrl + '?q=' + encodeURIComponent(input));
+    let url = cfSearchUrl + '?q=' + encodeURIComponent(query);
+    if (isLoadMore && state.ytContinuation) {
+      url += '&continuation=' + encodeURIComponent(state.ytContinuation);
+    }
+    const resp = await fetch(url);
     if (resp.ok) {
       const data = await resp.json();
       const items = data.results || [];
-      if (items.length === 0) {
+      state.ytContinuation = data.continuation || null;
+      if (items.length === 0 && !isLoadMore) {
         resultsEl.innerHTML = '<div class="yt-searching">\u7d50\u679c\u306a\u3057</div>';
         return;
       }
-      resultsEl.innerHTML = items.map(item => {
+      const html = items.map(item => {
         const vid = item.videoId || '';
         const thumb = item.thumbnail || '';
         const title = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -526,22 +546,24 @@ async function ytSearch() {
           </div>
         </div>`;
       }).join('');
-      log(items.length + ' results from CF');
+      const loadMoreBtn = state.ytContinuation 
+        ? '<button class="yt-load-more" onclick="ytLoadMore()">\u25bc \u3082\u3063\u3068\u898b\u308b</button>' 
+        : '';
+      // Remove old load-more button before appending
+      const oldBtn = resultsEl.querySelector('.yt-load-more');
+      if (oldBtn) oldBtn.remove();
+      if (isLoadMore) {
+        resultsEl.insertAdjacentHTML('beforeend', html + loadMoreBtn);
+      } else {
+        resultsEl.innerHTML = html + loadMoreBtn;
+      }
+      log(items.length + ' results' + (state.ytContinuation ? ' (more available)' : ''));
       return;
     }
   } catch(e) {
     log('Search error: ' + e.message);
   }
-  resultsEl.innerHTML = '<div class="yt-searching">\u691c\u7d22\u5931\u6557\u3002URL\u3092\u8cbc\u308a\u4ed8\u3051\u3066\u304f\u3060\u3055\u3044</div>'
-}
-
-function playYtVideo(videoId, title) {
-  if (ytApiReady) {
-    initYtPlayer(videoId);
-  } else {
-    // Load API first
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
+  if (!isLoadMore) resultsEl.innerHTML = '<div class="yt-searching">\u691c\u7d22\u5931\u6557</div>'
     document.head.appendChild(tag);
     // Wait for API
     const check = setInterval(() => {
@@ -559,6 +581,14 @@ function playYtVideo(videoId, title) {
   renderYtHistory();
   document.getElementById('yt-search-results').innerHTML = '';
   document.getElementById('yt-input').value = '';
+}
+
+function ytLoadMore() {
+  if (!state.ytContinuation) return;
+  // Temporarily clear input so ytSearch uses continuation mode
+  const inp = document.getElementById('yt-input');
+  inp.value = '';
+  ytSearch();
 }
 
 function extractYtVideoId(input) {
