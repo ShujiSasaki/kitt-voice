@@ -169,7 +169,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="setting-row"><label>GEMINI API KEY</label><input type="text" id="api-key-input"></div>
   <div class="setting-row"><label>FIREBASE URL</label><input type="text" id="fb-url-input" value=""></div>
   <div class="setting-row"><label>POLLING SEC</label><input type="number" id="poll-sec-input" value="3" min="1" max="30"></div>
-  <div class="setting-row"><label>AUTO DISCONNECT SEC</label><input type="number" id="auto-dc-input" value="120" min="30" max="600"></div>
+  <div class="setting-row"><label>AUTO DISCONNECT SEC</label><input type="number" id="auto-dc-input" value="600" min="30" max="1800"></div>
   <div class="setting-row"><label>YT DUCK VOLUME</label><input type="number" id="duck-vol-input" value="5" min="0" max="100"></div>
   <div class="setting-row"><label>YT NORMAL VOLUME</label><input type="number" id="normal-vol-input" value="70" min="0" max="100"></div>
   <button id="settings-close" onclick="saveSettings()">SAVE & CLOSE</button>
@@ -196,7 +196,7 @@ const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
   geminiApiKey: '',
   firebaseUrl: 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app',
   pollingSec: 3,
-  autoDisconnectSec: 120,
+  autoDisconnectSec: 600autoDisconnautoDisconnectSec: 600ectSec: 120,
   duckVolume: 5,
   normalVolume: 70
 };
