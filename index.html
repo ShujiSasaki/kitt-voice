@@ -190,7 +190,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 // ============================================================
 const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
   const GEMINI_VOICE = 'Zephyr';
-  const KITT_SYSTEM = 'You are KITT, an AI partner for an UberEats delivery driver named Shuji. You speak Japanese. When an offer arrives, explain your judgment briefly: why accept or reject, estimated hourly rate, and key factors. Be concise and confident like the original KITT from Knight Rider. Keep responses under 3 sentences.';
+  const KITT_SYSTEM = 'あなたはKITT。UberEats配達員Shujiの相棒AI。ナイトライダーのKITTのように自信を持って、常に日本語で話す。オファーが届いたら5〜7文で報告せよ: 1.判定結果と推定時給 2.km単価の評価（平均161円/kmとの比較） 3.距離と所要時間の効率性 4.この店についてわかる情報 5.現在の時間帯での市場状況 6.総合的な推奨理由。数字は具体的に。「この案件は」で始めて。';
 
   const DEFAULT_CONFIG = {
   geminiApiKey: '',
@@ -778,38 +778,37 @@ function disconnectGemini() {
 }
 
 function sendOfferToGemini(offer, context) {
-  if (!state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
-
-  const decision = offer.decision || 'unknown';
-  const hourly = offer.estimated_hourly_rate || 0;
-  const store = offer.store_name || '不明';
-  const reward = offer.reward || 0;
-  const dist = offer.distance_km || 0;
-  const dur = offer.duration_min || 0;
-  const reason = offer.reason || '';
-  const score = offer.score || 0;
-  const confidence = offer.confidence || '';
-
-  const prompt = `新しいオファー。判定結果を報告して。
+    if (!state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
+    const decision = offer.decision || 'unknown';
+    const hourly = offer.estimated_hourly_rate || 0;
+    const store = offer.store_name || '不明';
+    const reward = offer.reward || 0;
+    const dist = offer.distance_km || 0;
+    const dur = offer.duration_min || 0;
+    const reason = offer.reason || '';
+    const score = offer.score || 0;
+    const confidence = offer.confidence || '';
+    const rewardPerKm = dist > 0 ? Math.round(reward / dist) : 0;
+    const prompt = `新しいオファーが届いた。詳しく分析して報告して。
 判定: ${decision.toUpperCase()}
 店名: ${store}
 報酬: ${reward}円
 距離: ${dist}km
-所要: ${dur}分
-推定時給: ${Math.round(hourly)}円
-スコア: ${score}
+所要時間: ${dur}分
+推定時給: ${Math.round(hourly)}円/h
+km単価: ${rewardPerKm}円/km（平均161円/km）
+スコア: ${score}（閾値 0.85）
 信頼度: ${confidence}
-理由: ${reason}
-簡潔に報告して。`;
-
-  try {
-    state.geminiWs.send(JSON.stringify({
-      clientContent: {
-        turns: [{ role: 'user', parts: [{ text: prompt }] }],
-        turnComplete: true
-      }
-    }));
-    log('Offer sent to Gemini');
+判定理由: ${reason}
+時間帯: ${context.hour_jst || '不明'}時
+休日: ${context.is_weekend ? 'はい' : 'いいえ'}
+上記データに基づいて5〜7文で詳しく報告して。`;
+    try {
+      state.geminiWs.send(JSON.stringify({
+        clientContent: { turns: [{ role: 'user', parts: [{ text: prompt }] }], turnComplete: true }
+      }));
+      log('Offer sent to Gemini');
+    } catch(e) { log('Gemini send error: ' + e.message); }
   } catch(e) {
     log('Gemini send error: ' + e.message);
   }
@@ -962,6 +961,8 @@ window.addEventListener('DOMContentLoaded', () => {
   }, { once: true });
 
   log('KITT YouTube Edition initialized');
+    // Auto-connect Gemini (no tap needed)
+    if (config.geminiApiKey) { setTimeout(() => connectGemini(), 1500); }
   updateGeminiUI();
 });
 
