@@ -663,6 +663,9 @@ function renderYtHistory() {
 }
 
 async function connectGemini() {
+    if (!window._audioCtx) { window._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 }); }
+    window._audioCtx.resume();
+
   if (!config.geminiApiKey) {
     log('API key not set');
     return;
@@ -817,23 +820,28 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sample
 const audioQueue = [];
 let isPlayingAudio = false;
 
-function playAudioChunk(base64Data, mimeType) {
-  try {
-    const raw = atob(base64Data);
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-
-    // PCM 16-bit LE @ 24kHz
-    const pcm16 = new Int16Array(bytes.buffer);
-    const float32 = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768;
-
-    audioQueue.push(float32);
-    if (!isPlayingAudio) processAudioQueue();
-  } catch(e) {
-    log('Audio decode error: ' + e.message);
+function playAudio(base64Data) {
+    try {
+      if (!window._audioCtx) {
+        window._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      }
+      const ctx = window._audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+      const raw = atob(base64Data);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const pcm16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768;
+      const buffer = ctx.createBuffer(1, float32.length, 24000);
+      buffer.getChannelData(0).set(float32);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start();
+      kittLog('Audio playing ' + float32.length + ' samples');
+    } catch(e) { kittLog('playAudio error: ' + e.message); }
   }
-}
 
 function processAudioQueue() {
   if (audioQueue.length === 0) {
