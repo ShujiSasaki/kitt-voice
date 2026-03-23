@@ -535,7 +535,7 @@ async function ytSearch() {
         const title = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const ch = item.channel || '';
         const dur = item.duration || '';
-        return `<div class="yt-result" onclick="playYtVideo('${vid}','${title}')">
+        return `<div class="yt-result" onclick="playYtVideo('${vid}','${title}','${ch}','${dur}')">
           <div style="position:relative">
             <img src="${thumb}" loading="lazy" onerror="this.style.display='none'">
             ${dur ? `<span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.8);color:#fff;font-size:10px;padding:1px 4px;border-radius:2px;font-family:-apple-system,sans-serif">${dur}</span>` : ''}
@@ -543,6 +543,7 @@ async function ytSearch() {
           <div class="yt-result-info">
             <div class="yt-result-title">${item.title || ''}</div>
             <div class="yt-result-ch">${ch}</div>
+          <div style="color:#aaa;font-size:11px;margin-top:2px">${item.viewCount || ''}${item.publishedTime ? ' \u00b7 ' + item.publishedTime : ''}</div>
           </div>
         </div>`;
       }).join('');
@@ -574,7 +575,7 @@ async function ytSearch() {
     }, 200);
   }
 
-function playYtVideo(videoId, title) {
+function playYtVideo(videoId, title, channel, duration) {
   if (ytApiReady) {
     initYtPlayer(videoId);
   } else {
@@ -585,7 +586,7 @@ function playYtVideo(videoId, title) {
       if (ytApiReady) { clearInterval(check); initYtPlayer(videoId); }
     }, 200);
   }
-  const entry = { videoId, title: title || videoId, time: Date.now() };
+  const entry = { videoId, title: title || videoId, channel: channel || '', duration: duration || '', time: Date.now() };
   state.ytHistory = [entry, ...state.ytHistory.filter(h => h.videoId !== videoId)].slice(0, 10);
   try { localStorage.setItem('kitt-yt-history', JSON.stringify(state.ytHistory)); } catch(e) {}
   renderYtHistory();
@@ -620,24 +621,36 @@ function extractYtVideoId(input) {
 }
 
 function renderYtHistory() {
-  const el = document.getElementById('yt-history');
-  el.innerHTML = state.ytHistory.map(h =>
-    `<div class="yt-hist-item" onclick="playYtVideo('${h.videoId}','${(h.title||'').replace(/'/g,'\\\'')}')">${h.title || h.videoId}</div>`
-  ).join('');
-}
-
-// ============================================================
-// Gemini Live Audio (WebSocket)
-// ============================================================
-const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
-const GEMINI_VOICE = 'Zephyr';
-const KITT_SYSTEM = `あなたはKITT。UberEats配達員のAIパートナー。オファー判定結果を簡潔に日本語で報告する。
-報告形式: 「[受けろ/パス]。[理由を1文]。時給[X]円。」
-例: 「受けろ。高時給で近距離、効率的だ。時給2800円。」
-例: 「パス。低時給で遠距離、待った方がいい。時給1200円。」
-性格: 冷静、的確、少しドライだが頼れるパートナー。長話はしない。`;
-
-function toggleGemini() {
+    const el = document.getElementById('yt-placeholder');
+    if (!el) return;
+    if (!state.ytHistory.length) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">\u25b6 YouTube<br>\u691c\u7d22\u307e\u305f\u306fURL\u3067\u518d\u751f\u958b\u59cb</div>';
+      return;
+    }
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 8px">\u5c65\u6b74</div>' +
+      state.ytHistory.map(h => {
+        const thumb = 'https://i.ytimg.com/vi/' + h.videoId + '/mqdefault.jpg';
+        const ago = h.time ? formatTimeAgo(h.time) : '';
+        return '<div onclick="playYtVideo(\'' + h.videoId + '\',\'' + (h.title||'').replace(/'/g,"\\'") + '\',\'' + (h.channel||'').replace(/'/g,"\\'") + '\',\'' + (h.duration||'') + '\')" style="display:flex;gap:8px;padding:6px 8px;cursor:pointer;border-bottom:1px solid #222">' +
+          '<div style="position:relative;flex-shrink:0;width:120px;height:68px;border-radius:6px;overflow:hidden;background:#111">' +
+            '<img src="' + thumb + '" style="width:100%;height:100%;object-fit:cover" loading="lazy">' +
+            (h.duration ? '<span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.8);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px">' + h.duration + '</span>' : '') +
+          '</div>' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+            '<div style="color:var(--text);font-size:12px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + (h.title||h.videoId) + '</div>' +
+            (h.channel ? '<div style="color:var(--text-dim);font-size:11px">' + h.channel + '</div>' : '') +
+            (ago ? '<div style="color:var(--text-dim);font-size:10px">' + ago + '</div>' : '') +
+          '</div></div>';
+      }).join('');
+  }
+  function formatTimeAgo(ts) {
+    const d = Date.now() - ts;
+    if (d < 60000) return 'now';
+    if (d < 3600000) return Math.floor(d/60000) + 'm ago';
+    if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+    return Math.floor(d/86400000) + 'd ago';
+  }
+  function toggleGemini() {
   if (state.geminiConnected || state.geminiConnecting) {
     disconnectGemini();
   } else {
