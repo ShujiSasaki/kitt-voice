@@ -839,8 +839,8 @@ function playAudioChunk(base64Data, mimeType) {
       src.buffer = buffer;
       src.connect(ctx.destination);
       src.start();
-      console.log('[KITT] 'Audio playing ' + float32.length + ' samples');
-    } catch(e) { console.log('[KITT] 'playAudio error: ' + e.message); }
+      console.log('[KITT] Audio playing ' + float32.length + ' samples');
+    } catch(e) { console.log('[KITT] playAudio error: ' + e.message); }
   }
 
 function processAudioQueue() {
