@@ -693,9 +693,10 @@ async function connectGemini() {
       }));
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       try {
-        const msg = JSON.parse(event.data);
+        const raw = event.data instanceof Blob ? await event.data.text() : event.data;
+          const msg = JSON.parse(raw);
 
         // Setup complete
         if (msg.setupComplete) {
