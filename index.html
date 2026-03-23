@@ -820,7 +820,7 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sample
 const audioQueue = [];
 let isPlayingAudio = false;
 
-function playAudio(base64Data) {
+function playAudioChunk(base64Data, mimeType) {
     try {
       if (!window._audioCtx) {
         window._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
