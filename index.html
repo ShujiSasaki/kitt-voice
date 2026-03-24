@@ -51,6 +51,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 #gemini-status{font-size:9px;color:var(--text-dim);margin-top:12px;letter-spacing:1px;height:14px}
 
+#kitt-buttons{display:flex;gap:20px;align-items:center}
+#mic-btn{width:48px;height:48px;border-radius:50%;border:2px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s}
+#mic-btn:active{transform:scale(.9)}
+#mic-btn.active{border-color:var(--red);background:rgba(224,48,48,.15);animation:mic-pulse 1.5s infinite}
+#mic-btn svg{width:22px;height:22px;fill:var(--text-dim)}
+#mic-btn.active svg{fill:var(--red)}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,48,48,.3)}50%{box-shadow:0 0 12px 4px rgba(224,48,48,.15)}}
+
 /* === YouTube Panel === */
 #yt-panel{background:#000}
 #yt-search-bar{display:flex;padding:6px;gap:6px;background:#111;border-bottom:1px solid var(--border)}
@@ -99,32 +107,37 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="tab active" data-panel="kitt">KITT</div>
   <div class="tab" data-panel="yt">YouTube</div>
   <div class="tab" data-panel="sc">SoundCloud</div>
-  <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">⚙</div>
+  <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
 </div>
 
 <!-- Panels -->
 <div id="panels">
   <!-- KITT Panel -->
   <div id="kitt-panel" class="panel active">
-    <div id="kitt-status"><span id="fb-status">OFFLINE</span> · Firebase <span id="fb-latency">--</span></div>
+    <div id="kitt-status"><span id="fb-status">OFFLINE</span> Â· Firebase <span id="fb-latency">--</span></div>
     <div id="scanner-wrap"><div id="scanner-bar"></div></div>
     <div id="kitt-label">KITT</div>
     <div id="kitt-sub">UBER EATS AI JUDGE</div>
-    <div id="gemini-btn" onclick="toggleGemini()">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+    <div id="kitt-buttons">
+      <div id="gemini-btn" onclick="toggleGemini()">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      </div>
+      <div id="mic-btn" onclick="toggleMic()">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      </div>
     </div>
-    <div id="gemini-status">タップして起動</div>
+    <div id="gemini-status">ã¿ãããã¦èµ·å</div>
   </div>
 
   <!-- YouTube Panel -->
   <div id="yt-panel" class="panel">
     <div id="yt-search-bar">
-      <input type="text" id="yt-input" placeholder="YouTubeを検索 / URLを貼り付け" enterkeyhint="search">
-      <button onclick="ytSearch()">▶</button>
+      <input type="text" id="yt-input" placeholder="YouTubeãæ¤ç´¢ / URLãè²¼ãä»ã" enterkeyhint="search">
+      <button onclick="ytSearch()">â¶</button>
     </div>
     <div id="yt-placeholder">
-      <div id="yt-intro"><div>▶ YouTube</div>
-      <div style="font-size:9px">検索またはURLで再生開始</div></div>
+      <div id="yt-intro"><div>â¶ YouTube</div>
+      <div style="font-size:9px">æ¤ç´¢ã¾ãã¯URLã§åçéå§</div></div>
       <div id="yt-search-results"></div>
     </div>
     <div id="yt-player-wrap" style="display:none">
@@ -139,7 +152,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- Settings -->
 <div id="settings-overlay">
-  <h2>⚙ SETTINGS</h2>
+  <h2>â SETTINGS</h2>
   <div class="setting-row"><label>GEMINI API KEY</label><input type="text" id="api-key-input"></div>
   <div class="setting-row"><label>FIREBASE URL</label><input type="text" id="fb-url-input" value=""></div>
   <div class="setting-row"><label>POLLING SEC</label><input type="number" id="poll-sec-input" value="3" min="1" max="30"></div>
@@ -154,7 +167,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- Keepalive silent audio -->
 <audio id="keepalive" loop playsinline>
-  <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAJhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAA" type="audio/mp3">
+  <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA4AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAAJhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYAAAAAAAAAAAAAAAAA" type="audio/mp3">
 </audio>
 
 <script>
@@ -163,7 +176,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 // ============================================================
 const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 const GEMINI_VOICE = 'Zephyr';
-const KITT_SYSTEM = 'あなたはKITT。UberEats配達員Shujiの相棒AI。ナイトライダーのKITTのように自信を持って、常に日本語で話す。オファーが届いたら3文で簡潔に報告せよ: 1.判定結果と推定時給・km単価 2.効率性の評価（距離・時間・市場比較） 3.総合的な一言推奨。数字は具体的に。';
+const KITT_SYSTEM = 'ããªãã¯KITTãUberEatsééå¡Shujiã®ç¸æ£AIããã¤ãã©ã¤ãã¼ã®KITTã®ããã«èªä¿¡ãæã£ã¦ãå¸¸ã«æ¥æ¬èªã§è©±ãããªãã¡ã¼ãå±ããã3æã§ç°¡æ½ã«å ±åãã: 1.å¤å®çµæã¨æ¨å®æçµ¦ã»kmåä¾¡ 2.å¹çæ§ã®è©ä¾¡ï¼è·é¢ã»æéã»å¸å ´æ¯è¼ï¼ 3.ç·åçãªä¸è¨æ¨å¥¨ãæ°å­ã¯å·ä½çã«ã';
 
 const DEFAULT_CONFIG = {
   geminiApiKey: '',
@@ -190,7 +203,11 @@ let state = {
   geminiSessionStart: null,
   ytHistory: [],
   ytContinuation: null,
-  ytLastQuery: null
+  ytLastQuery: null,
+  micActive: false,
+  micStream: null,
+  micProcessor: null,
+  micSource: null
 };
 
 // Load saved config
@@ -206,7 +223,7 @@ try {
 
 // ============================================================
 // Tab Navigation
-// ========================================================================
+// ============================================================
 document.querySelectorAll('.tab[data-panel]').forEach(tab => {
   tab.addEventListener('click', () => {
     const panel = tab.dataset.panel;
@@ -296,7 +313,7 @@ function updateFirebaseStatus(status, latency) {
 }
 
 // ============================================================
-// Offer Handling (NO overlay - Shuji: "全くいらない")
+// Offer Handling (NO overlay - Shuji: "å¨ããããªã")
 // ============================================================
 function handleNewOffer(data) {
   let offer, context;
@@ -339,7 +356,7 @@ function duckYouTubeVolume() {
       try { state.ytPlayer.setVolume(Math.max(vol, target)); } catch(e) {}
       if (step >= steps) clearInterval(fadeInterval);
     }, 50);
-    log(`YT duck ${current} → ${target}`);
+    log(`YT duck ${current} â ${target}`);
   } catch(e) { log('YT duck error: ' + e.message); }
 }
 
@@ -357,7 +374,7 @@ function restoreYouTubeVolume() {
       try { state.ytPlayer.setVolume(Math.min(vol, target)); } catch(e) {}
       if (step >= steps) clearInterval(fadeInterval);
     }, 80);
-    log(`YT restore → ${target}`);
+    log(`YT restore â ${target}`);
   } catch(e) { log('YT restore error: ' + e.message); }
 }
 
@@ -408,7 +425,7 @@ async function ytSearch() {
   const query = isLoadMore ? state.ytLastQuery : input;
 
   if (!isLoadMore) {
-    resultsEl.innerHTML = '<div class="yt-searching">検索中...</div>';
+    resultsEl.innerHTML = '<div class="yt-searching">æ¤ç´¢ä¸­...</div>';
     state.ytContinuation = null;
     state.ytLastQuery = query;
   }
@@ -427,7 +444,7 @@ async function ytSearch() {
       const items = data.results || [];
       state.ytContinuation = data.continuation || null;
       if (items.length === 0 && !isLoadMore) {
-        resultsEl.innerHTML = '<div class="yt-searching">結果なし</div>';
+        resultsEl.innerHTML = '<div class="yt-searching">çµæãªã</div>';
         return;
       }
       const html = items.map(item => {
@@ -444,12 +461,12 @@ async function ytSearch() {
           <div class="yt-result-info">
             <div class="yt-result-title">${item.title || ''}</div>
             <div class="yt-result-ch">${ch}</div>
-            <div style="color:#aaa;font-size:11px;margin-top:2px">${item.viewCount || ''}${item.publishedTime ? ' · ' + item.publishedTime : ''}</div>
+            <div style="color:#aaa;font-size:11px;margin-top:2px">${item.viewCount || ''}${item.publishedTime ? ' Â· ' + item.publishedTime : ''}</div>
           </div>
         </div>`;
       }).join('');
       const loadMoreBtn = state.ytContinuation
-        ? '<button class="yt-load-more" onclick="ytLoadMore()">▼ もっと見る</button>'
+        ? '<button class="yt-load-more" onclick="ytLoadMore()">â¼ ãã£ã¨è¦ã</button>'
         : '';
       const oldBtn = resultsEl.querySelector('.yt-load-more');
       if (oldBtn) oldBtn.remove();
@@ -464,7 +481,7 @@ async function ytSearch() {
   } catch(e) {
     log('Search error: ' + e.message);
   }
-  if (!isLoadMore) resultsEl.innerHTML = '<div class="yt-searching">検索失敗</div>';
+  if (!isLoadMore) resultsEl.innerHTML = '<div class="yt-searching">æ¤ç´¢å¤±æ</div>';
 }
 
 function playYtVideo(videoId, title, channel, duration) {
@@ -509,10 +526,10 @@ function renderYtHistory() {
   const el = document.getElementById('yt-placeholder');
   if (!el) return;
   if (!state.ytHistory.length) {
-    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">▶ YouTube<br>検索またはURLで再生開始</div>';
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">â¶ YouTube<br>æ¤ç´¢ã¾ãã¯URLã§åçéå§</div>';
     return;
   }
-  el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 8px">履歴</div>' +
+  el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 8px">å±¥æ­´</div>' +
     state.ytHistory.map(h => {
       const thumb = 'https://i.ytimg.com/vi/' + h.videoId + '/mqdefault.jpg';
       const ago = h.time ? formatTimeAgo(h.time) : '';
@@ -591,9 +608,9 @@ async function connectGemini() {
           state.geminiSessionStart = Date.now();
           updateGeminiUI();
           startAutoDisconnect();
-          log('Gemini connected ✓');
+          log('Gemini connected â');
           // Auto-greeting
-          ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: 'KITT、起動した。短く挨拶して。' }] }], turnComplete: true } }));
+          ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: 'KITTãèµ·åãããç­ãæ¨æ¶ãã¦ã' }] }], turnComplete: true } }));
           return;
         }
 
@@ -607,7 +624,7 @@ async function connectGemini() {
 
         if (msg.serverContent?.turnComplete) {
           log('Gemini turn complete');
-          setTimeout(() => restoreYouTubeVolume(), 500);
+          if (!state.micActive) setTimeout(() => restoreYouTubeVolume(), 500);
         }
       } catch(e) {}
     };
@@ -616,6 +633,7 @@ async function connectGemini() {
 
     ws.onclose = (e) => {
       log(`Gemini disconnected (code ${e.code})`);
+      if (state.micActive) stopMic();
       state.geminiConnected = false;
       state.geminiConnecting = false;
       state.geminiWs = null;
@@ -630,6 +648,7 @@ async function connectGemini() {
 }
 
 function disconnectGemini() {
+  if (state.micActive) stopMic(); // Stop mic before disconnect
   if (state.geminiWs) { try { state.geminiWs.close(); } catch(e) {} }
   state.geminiConnected = false;
   state.geminiConnecting = false;
@@ -643,7 +662,7 @@ function sendOfferToGemini(offer, context) {
   if (!state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
   const decision = offer.decision || 'unknown';
   const hourly = offer.estimated_hourly_rate || 0;
-  const store = offer.store_name || '不明';
+  const store = offer.store_name || 'ä¸æ';
   const reward = offer.reward || 0;
   const dist = offer.distance_km || 0;
   const dur = offer.duration_min || 0;
@@ -651,12 +670,12 @@ function sendOfferToGemini(offer, context) {
   const score = offer.score || 0;
   const confidence = offer.confidence || '';
   const rewardPerKm = dist > 0 ? Math.round(reward / dist) : 0;
-  const prompt = `新しいオファー。3文で簡潔に報告して。
-判定: ${decision.toUpperCase()} | 店: ${store}
-報酬: ${reward}円 | 距離: ${dist}km | 時間: ${dur}分
-時給: ${Math.round(hourly)}円/h | km単価: ${rewardPerKm}円/km（平均161）
-スコア: ${score}（閾値0.85）| 信頼度: ${confidence}
-理由: ${reason}`;
+  const prompt = `æ°ãããªãã¡ã¼ã3æã§ç°¡æ½ã«å ±åãã¦ã
+å¤å®: ${decision.toUpperCase()} | åº: ${store}
+å ±é¬: ${reward}å | è·é¢: ${dist}km | æé: ${dur}å
+æçµ¦: ${Math.round(hourly)}å/h | kmåä¾¡: ${rewardPerKm}å/kmï¼å¹³å161ï¼
+ã¹ã³ã¢: ${score}ï¼é¾å¤0.85ï¼| ä¿¡é ¼åº¦: ${confidence}
+çç±: ${reason}`;
   try {
     state.geminiWs.send(JSON.stringify({
       clientContent: { turns: [{ role: 'user', parts: [{ text: prompt }] }], turnComplete: true }
@@ -666,7 +685,128 @@ function sendOfferToGemini(offer, context) {
 }
 
 // ============================================================
-// Audio Playback (PCM16 → Float32 sequential scheduling)
+// Microphone Input (Phase 2 - getUserMedia â Geminiåæ¹å)
+// ============================================================
+function toggleMic() {
+  if (state.micActive) {
+    stopMic();
+  } else {
+    startMic();
+  }
+}
+
+async function startMic() {
+  if (!state.geminiConnected) {
+    log('Gemini not connected - connect first');
+    return;
+  }
+  if (state.micActive) return;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+    });
+    state.micStream = stream;
+
+    // Duck YouTube while mic is active
+    duckYouTubeVolume();
+
+    // Create audio pipeline: mic â processor â send to Gemini
+    const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    // iOS may force a different sample rate, so we'll resample if needed
+    const actualRate = micCtx.sampleRate;
+    const source = micCtx.createMediaStreamSource(stream);
+    const processor = micCtx.createScriptProcessor(4096, 1, 1);
+
+    processor.onaudioprocess = (e) => {
+      if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
+      const inputData = e.inputBuffer.getChannelData(0);
+
+      // Resample if needed (iOS often gives 48000 instead of 16000)
+      let pcmData;
+      if (actualRate !== 16000) {
+        const ratio = actualRate / 16000;
+        const newLen = Math.floor(inputData.length / ratio);
+        pcmData = new Int16Array(newLen);
+        for (let i = 0; i < newLen; i++) {
+          const srcIdx = Math.floor(i * ratio);
+          pcmData[i] = Math.max(-32768, Math.min(32767, Math.floor(inputData[srcIdx] * 32768)));
+        }
+      } else {
+        pcmData = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          pcmData[i] = Math.max(-32768, Math.min(32767, Math.floor(inputData[i] * 32768)));
+        }
+      }
+
+      // Convert to base64
+      const bytes = new Uint8Array(pcmData.buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const b64 = btoa(binary);
+
+      // Send to Gemini as realtimeInput
+      try {
+        state.geminiWs.send(JSON.stringify({
+          realtimeInput: {
+            mediaChunks: [{
+              mimeType: 'audio/pcm;rate=16000',
+              data: b64
+            }]
+          }
+        }));
+      } catch(err) {}
+    };
+
+    source.connect(processor);
+    processor.connect(micCtx.destination); // Required for ScriptProcessor to fire
+
+    state.micSource = source;
+    state.micProcessor = processor;
+    state.micActive = true;
+    state._micCtx = micCtx;
+    updateMicUI();
+    log('Mic ON (rate: ' + actualRate + ' â 16000)');
+
+  } catch(e) {
+    log('Mic error: ' + e.message);
+  }
+}
+
+function stopMic() {
+  state.micActive = false;
+  if (state.micProcessor) {
+    try { state.micProcessor.disconnect(); } catch(e) {}
+    state.micProcessor = null;
+  }
+  if (state.micSource) {
+    try { state.micSource.disconnect(); } catch(e) {}
+    state.micSource = null;
+  }
+  if (state.micStream) {
+    state.micStream.getTracks().forEach(t => t.stop());
+    state.micStream = null;
+  }
+  if (state._micCtx) {
+    try { state._micCtx.close(); } catch(e) {}
+    state._micCtx = null;
+  }
+  updateMicUI();
+  restoreYouTubeVolume();
+  log('Mic OFF');
+}
+
+function updateMicUI() {
+  const btn = document.getElementById('mic-btn');
+  if (state.micActive) {
+    btn.classList.add('active');
+  } else {
+    btn.classList.remove('active');
+  }
+}
+
+// ============================================================
+// Audio Playback (PCM16 â Float32 sequential scheduling)
 // ============================================================
 function playAudioChunk(base64Data) {
   try {
@@ -733,7 +873,7 @@ function updateGeminiUI() {
     status.textContent = 'CONNECTING...';
     scanner.classList.add('paused');
   } else {
-    status.textContent = 'タップして起動';
+    status.textContent = 'ã¿ãããã¦èµ·å';
     scanner.classList.add('paused');
   }
 }
@@ -777,7 +917,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateGeminiUI();
 });
 
-// Visibility change — reconnect Gemini on foreground return
+// Visibility change â reconnect Gemini on foreground return
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     log('App foregrounded');
