@@ -713,20 +713,32 @@ async function startMic() {
 
     // Create audio pipeline: mic â processor â send to Gemini
     const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    // iOS may force a different sample rate, so we'll resample if needed
+    // iOS: AudioContext starts suspended, must resume after user gesture
+    if (micCtx.state === 'suspended') {
+      await micCtx.resume();
+      log('micCtx resumed');
+    }
     const actualRate = micCtx.sampleRate;
     const source = micCtx.createMediaStreamSource(stream);
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
+    let _micDbg = 0;
+    let _micSilent = 0;
     processor.onaudioprocess = (e) => {
-      if (!window._micDbg) window._micDbg = 0;
-      window._micDbg++;
-      if (window._micDbg % 30 === 1) console.log('[MIC] onaudioprocess #' + window._micDbg);
+      _micDbg++;
       if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) {
-        if (window._micDbg % 30 === 1) console.log('[MIC] skipped: active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
+        if (_micDbg <= 3) log('mic skip #' + _micDbg + ' active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
         return;
       }
       const inputData = e.inputBuffer.getChannelData(0);
+
+      // Check audio level periodically (~6s intervals)
+      if (_micDbg % 25 === 1) {
+        let mx = 0;
+        for (let i = 0; i < inputData.length; i++) { const v = Math.abs(inputData[i]); if (v > mx) mx = v; }
+        if (mx < 0.001) _micSilent++;
+        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' silent=' + _micSilent);
+      }
 
       // Resample if needed (iOS often gives 48000 instead of 16000)
       let pcmData;
@@ -761,7 +773,10 @@ async function startMic() {
             }]
           }
         }));
-      } catch(err) {}
+        if (_micDbg % 25 === 1) log('mic ws sent b64=' + b64.length);
+      } catch(err) {
+        log('mic ws err: ' + err.message);
+      }
     };
 
     source.connect(processor);
@@ -772,7 +787,9 @@ async function startMic() {
     state.micActive = true;
     state._micCtx = micCtx;
     updateMicUI();
-    log('Mic ON (rate: ' + actualRate + ' â 16000)');
+    const track = stream.getAudioTracks()[0];
+    const ts = track ? track.getSettings() : {};
+    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
 
   } catch(e) {
     log('Mic error: ' + e.message);
