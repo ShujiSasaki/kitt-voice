@@ -719,7 +719,13 @@ async function startMic() {
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
     processor.onaudioprocess = (e) => {
-      if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) return;
+      if (!window._micDbg) window._micDbg = 0;
+      window._micDbg++;
+      if (window._micDbg % 30 === 1) console.log('[MIC] onaudioprocess #' + window._micDbg);
+      if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) {
+        if (window._micDbg % 30 === 1) console.log('[MIC] skipped: active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
+        return;
+      }
       const inputData = e.inputBuffer.getChannelData(0);
 
       // Resample if needed (iOS often gives 48000 instead of 16000)
