@@ -1,271 +1,430 @@
-# CLAUDE.md â UberEats AI Judge / KITT Project
+# CLAUDE.md — KITT: Shujiの個人AI執事
 
-## ãã­ã¸ã§ã¯ãæ¦è¦
+## ビジョン
 
-UberEatsééå¡Shujiã®ããã®AIå¤å®ã»é³å£°å ±åã·ã¹ãã ãKITTãã
-ãªãã¡ã¼ãæ¥ããèªåã§ã¹ã¯ãªã¼ã³ã·ã§ããâOCRâã¹ã³ã¢ãªã³ã°å¤å®âé³å£°ã§çç±ãèªãAIãã¼ããã¼ã
+KITTはShujiの個人AI執事。配達判定は最重要機能の一つだが全てではない。
+音声で何でも頼め、対応できなければ仕組みを拡張する。システム自体の修正・運用もKITT守備範囲。
+**完成形がない「成長し続けるシステム」。**
 
-**ãã¸ã§ã³**: KITTã¯åãªãåãã/ãã¹ãã·ã³ã§ã¯ãªããééå¡ãé ­ã®ä¸­ã§ããå¤æ­ãã­ã»ã¹ãAIãä»£è¡ãããã¼ããã¼ãããªããã®å¤æ­ããã®çç±ãæéè¦ãBQãã¼ã¿èç©ã§æé·ããé¢ä¿ãçæ³ã
+**最終目標**: KITTに判断を任せた方がShujiの時給単価が上がる世界線。
+**優先順位**: レスポンス速度 > 費用 > 構築の速さ
 
-**åªåé ä½**: ã¬ã¹ãã³ã¹éã > è²»ç¨ > æ§ç¯ã®éã
+## KITTの在り方
 
-## ã¢ã¼ã­ãã¯ãã£
+- AirPodsの向こう側にいる相棒。常時音声接続（マイク常時ON）
+- 自然な会話ができる（待機中も雑談・助言・音楽再生）
+- オファー時は音楽下げて判定解説→音楽復帰
+- 「次のトイレここ」「水買っとけ」「今日もう2万行ったぞ」みたいな助言
+- 何でもBOXで送った情報は全部KITTの文脈に入る
+- 音楽は音声指示で制御（「ヒゲダン流して」等）、手段はKITTが選ぶ
+- バックグラウンドでも会話継続（iOS制約との戦い）
+- **未解決**: 走行中の風切り音でShujiの声を認識できない問題
+
+## 機能スコープ
 
 ```
-[å¤å®ãã­ã¼]
-iPhone 17ProãUber aiãiOSã·ã§ã¼ãã«ãã
-  â ã¹ã¯ãªã¼ã³ã·ã§ããæ®å½± â OCR â POST /offerJudge
-  â Cloud Functions (Node.js 20, asia-northeast1)
-    â ä¸¦ååå¾: BQä¿æ° + åºèå±¥æ­´ + ç´è¿ãã¬ã³ã + ã¯ã¨ã¹ãæå ±
-    â éã¿ä»ãã¹ã³ã¢ãªã³ã°å¤å® (Geminiã¯ç»åãã©ã¼ã«ããã¯ã®ã¿)
-    â ä¸¦åæ¸è¾¼ã¿: [BQ offer_logs + Firebase RTDB /offer_tts]
-  â iPhoneéç¥ã¬ã¹ãã³ã¹ (reason + æçµ¦ + å®å¹æçµ¦)
-
-[KITTé³å£°å ±åãã­ã¼]
-KITT PWA (GitHub Pages, Safariå¸¸é§)
-  â Firebase RTDB 3ç§ãã¼ãªã³ã°
-  â ãªãã¡ã¼æ¤ç¥ â YouTubeé³éããã¯
-  â Gemini Live Audio WebSocketã«ã³ã³ãã­ã¹ãæ³¨å¥
-  â KITTã3æã§é³å£°å¤æ­çç±ãèªã
-  â YouTubeé³éå¾©å¸°
-
-[éç¨ãã­ã¼]
-KITT(YouTubeè¦è´ä¸­) â UberDriveréç¥ã¿ãã â ã·ã§ã¼ãã«ããèªåå®è¡
-â å¤å®éç¥ â KITTã«æ»ã â KITTé³å£°è§£èª¬ â UberDriverã§åè«¾/æå¦
+KITT = Shujiの音声AI執事
+  ├─ 配達判定（最重要）
+  │   ├─ 特徴量はAIがデータから取捨選択（項目数制限なし、5秒以内レスポンス）
+  │   ├─ クエスト最適化（件数こなす vs 高単価厳選）
+  │   ├─ 機会コスト推定（蹴る vs 待つ）
+  │   ├─ 蓄積データで自己改善（offer × delivery × charging突き合わせ）
+  │   └─ 最終目標：KITTに任せた方が時給が上がる
+  ├─ 稼働サポート
+  │   ├─ トイレ・食事・水分補給のタイミング提案
+  │   ├─ 疲労度に応じた切り上げ提案
+  │   └─ 稼働状況サマリー（売上、クエスト進捗）
+  ├─ 音楽・エンタメ
+  │   ├─ 音声指示で再生（手段はKITTが選ぶ）
+  │   ├─ 喋る時は音量下げて戻す
+  │   └─ バックグラウンド再生
+  ├─ 情報収集
+  │   ├─ 天気・交通・イベント自動取得
+  │   ├─ 何でもBOXの情報を文脈統合
+  │   └─ フードデリバリー関連情報の自動収集
+  ├─ 何でも対応
+  │   ├─ 質問回答・指示実行
+  │   └─ システム修正・拡張も守備範囲
+  └─ Phase2: 出前館・ロケットナウ・Menu対応（Uber安定後）
 ```
 
-## ãµã¼ãã¹ã»ãªã½ã¼ã¹ä¸è¦§
+## 判断モデル（6レイヤー）
+
+Shujiの配達判断は20+項目の複合判断。現在のCFは7項目のみ。
+
+| レイヤー | 要素 | データソース |
+|---------|------|-------------|
+| 1. オファー単体の質 | 報酬、距離、時間、km単価、時給、店地雷度、ドロップ先 | OCR、BQ蓄積 |
+| 2. 次オファーへの連鎖 | ドロップ先エリアの密度、主要エリアへの戻りやすさ | BQ蓄積（将来） |
+| 3. クエスト・週間・月間最適化 | 件数vs高単価、週前半/後半クエ、月間目標 | 何でもBOX → context_logs |
+| 4. 稼働リソース制約 | Uber稼働可能時間、オフライン残、ピーク残 | 音声、何でもBOX |
+| 5. 身体・環境 | 疲労、空腹、トイレ、天気、交通、イベント | 音声（KITTに伝える）、外部API |
+| 6. 市場の読み | 繁忙/閑散、拒否後の待機コスト | BQ蓄積、外部情報 |
+
+## アーキテクチャ
+
+```
+[判定フロー]
+iPhone 17Pro「Uber ai」iOSショートカット
+  → スクリーンショット撮影 → OCR → POST /offerJudge
+  → Cloud Functions (Node.js 22, asia-northeast1)
+    → 並列取得: BQ係数 + 店舗履歴 + 直近トレンド + クエスト情報
+    → 重み付けスコアリング判定 (Geminiは画像フォールバックのみ)
+    → 並列書込み: [BQ offer_logs + Firebase RTDB /offer_tts]
+  → iPhoneへ通知レスポンス (reason + 時給 + 実効時給)
+
+[KITT音声報告フロー]
+KITT PWA (GitHub Pages, Safari常駐)
+  → Firebase RTDB 3秒ポーリング
+  → オファー検知 → YouTube音量ダック
+  → Gemini Live Audio WebSocketにコンテキスト注入
+  → KITTが音声で判定理由を解説
+  → YouTube音量復帰
+
+[運用フロー]
+KITT(YouTube視聴中) → UberDriver通知タップ → ショートカット自動実行
+→ 判定通知 → KITTに戻る → KITT音声解説 → UberDriverで受諾/拒否
+
+[データ蓄積フロー]
+何でもBOX → POST /nandemoBox → context_logs (クエスト、リザルト等)
+充電ON/OFF → POST /chargingEvent → charging_logs (GPS+時刻で行動ログ)
+```
+
+### 充電ON/OFFの行動ログ
+
+充電ON/OFFはGPS+時刻と組み合わせて行動の推定に使える:
+- 充電ON = 待機中 / ピック完了 / ドロップ完了（駐輪場にいる）
+- 充電OFF = ピック開始 / ドロップ開始 / 稼働終了（走り出した）
+- offer_logsのタイムスタンプと突き合わせで実配達時間・店待ち時間が計算可能
+
+## サービス・リソース一覧
 
 ### GCP (project: gen-lang-client-0549297663)
-| ãªã½ã¼ã¹ | è©³ç´° |
+
+| リソース | 詳細 |
 |---------|------|
 | Cloud Functions (Gen2) | offerJudge, ytSearch, nandemoBox, chargingEvent |
 | Cloud Functions URL | `https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/{name}` |
-| Runtime | Node.js 20 (**22ã¸ã®ã¢ããã°ã¬ã¼ãæé: 2026/04/30**) |
 | BigQuery Dataset | `ubereats_analytics` |
-| BQä¸»è¦ãã¼ãã« | offer_logs, context_logs, charging_logs, dynamic_coefficients |
-| Gemini APIã­ã¼ (CFç¨) | ç°å¢å¤æ° `GEMINI_API_KEY` |
-| Gemini APIã­ã¼ (KITTç¨) | Default Gemini Project(0549297663)ã®ã­ã¼ã**æ§(0353774050)ã¯WSéå¯¾å¿** |
-| Geminiã¢ãã« (CF) | gemini-2.0-flash (ç»åãã©ã¼ã«ããã¯ç¨) |
+| Gemini APIキー (CF用) | 環境変数 `GEMINI_API_KEY` |
+| Gemini APIキー (KITT用) | Default Gemini Project(0549297663)のキー。**旧(0353774050)はWS非対応** |
+| Geminiモデル (CF) | gemini-2.0-flash (画像フォールバック用) |
+
+#### Cloud Functions 詳細
+
+| 関数 | Runtime | メモリ | minInstance | maxInstance | Timeout | 備考 |
+|------|---------|--------|-------------|-------------|---------|------|
+| offerJudge | nodejs22 | 256M | **1** (常時ウォーム) | 100 | 60s | メイン判定。API認証あり |
+| nandemoBox | nodejs22 | 256Mi | 0 | 100 | 60s | 何でもBOX。API認証あり |
+| chargingEvent | nodejs22 | 128Mi | 0 | 100 | 30s | 充電イベント。API認証あり |
+| ytSearch | nodejs22 ✅ | 256M | 0 | 100 | 15s | YouTube検索。認証なし |
+
+全関数Node.js 22に統一済み (2026-03-28)。
+
+#### CF環境変数
+
+| 変数 | 用途 | 設定先 |
+|------|------|--------|
+| GEMINI_API_KEY | Gemini API (画像解析用) | Cloud Functions環境変数 |
+| FIREBASE_DB_SECRET | RTDB認証書き込み用シークレット | Cloud Functions環境変数 |
+| CF_API_KEY | CF簡易認証ヘッダ (X-API-Key) | Cloud Functions環境変数 |
 
 ### Firebase (project: ubereats-kitt)
-| ãªã½ã¼ã¹ | è©³ç´° |
+
+| リソース | 詳細 |
 |---------|------|
 | RTDB URL | `https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app` |
-| RTDB Path | `/offer_tts` â `{offer:{...}, context:{...}, timestamp}` |
-| Rules | open read/write (**æé: 2026-04-16ãè¦å¶é**) |
-
-#### 設計済みRTDBルール (適用待ち)
-公開読み取り + シークレット認証書き込み + データ構造検証。
-CFのRTDB書き込みURLに `?auth=${process.env.FIREBASE_DB_SECRET}` を追加し、
-Firebase Console → Project Settings → Service accounts → Database secrets でシークレットを取得。
-CFに環境変数 `FIREBASE_DB_SECRET` を設定後、下記ルールを適用:
-```json
-{"rules":{"offer_tts":{".read":true,".write":"auth != null",".validate":"newData.hasChildren(['offer','timestamp'])","offer":{".validate":"newData.hasChildren(['reward','distance','duration','store_name'])"},"timestamp":{".validate":"newData.isNumber()"},"$other":{".validate":true}},"$other":{".read":false,".write":false}}}
-```
+| RTDB Path | `/offer_tts` → `{offer:{...}, context:{...}, timestamp}` |
+| Rules | 公開読み取り + シークレット認証書き込み (適用済み 2026-03-27) |
 
 ### GitHub Pages (KITT PWA)
-| é ç® | è©³ç´° |
+
+| 項目 | 詳細 |
 |------|------|
 | URL | `https://shujisasaki.github.io/kitt-voice/` |
-| ãªãã¸ããª | `ShujiSasaki/kitt-voice` |
-| ãã¡ã¤ã« | `index.html` (~970è¡, 40.7KB, v2.2) |
-| Geminiã¢ãã« | `gemini-2.5-flash-native-audio-preview-12-2025` |
-| é³å£° | Zephyr |
+| リポジトリ | `ShujiSasaki/kitt-voice` |
+| ファイル | `index.html` (~970行, v2.2) |
+| Geminiモデル | `gemini-2.5-flash-native-audio-preview-12-2025` |
+| 音声 | Zephyr |
 
-### ç«¯æ«æ§æ
-| ç«¯æ« | ç¨é |
+### 端末構成
+
+| 端末 | 用途 |
 |------|------|
-| iPhone 17Pro + AirPods Pro2 | UberDriver + KITT(å¸¸é§ã»YouTube) + Uber aiã·ã§ã¼ãã«ãã |
+| iPhone 17Pro + AirPods Pro2 | UberDriver + KITT(常駐・YouTube) + Uber aiショートカット |
 | iPhone XR | Google Maps + TVer + radiko + J:COM Stream |
-| Googleã¢ã«ã¦ã³ã | sasakishuji316@gmail.com (å¨ãµã¼ãã¹å±é) |
+| Googleアカウント | sasakishuji316@gmail.com (全サービス共通) |
 
-## ã¹ã³ã¢ãªã³ã°ã·ã¹ãã 
+## BigQuery テーブル・ビュー一覧
 
-Cloud Functions `offerJudge` ã®éã¿ä»ãã¹ã³ã¢ãªã³ã°:
-- reward_per_km: 20% â kmåä¾¡ / å¹³åkmåä¾¡
-- hourly_rate: 30% â æ¨å®æçµ¦ / æéå¸¯å¥å¹³åæçµ¦
-- distance: 10% â å¹³åè·é¢ / å®è·é¢ (è¿ãã»ã©é«å¾ç¹)
-- store_reputation: 10% â éå»ã®åè«¾çãã¼ã¹ (3åä»¥ä¸)
-- market: 15% â å ±é¬ / ç´è¿2æéã®å¹³åå ±é¬
-- quest_adjusted: 5% â ã¯ã¨ã¹ããã¼ããºå ç®å¾
-- opportunity: 10% â æ©ä¼ã³ã¹ã (å¾æ©æéèæ®)
-- **Threshold: 0.85** â ããä»¥ä¸ãªãaccept
+### テーブル (6つ)
 
-éç¥å½¢å¼: `åãã Â¥2,200/h(å®å¹Â¥1,650/h)` â å®å¹æçµ¦ = reward / (durationMin + waitMin) Ã 60
+#### offer_logs (533行, 2026-03-27時点)
+オファー判定ログ。日パーティション(timestamp), クラスタリング(area, hour_of_day)。
+```
+log_id, timestamp, lat, lng, address, wireless_charging,
+gemini_decision, estimated_hourly_rate, decision_reason, confidence,
+base_hourly_wage, offer_reward, offer_distance, offer_duration,
+weather_condition, traffic_status, quest_progress,
+actual_accepted, actual_payout, actual_duration_minutes, actual_distance_km,
+response_time_ms, raw_gemini_response, raw_ocr_text,
+weather_info, store_name, day_of_week, hour_of_day, decision_reason_detail
+```
+**注意**: actual_accepted / actual_payout は現在全てNULL。フィードバックループ未実装。
 
-## KITTè¨­è¨æ¹é (ç¢ºå®æ¸ã¿ â åæã«å¤ããªã)
+#### delivery_history (22行)
+実際の配達履歴。日パーティション(timestamp), クラスタリング(area, hour_of_day)。
+```
+delivery_id, timestamp, area, lat, lng, reward, distance, duration,
+hourly_wage, store_name, drop_off_address, day_of_week, hour_of_day, wireless_charging
+```
 
-| æ¹é | åå®¹ |
+#### context_logs (142行)
+何でもBOXの投入データ。
+```
+log_id, timestamp, type, summary, structured_data (JSON),
+ai_note, raw_gemini_response, image_size_kb, processing_time_sec
+```
+
+#### charging_logs (123行)
+充電ON/OFFイベント。GPS付き行動ログ。
+```
+timestamp_utc, timestamp_jst, wireless_charging, lat, lng,
+near_parking, is_work_session, cleanup_after
+```
+
+#### dynamic_coefficients (23行)
+スコアリング係数。CFから10分キャッシュで読み込み。BQ編集だけでCF再デプロイなしに調整可能。
+```
+coefficient_name, coefficient_value, last_updated, description
+```
+
+主要係数 (2026-03-12更新):
+| 係数 | 値 | 説明 |
+|------|-----|------|
+| base_hourly_wage | 1993.44 | 直近90日の平均時給 |
+| avg_reward | 688.89 | 平均報酬額 |
+| avg_distance | 3.21 | 平均配達距離km |
+| avg_duration | 20.52 | 平均配達時間(分) |
+| avg_reward_per_km | 223.81 | 平均km単価 |
+| avg_speed_kmh | 9.37 | 平均配達速度 |
+| avg_hourly_wage_lunch | 2110.90 | ランチ帯(11-14時) |
+| avg_hourly_wage_dinner | 2186.10 | ディナー帯(17-21時) |
+| avg_hourly_wage_weekend | 2142.63 | 週末平均 |
+| avg_hourly_wage_weekday | 2099.27 | 平日平均 |
+| avg_hourly_wage_late_night | 1886.67 | 深夜帯(22-6時) |
+| next_offer_interval_sec | 300 | 次オファー待機推定(秒) |
+| score_threshold | 0.85 | accept/reject閾値 |
+| weight_hourly_rate | 0.30 | スコア重み: 時給 |
+| weight_reward_per_km | 0.20 | スコア重み: km単価 |
+| weight_market | 0.15 | スコア重み: 市場比較 |
+| weight_distance | 0.10 | スコア重み: 距離 |
+| weight_store_reputation | 0.10 | スコア重み: 店舗評価 |
+| weight_opportunity | 0.10 | スコア重み: 機会コスト |
+| weight_quest_adjusted | 0.05 | スコア重み: クエスト |
+
+#### external_research (82行)
+外部情報収集。日パーティション(timestamp)。
+```
+id, timestamp, source, title, url, description, published_at, search_query
+```
+
+### ビュー (6つ)
+
+| ビュー | 用途 |
+|--------|------|
+| offer_logs_clean | 壊れたデータ除外（Make変数未展開、null報酬、null判定を除外） |
+| dashboard_summary | 日別×時間帯別のオファー集計（Looker Studio用） |
+| dashboard_daily_trend | 日別トレンド（承諾率、平均報酬、日次収益） |
+| dashboard_integrity | 全テーブル横断のデータ品質チェック |
+| store_performance | 店舗別パフォーマンス集計（オファー数、承諾率、平均時給、km単価） |
+| charging_logs_view | 充電ログ + 駐輪場判定 + 勤務セッション判定 |
+
+## 現在のスコアリングシステム
+
+Cloud Functions `offerJudge` の重み付けスコアリング (7項目):
+- reward_per_km (20%): km単価 / 平均km単価(223.81)
+- hourly_rate (30%): 推定時給 / 時間帯別平均時給
+- distance (10%): 平均距離(3.21) / 実距離 (近いほど高得点、上限2.0)
+- store_reputation (10%): 過去3回以上データがある店は受諾率ベース (0.8〜1.2)
+- market (15%): 報酬 / 直近2時間の平均報酬
+- quest_adjusted (5%): クエストボーナス加算後
+- opportunity (10%): 報酬 / (配達時間+待機時間) × 待機コスト単価
+
+**Threshold: 0.85** → これ以上ならaccept
+
+通知形式: `受ける ¥2,200/h(実効¥1,650/h)` → 実効時給 = reward / (durationMin + waitMin) × 60
+
+## KITT設計方針 (確定済み)
+
+| 方針 | 内容 |
 |------|------|
-| ãªã¼ãã¼ã¬ã¤ | **å¨ããããªã** (Shujiæè¨) |
-| KITTæ¥ç¶ | **å¸¸ã«ON** â ãã¼ã¸èª­è¾¼1.5ç§å¾ã«èªåæ¥ç¶ |
-| é³å£°è§£èª¬ã®é·ã | **3æã»10ç§åå¾** |
-| éç¥å½¢å¼ | åãã/ãã¹ + æçµ¦ + å®å¹æçµ¦ |
-| ããã¯ã°ã©ã¦ã³ãå¾©å¸° | visibilitychange â èªååæ¥ç¶ |
-| YouTubeçµ±å | IFrame Player APIããªãã¡ã¼æã«ããã¯âå¾©å¸° |
+| オーバーレイ | **全くいらない** (Shuji明言) |
+| KITT接続 | **常にON** → ページ読込1.5秒後に自動接続 |
+| 音声会話 | 自然な会話（簡潔すぎない） |
+| 通知形式 | 受け/パス + 時給 + 実効時給 |
+| バックグラウンド復帰 | visibilitychange → 自動再接続 |
+| YouTube統合 | IFrame Player API、オファー時にダック→復帰 |
 
-## å®äºæ¸ã¿ã¿ã¹ã¯
+## 絶対に忘れてはいけないこと
+
+### iOS OCR ¥記号問題
+iOS OCRは`¥`記号を中点`·`に変換する。報酬パーサーは `/[·•]\s*([0-9,]+)/` パターンが**必須**。`/[¥￥]/` だけでは報酬0円になる。
+
+### iOSショートカット技術制約
+- JSON送信が`{"":{"actual_data"}}`と空キーでネストされる → CF側で`if(body[""]&&typeof body[""]===object) body=body[""]`で対応済み
+- OCR改行がJSON送信時にリテラル`\n`(2文字)になる → `text.split(/\\n|\n/)`で両パターン対応 **⚠️ 現在のCFコードは`split('\n')`のみ。バグあり。**
+- OCRテキストにノイズ多数 (地図数字、時刻、バッテリー%) → 位置ベースパース必須
+
+## 失敗済みアプローチ (二度と提案しない)
+
+### 音声出力系
+- ✗ iOS TTS (Safari speechSynthesis / ショートカット読み上げ) → 不採用、何度も潰し済み
+- ✗ AirPods「通知の読み上げ」→ YouTube再生中は抑制で不可
+- ✗ iOSスピーカーで通知を読み上げ → 初回のみ、連続通知は抑制
+
+### 通知・オートメーション系
+- ✗ iOSサウンド認識でUberDriver通知音検知 → AirPods接続中は本体マイクに音が来ず不可
+- ✗ LINE Notify → 2025年3月終了済
+- ✗ LINE Messaging API → 月200通で不足
+- ✗ iOS「App Notification」オートメーショントリガー → iOS18に存在しない
+- ✗ Pushcut execute (/execute) → Automation Server常駐必須＋Pushcut有料最前面待機が必要
+
+### ブラウザ・技術系
+- ✗ ブラウザ変更でバックグラウンド問題解決 → iOSは全ブラウザWebKit強制で同じ
+- ✗ Browser Use CLIでGCP操作 → コンテナからGCPにアクセス不可
+- ✗ Pythonの`code.replace()`で日本語含むJS → **Unicode文字が消える、絶対禁止**
+
+## コーディング規約
+
+### KITT PWA (index.html)
+- 単一HTMLファイル (CSS + JS inline)
+- フォント: Orbitron (Google Fonts)
+- カラー: CSS変数 (`--red`, `--green`, `--amber`, `--text`, `--text-dim`)
+- UIテーマ: ナイトライダー風ダークUI
+- 状態管理: グローバル`state`オブジェクト、`config`オブジェクト
+- 設定永続化: localStorage (`kitt-yt-config`, `kitt-yt-history`)
+- ログ: `log()`関数 → `#log-bar`に表示 + console.log
+- AudioContext: 再生用24kHz、マイク用16kHz (別インスタンス)
+
+### Cloud Functions (index.js)
+- `@google-cloud/functions-framework` でHTTPエントリポイント
+- Firebase RTDB: REST API (SDK不使用)
+- BigQuery: `@google-cloud/bigquery`
+- 並列処理: `Promise.all()` で読み取り・書き込みを並列化
+- エラー処理: try-catch + fallback値 (3層構造)
+- Gemini: 画像フォールバックのみ (メイン判定はスコアリング)
+- キャッシュ: インメモリ (coefficients 10分, trends 2分, store 5分)
+
+### デプロイ方法
+- **GitHub Pages**: ファイル編集 → コミット → 自動デプロイ
+- **GCP Cloud Functions**: `gcloud functions deploy` (ローカルcf-offerjudge/から)
+- **致命的教訓**: GitHub CM6エディタでCmd+Aが効く、追記 → ファイル二重化・三重化が複数回発生。コミット前に必ず末尾確認 (`</html>`が1つだけ)
+
+## ユーザーコミュニケーション要件
+
+- 非エンジニア、専門用語は噛み砕いて説明する
+- 説明は「今こういう状態→こういう問題がある→だからこうする」の順番
+- 「Claudeが自分で全部やる」ことに価値を感じている。手順書を渡して終わりにしない、コード取得・編集・デプロイまで可能な限り自分で実行する
+- 不要な確認質問は望まない。自分で判断して実行する。「考えなくていい、やっとけ」のShujiのスタンス
+- 本音ベースで話す
+
+## リポジトリ構成
+
+### ShujiSasaki/kitt-voice (GitHub Pages)
+```
+index.html        # KITT PWA本体 (~970行, v2.2)
+manifest.json     # PWA manifest
+CLAUDE.md         # このファイル
+README.md
+cf-offerjudge/    # Cloud Functions ソース
+  index.js        # メインソース (offerJudge, nandemoBox, chargingEvent)
+  package.json    # Node.js 22, 依存: functions-framework, bigquery
+```
+
+## 完了済みタスク
+
+### チャット25 (2026-03-28) — ビジョン擦り合わせ + システム全体監査 + 改善実装
+- ✅ KITTビジョン確定: 配達判定ツール→個人AI執事に再定義
+- ✅ 判断モデル整理: 6レイヤー・20+項目の複合判断を言語化
+- ✅ システム全体監査: BQ/CF実態とCLAUDE.mdの乖離を特定
+- ✅ CLAUDE.md全面改訂: 文字化け修正 + ビジョン反映 + 実態反映
+- ✅ メモリ保存: ビジョン・プロフィール・監査結果・フィードバック
+- ✅ OCR改行バグ修正: `split('\n')` → `split(/\\n|\n/)`
+- ✅ CFフォールバック値をBQ実データに更新 (全箇所)
+- ✅ getTimeSlotAvgに深夜帯(22-6時)追加
+- ✅ store_reputation計算に地雷度反映 (低時給ペナルティ、遠距離ペナルティ)
+- ✅ getStoreHistoryクエリ拡張 (avg_duration, avg_reward_per_km, avg_hourly_rate追加)
+- ✅ buildDecisionReasonに「近場」「地雷店」理由追加
+- ✅ offerJudge CFデプロイ完了・テスト通過 (地雷店reject確認)
+- ✅ BQビュー3つ作成: offer_delivery_match, judgment_accuracy, store_risk_score
+- ✅ ytSearch Node.js 22アップグレード完了
+- ✅ 全CF Node.js 22統一完了
+- ✅ context_logs → delivery_history自動転記: 既存116件バックフィル完了
+- ✅ actual_accepted自動判定: nandemoBoxにsyncDeliveryResult追加 (result/order_detail投入時に自動でdelivery_history転記 + offer_logsのactual_accepted更新)
+- ✅ nandemoBox + offerJudge CFデプロイ完了
+
+### チャット24 (2026-03-27) — 係数BQ完全移行 + Puppeteer検証 + autoモード
+- ✅ 係数BQ完全移行: calculateScore()のweights 7項目 + threshold をBQ dynamic_coefficientsから動的読込に変更
+- ✅ cf-offerjudge/package.json 作成 (ローカルからgcloud functions deploy可能に)
+- ✅ Puppeteer MCP検証: 全7ツール動作確認済み
+- ✅ permissions.defaultMode を "auto" に設定
+
+### チャット23 (2026-03-27) — RTDBルール制限 + CF認証ヘッダ + gcloud CLI
+- ✅ Firebase RTDBセキュリティルール適用 (認証なし書き込みブロック、公開読み取りOK)
+- ✅ CF環境変数 FIREBASE_DB_SECRET 設定 + コード修正 + デプロイ
+- ✅ gcloud CLI インストール + gcloud auth login
+- ✅ CF簡易認証ヘッダ追加 (X-API-Key) → 全CFデプロイ完了
+- ✅ iOSショートカット「Uber ai」にX-API-Keyヘッダ追加完了
+- ✅ Node.js 22アップグレード → offerJudge, nandemoBox, chargingEvent デプロイ完了
 
 ### チャット22 (2026-03-27) — マイク解決 + 常時ON + v2.2
 - ✅ マイク入力デバッグ → 音声会話成立確認
 - ✅ AudioContext resume() 追加 (iOS Safari対策)
 - ✅ 常時ON化 (Gemini接続後マイク自動ON、タイムアウト時再接続、フォアグラウンド復帰時マイク再起動)
-- ✅ ログバー拡大 (8px→13px) + デバッグログ頻度調整
-- ✅ v2.2バージョンアップ
-- ✅ mainマージ・デプロイ完了 (PR #1, sha 6f75022)
-- ✅ Firebase RTDBルール設計書作成済み（適用待ち）
-- ✅ GitHub push権限問題解決 (github.com/apps/claude でリポジトリに書き込み権限を付与)
+- ✅ v2.2 mainマージ・デプロイ完了 (PR #1, sha 6f75022)
 
-### ãã£ãã21 (2026-03-24) â v2.0/v2.1
-- â KITT 3éåä¿®æ­£ â 803è¡ã«ã¯ãªã¼ã³ã¢ãã â ã³ããã
-- â CFéç¥ã«å®å¹æçµ¦è¿½å  â GCPããã­ã¤å®äº
-- â KITT 3æãã­ã³ããç­ç¸®
-- â ãã¤ã¯å¥åå®è£ (getUserMedia â ScriptProcessor â PCM16 â realtimeInput) â v2.1ã³ããã (943è¡)
+### チャット21 (2026-03-24) — v2.0/v2.1
+- ✅ KITT 3重複修正 → 803行にクリーンアップ → コミット
+- ✅ CF通知に実効時給追加 → GCPデプロイ完了
+- ✅ KITT 3文プロンプト短縮
+- ✅ マイク入力実装 (getUserMedia → ScriptProcessor → PCM16 → realtimeInput) → v2.1コミット (943行)
 
-### ãã£ãã20 â Geminié³å£°ç¢ºèª
-- â KITT Gemini Native Audioåä½ç¢ºèª (ãã¹ã¯ããã)
-- â 11ä»¶ã®ãã°ä¿®æ­£ (APIã­ã¼ãBlobå¿ç­ãAudioContextç­)
+### チャット20 — Gemini音声確認
+- ✅ KITT Gemini Native Audio動作確認 (デスクトップ)
+- ✅ 11件のバグ修正 (APIキー、Blob応答、AudioContext等)
 
-### ãã£ãã18 â è¨­è¨ç¢ºå®
-- â KITTè¨­è¨æ¹éç¢ºå® (ãªã¼ãã¼ã¬ã¤ä¸è¦ãå¸¸æONç­)
-- â YouTubeçµ±åã¢ã¼ã­ãã¯ãã£ç¢ºå®
+### チャット18 — 設計確定
+- ✅ KITT設計方針確定 (オーバーレイ不要、常時ON等)
+- ✅ YouTube統合アーキテクチャ確定
 
-### ãã£ãã17 â OCRæ ¹æ¬è§£æ±º
-- â OCR bodyã¢ã³ã©ããæ¬¡è½ä¿®æ­£
-- â ä¸­é»ãã¿ã¼ã³è¿½å  (iOS OCR Â¥âÂ·å¤æå¯¾å¿)
-- â åºåãã¼ãµã¼æ¹å (ãåè¨ãè¡ã®æ¬¡è¡)
-- â BQ raw_ocr_textä¿å­
+### チャット17 — OCR根本解決
+- ✅ OCR bodyアンラップ次落修正
+- ✅ 中点パターン追加 (iOS OCR ¥→·変換対応)
+- ✅ 店名パーサー改善 (「合計」行の次行)
+- ✅ BQ raw_ocr_text保存
 
-### ããä»¥å
-- â Cloud Functions offerJudge ã¹ã³ã¢ãªã³ã°å¤å®
-- â Firebase RTDBé£æº
-- â YouTubeæ¤ç´¢ (innertube API, viewCount, continuation)
-- â YouTubeåç (IFrame Player API)
-- â è¦è´å±¥æ­´ (YouTubeå¬å¼é¢¨UI)
-- â Looker Studio ããã·ã¥ãã¼ã
-- â iOSã·ã§ã¼ãã«ãããUber aiã
+### それ以前
+- ✅ Cloud Functions offerJudge スコアリング判定
+- ✅ Firebase RTDB連携
+- ✅ YouTube検索 (innertube API, viewCount, continuation)
+- ✅ YouTube再生 (IFrame Player API)
+- ✅ 視聴履歴 (YouTube公式風UI)
+- ✅ Looker Studio ダッシュボード
+- ✅ iOSショートカット「Uber ai」
 
-## æªè§£æ±ºã¿ã¹ã¯ (åªåé )
+## 未解決タスク
 
-| # | ã¿ã¹ã¯ | æé | ç¶æ |
-|---|--------|------|------|
-| 1 | ãã¤ã¯å¥åãããã° â iOSã§Geminiã«é³å£°ãä¼ãããªã | - | ✅ 解決 (2026-03-27) |
-| 2 | ãªã¢ã«ãªãã¡ã¼ã§ã®KITTé³å£°å ±åãã¹ã | - | æªç¢ºèª |
-| 3 | Firebase RTDBã«ã¼ã«å¶é | **2026-04-16** | æªçæ |
-| 4 | CFç°¡æèªè¨¼ããã | - | æªçæ |
-| 5 | Make.comåæ­¢ | - | æªçæ |
-| 6 | Node.js 22ã¢ããã°ã¬ã¼ã | **2026/04/30** | æªçæ |
-| 7 | ä¿æ°BQå®å¨ç§»è¡ | - | æªçæ |
-| 8 | SoundCloudçµ±å | - | Phase2 |
+| # | タスク | 状態 |
+|---|--------|------|
+| 1 | リアルオファーでのKITT音声報告テスト | 未確認 |
+| 2 | リザルト突き合わせ (offer × delivery × charging) | ✅ BQビュー+自動転記 (2026-03-28) |
+| 3 | CFスコアリング特徴量拡張 (7項目→AI選択) | 未実装 |
+| 4 | OCR改行バグ修正 (`split('\n')` → `split(/\\n|\n/)`) | ✅ 修正済み (2026-03-28) |
+| 5 | ytSearch Node.js 22アップグレード | ✅ 完了 (2026-03-28) |
+| 6 | 走行中の音声認識改善 | 未着手 |
+| 7 | バックグラウンド音声継続 (iOS制約) | 未着手 |
 
-### マイク入力 (解決済み 2026-03-27)
-v2.1でマイク入力を実装してコミット済み (943行)。iPhoneでマイク許可は開き、音声会話が成立することを確認済み。
-以下の改善がmainにマージ・デプロイ済み (v2.2):
-- AudioContext resume() でiOS Safari対策
-- Gemini接続後マイク自動ON
-- タイムアウト時に切断→再接続で常時ON
-- フォアグラウンド復帰時マイク自動再起動
-
-## çµ¶å¯¾ã«å¿ãã¦ã¯ãããªããã¨
-
-### iOS OCR Â¥è¨å·åé¡
-iOS OCRã¯`Â¥`è¨å·ãä¸­é»`Â·`ã«å¤æãããå ±é¬ãã¼ãµã¼ã¯ `/[Â·â¢]\s*([0-9]{3,5})/` ãã¿ã¼ã³ã**å¿é **ã`/[Â¥ï¿¥]/` ã ãã§ã¯å ±é¬0åã«ãªãã
-
-### iOSã·ã§ã¼ãã«ããæè¡å¶ç´
-- JSONéä¿¡ã`{"":{"actual_data"}}`ã¨ç©ºã­ã¼ã§ãã¹ããã â CFå´ã§`if(body[""]&&typeof body[""]===object) body=body[""]`ã§å¯¾å¿æ¸ã¿
-- OCRæ¹è¡ãJSONéä¿¡æã«ãªãã©ã«`\n`(2æå­)ã«ãªã â `text.split(/\\n|\n/)`ã§ä¸¡ãã¿ã¼ã³å¯¾å¿
-- OCRãã­ã¹ãã«ãã¤ãºå¤æ° (å°å³æ°å­ãæå»ãããããªã¼%) â ä½ç½®ãã¼ã¹ãã¼ã¹å¿é 
-
-## å¤±ææ¸ã¿ã¢ãã­ã¼ã (äºåº¦ã¨ææ¡ããªã)
-
-### é³å£°åºåç³»
-- â iOS TTS (Safari speechSynthesis / ã·ã§ã¼ãã«ããèª­ã¿ä¸ã) â ä¸æ¡ç¨ãä½åº¦ãå´ä¸æ¸ã¿
-- â AirPodsãéç¥ã®èª­ã¿ä¸ããâ YouTubeåçä¸­ã¯æå¶ã§ä¸å¯
-- â iOSãã¹ãã¼ã«ã¼ã§éç¥ãèª­ã¿ä¸ããâ ååã®ã¿ãé£ç¶éç¥ã¯æå¶
-
-### éç¥ã»ãªã¼ãã¡ã¼ã·ã§ã³ç³»
-- â iOSãµã¦ã³ãèªè­ã§UberDriveréç¥é³æ¤ç¥ â AirPodsæ¥ç¶ä¸­ã¯æ¬ä½ãã¤ã¯ã«é³ãæ¥ãä¸å¯
-- â LINE Notify â 2025å¹´3æçµäºæ¸
-- â LINE Messaging API â æ200éã§ä¸è¶³
-- â iOSãApp Notificationããªã¼ãã¡ã¼ã·ã§ã³ããªã¬ã¼ â iOS18ã«å­å¨ããªã
-- â Pushcut execute (/execute) â Automation Serverå¸¸é§å¿é ï¼Pushcutæåé¢å¾æ©ãå¿è¦
-
-### ãã©ã¦ã¶ã»æè¡ç³»
-- â ãã©ã¦ã¶å¤æ´ã§ããã¯ã°ã©ã¦ã³ãåé¡è§£æ±º â iOSã¯å¨ãã©ã¦ã¶WebKitå¼·å¶ã§åã
-- â Browser Use CLIã§GCPæä½ â ã³ã³ããããGCPã«ã¢ã¯ã»ã¹ä¸å¯
-- â Pythonã®`code.replace()`ã§æ¥æ¬èªå«ãJS â **Unicodeæå­ãæ¶ãããçµ¶å¯¾ç¦æ­¢**
-
-## ã³ã¼ãã£ã³ã°è¦ç´
-
-### KITT PWA (index.html)
-- åä¸HTMLãã¡ã¤ã« (CSS + JS inline)
-- ãã©ã³ã: Orbitron (Google Fonts)
-- ã«ã©ã¼: CSSå¤æ° (`--red`, `--green`, `--amber`, `--text`, `--text-dim`)
-- UIãã¼ã: ãã¤ãã©ã¤ãã¼é¢¨ãã¼ã¯UI
-- ç¶æç®¡ç: ã°ã­ã¼ãã«`state`ãªãã¸ã§ã¯ãã`config`ãªãã¸ã§ã¯ã
-- è¨­å®æ°¸ç¶å: localStorage (`kitt-yt-config`, `kitt-yt-history`)
-- ã­ã°: `log()`é¢æ° â `#log-bar`ã«è¡¨ç¤º + console.log
-- AudioContext: åçç¨24kHzããã¤ã¯ç¨16kHz (å¥ã¤ã³ã¹ã¿ã³ã¹)
-
-### Cloud Functions (index.js)
-- `@google-cloud/functions-framework` ã§HTTPã¨ã³ããªãã¤ã³ã
-- Firebase RTDB: REST API (SDKä¸ä½¿ç¨)
-- BigQuery: `@google-cloud/bigquery`
-- ä¸¦åå¦ç: `Promise.all()` ã§èª­ã¿åãã»æ¸ãè¾¼ã¿ãä¸¦åå
-- ã¨ã©ã¼å¦ç: try-catch + fallbackå¤
-- Gemini: ç»åãã©ã¼ã«ããã¯ã®ã¿ (ã¡ã¤ã³å¤å®ã¯ã¹ã³ã¢ãªã³ã°)
-
-### ããã­ã¤ææ³
-- **GitHub Pages**: ãã¡ã¤ã«ç·¨é â ã³ããã â èªåããã­ã¤
-- **GCP Cloud Functions**: GCPã³ã³ã½ã¼ã«ã®ã½ã¼ã¹ã¨ãã£ã¿ã§ç·¨é â ãä¿å­ãã¦åããã­ã¤ã
-- **è´å½çæè¨**: GitHub CM6ã¨ãã£ã¿ã§Cmd+Aãå¹ããè¿½è¨ â ãã¡ã¤ã«äºéåã»ä¸éåãè¤æ°åçºçãã³ãããåã«å¿ãæ«å°¾ç¢ºèª (`</html>`ã1ã¤ã ãã)
-
-## ã¦ã¼ã¶ã¼ã³ãã¥ãã±ã¼ã·ã§ã³è¦ä»¶
-
-- éã¨ã³ã¸ãã¢ãå°éç¨èªã¯åã¿ç ãã¦èª¬æãã
-- èª¬æã¯ãä»ããããç¶æâããããåé¡ãããâã ãããããããã®é çª
-- ãClaudeãèªåã§å¨é¨ããããã¨ã«ä¾¡å¤ãæãã¦ãããæé æ¸ãæ¸¡ãã¦çµããã«ãããã³ã¼ãåå¾ã»ç·¨éã»ããã­ã¤ã¾ã§å¯è½ãªéãèªåã§å®éãã
-- ä¸è¦ãªç¢ºèªè³ªåãæã¾ããèªåã§å¤æ­ãã¦å®è¡ããããèããªãã¦ãããããã£ã¦ããShujiã®ã¹ã¿ã³ã¹
-- æ¬é³ãã¼ã¹ã§è©±ã
-
-## ãªãã¸ããªæ§æ
-
-### ShujiSasaki/kitt-voice (GitHub Pages)
-```
-index.html      # KITT PWAæ¬ä½ (943è¡, v2.1)
-manifest.json   # PWA manifest
-README.md
-```
-
-### GCP Cloud Functions (offerjudge)
-```
-index.js        # ã¡ã¤ã³ã½ã¼ã¹ (offerJudge, nandemoBox, chargingEvent)
-package.json
-# ãã®ä»: add_pushcut.js, curl_test.js, edit_kitt.js, fix2.js, fix_pushcut.js
-```
-
-## ç°å¢å¤æ°ã»ã·ã¼ã¯ã¬ãã
-
-| å¤æ° | ç¨é | å ´æ |
-|------|------|------|
-| GEMINI_API_KEY | Gemini API (CFç¨) | Cloud Functionsç°å¢å¤æ° |
-| (ãã©ã¦ã¶å) | Gemini WebSocket (KITTç¨) | KITT Settingsç»é¢ã§å¥åãlocalStorageã«ä¿å­ |
-| (ãã©ã¦ã¶å) | Firebase RTDB URL | KITT Settingsç»é¢ãããã©ã«ãå¤ãã |
-
-## BQãã¼ãã«ã¹ã­ã¼ã (ä¸»è¦ãã£ã¼ã«ã)
-
-### offer_logs
-```
-log_id, timestamp, lat, lng, address, wireless_charging,
-gemini_decision, estimated_hourly_rate, decision_reason, confidence,
-offer_reward, offer_distance, offer_duration, store_name,
-day_of_week, hour_of_day, decision_reason_detail (JSON),
-raw_gemini_response, response_time_ms
-```
-
-### dynamic_coefficients
-```
-coefficient_name, coefficient_value, last_updated, description
-```
-ä¸»è¦ä¿æ°: base_hourly_wage(1675), avg_reward(792), avg_distance(5.65), avg_duration(27), avg_reward_per_km(161), next_offer_interval_sec(300)
+### Puppeteer MCP (2026-03-27 検証済み)
+settings.json にPuppeteer MCPサーバーを登録済み (`~/.claude/settings.json` → `mcpServers.puppeteer`)。
+全7ツール動作確認済み: navigate, screenshot, click, fill, select, hover, evaluate。

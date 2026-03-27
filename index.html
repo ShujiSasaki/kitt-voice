@@ -80,8 +80,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .yt-result-ch{font-size:10px;color:var(--text-dim);margin-top:4px;font-family:-apple-system,sans-serif}
 .yt-searching{text-align:center;font-size:10px;color:var(--amber);padding:12px}
 
-/* === SoundCloud Panel === */
-#sc-panel{align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;letter-spacing:2px}
+/* === Log Dashboard Panel === */
+#log-panel{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 8px 36px}
+.log-section-title{font-size:10px;letter-spacing:2px;color:var(--red);padding:8px 4px 4px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.log-entry{display:flex;gap:8px;padding:6px 4px;border-bottom:1px solid #1a1a1a;font-family:-apple-system,sans-serif;font-size:11px;line-height:1.4}
+.log-entry .log-time{flex:0 0 42px;color:var(--text-dim);font-size:9px;font-family:'Orbitron',monospace;padding-top:1px}
+.log-entry .log-body{flex:1;min-width:0}
+.log-entry .log-tag{display:inline-block;font-size:8px;font-family:'Orbitron',monospace;letter-spacing:1px;padding:1px 4px;border-radius:2px;margin-right:4px}
+.log-tag.accept{background:rgba(48,208,96,.15);color:var(--green)}
+.log-tag.reject{background:rgba(224,48,48,.15);color:var(--red)}
+.log-tag.result{background:rgba(0,229,255,.15);color:var(--cyan)}
+.log-tag.quest{background:rgba(255,149,0,.15);color:var(--amber)}
+.log-tag.nandemo{background:rgba(102,102,102,.2);color:var(--text-dim)}
+.log-entry .log-detail{color:var(--text-dim);font-size:10px;margin-top:2px}
+.log-empty{text-align:center;color:var(--text-dim);font-size:10px;padding:20px;letter-spacing:1px}
 
 /* === Settings === */
 #settings-overlay{display:none;position:fixed;inset:0;z-index:300;background:var(--overlay-bg);padding:20px;overflow-y:auto}
@@ -106,7 +118,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <div id="tab-bar">
   <div class="tab active" data-panel="kitt">KITT</div>
   <div class="tab" data-panel="yt">YouTube</div>
-  <div class="tab" data-panel="sc">SoundCloud</div>
+  <div class="tab" data-panel="log">LOG</div>
   <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
 </div>
 
@@ -146,8 +158,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
   </div>
 
-  <!-- SoundCloud Panel -->
-  <div id="sc-panel" class="panel">COMING SOON</div>
+  <!-- Log Dashboard Panel -->
+  <div id="log-panel" class="panel">
+    <div class="log-section-title">OFFER JUDGE</div>
+    <div id="offer-log-list"><div class="log-empty">No offers yet</div></div>
+    <div class="log-section-title" style="margin-top:8px">NANDEMO BOX</div>
+    <div id="nandemo-log-list"><div class="log-empty">No submissions yet</div></div>
+  </div>
 </div>
 
 <!-- Settings -->
@@ -163,7 +180,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- Log Bar -->
-<div id="log-bar"><span id="log-text">KITT v2.2 ready</span></div>
+<div id="log-bar"><span id="log-text">KITT v2.3 ready</span></div>
 
 <!-- Keepalive silent audio -->
 <audio id="keepalive" loop playsinline>
@@ -207,8 +224,15 @@ let state = {
   micActive: false,
   micStream: null,
   micProcessor: null,
-  micSource: null
+  micSource: null,
+  lastNandemoTimestamp: null
 };
+
+// Load dashboard logs from localStorage
+let offerLogs = [];
+let nandemoLogs = [];
+try { offerLogs = JSON.parse(localStorage.getItem('kitt-offer-logs') || '[]'); } catch(e) {}
+try { nandemoLogs = JSON.parse(localStorage.getItem('kitt-nandemo-logs') || '[]'); } catch(e) {}
 
 // Load saved config
 try {
@@ -334,7 +358,23 @@ function handleNewOffer(data) {
     resetAutoDisconnect();
   }
 
-  // 3. Log
+  // 3. Save to dashboard log
+  offerLogs.unshift({
+    time: new Date().toISOString(),
+    decision: offer.decision || 'unknown',
+    store: offer.store_name || '',
+    reward: offer.reward || 0,
+    distance: offer.distance_km || 0,
+    duration: offer.duration_min || 0,
+    hourly: offer.estimated_hourly_rate || 0,
+    reason: offer.reason || '',
+    score: offer.score || 0,
+    confidence: offer.confidence || ''
+  });
+  if (offerLogs.length > 50) offerLogs = offerLogs.slice(0, 50);
+  localStorage.setItem('kitt-offer-logs', JSON.stringify(offerLogs));
+  renderDashboard();
+
   log('Offer: ' + (offer.reason || offer.decision || 'unknown'));
 }
 
@@ -908,10 +948,92 @@ function tryPlayKeepalive() {
 }
 
 // ============================================================
+// Dashboard: Nandemo polling + render
+// ============================================================
+function startNandemoPolling() {
+  setInterval(pollNandemo, config.pollingSec * 2000); // Poll half as often as offers
+  pollNandemo();
+}
+
+async function pollNandemo() {
+  try {
+    const resp = await fetch(config.firebaseUrl + '/nandemo_log.json');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!data || !data.timestamp) return;
+    if (data.timestamp === state.lastNandemoTimestamp) return;
+    state.lastNandemoTimestamp = data.timestamp;
+    // New nandemo entry
+    const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo', schedule: 'nandemo', other: 'nandemo' };
+    nandemoLogs.unshift({
+      time: data.timestamp,
+      type: data.type || 'nandemo',
+      tag: tagMap[data.type] || 'nandemo',
+      summary: data.summary || '',
+      sync: data.sync || null
+    });
+    if (nandemoLogs.length > 50) nandemoLogs = nandemoLogs.slice(0, 50);
+    localStorage.setItem('kitt-nandemo-logs', JSON.stringify(nandemoLogs));
+    renderDashboard();
+    log('NandemoBox: ' + (data.type || '') + ' ' + (data.summary || '').substring(0, 30));
+  } catch(e) {}
+}
+
+function renderDashboard() {
+  // Offers
+  const offerEl = document.getElementById('offer-log-list');
+  if (offerLogs.length === 0) {
+    offerEl.innerHTML = '<div class="log-empty">No offers yet</div>';
+  } else {
+    offerEl.innerHTML = offerLogs.map(o => {
+      const t = new Date(o.time);
+      const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      const tagClass = o.decision === 'accept' ? 'accept' : 'reject';
+      const tagText = o.decision === 'accept' ? 'OK' : 'SKIP';
+      return `<div class="log-entry">
+        <div class="log-time">${timeStr}</div>
+        <div class="log-body">
+          <span class="log-tag ${tagClass}">${tagText}</span>
+          ${o.store ? '<b>' + escHtml(o.store) + '</b> ' : ''}
+          ${o.reward ? '¥' + o.reward : ''}
+          ${o.distance ? ' / ' + o.distance + 'km' : ''}
+          ${o.hourly ? ' / ¥' + o.hourly + '/h' : ''}
+          <div class="log-detail">${escHtml(o.reason || '')}${o.score ? ' (score: ' + o.score + ')' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Nandemo
+  const nandemoEl = document.getElementById('nandemo-log-list');
+  if (nandemoLogs.length === 0) {
+    nandemoEl.innerHTML = '<div class="log-empty">No submissions yet</div>';
+  } else {
+    nandemoEl.innerHTML = nandemoLogs.map(n => {
+      const t = new Date(n.time);
+      const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      const syncInfo = n.sync ? (n.sync.delivery_inserted ? ' → 履歴保存' : '') + (n.sync.offer_matched ? ' → オファー紐付' : '') : '';
+      return `<div class="log-entry">
+        <div class="log-time">${timeStr}</div>
+        <div class="log-body">
+          <span class="log-tag ${n.tag}">${(n.type || 'nandemo').toUpperCase()}</span>
+          ${escHtml(n.summary || '')}
+          ${syncInfo ? '<div class="log-detail">' + syncInfo + '</div>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ============================================================
 // Init
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
   startFirebasePolling();
+  startNandemoPolling();
+  renderDashboard();
   renderYtHistory();
 
   // Load YouTube IFrame API
@@ -935,7 +1057,7 @@ window.addEventListener('DOMContentLoaded', () => {
     tryPlayKeepalive();
   }, { once: true });
 
-  log('KITT v2.2 initialized');
+  log('KITT v2.3 initialized');
 
   // Auto-connect Gemini (no tap needed)
   if (config.geminiApiKey) { setTimeout(() => connectGemini(), 1500); }

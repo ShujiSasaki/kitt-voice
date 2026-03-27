@@ -1,0 +1,9 @@
+{
+  "name": "ubereats-ai-judge",
+  "version": "1.0.0",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.0.0",
+    "@google-cloud/bigquery": "^7.0.0"
+  }
+}
