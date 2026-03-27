@@ -163,7 +163,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- Log Bar -->
-<div id="log-bar"><span id="log-text">KITT v2.0 ready</span></div>
+<div id="log-bar"><span id="log-text">KITT v2.2 ready</span></div>
 
 <!-- Keepalive silent audio -->
 <audio id="keepalive" loop playsinline>
@@ -728,13 +728,13 @@ async function startMic() {
     processor.onaudioprocess = (e) => {
       _micDbg++;
       if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) {
-        if (_micDbg <= 3) log('mic skip #' + _micDbg + ' active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
+        if (_micDbg === 1) log('mic skip #' + _micDbg + ' active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
         return;
       }
       const inputData = e.inputBuffer.getChannelData(0);
 
       // Check audio level periodically (~6s intervals)
-      if (_micDbg % 25 === 1) {
+      if (_micDbg % 100 === 1) {
         let mx = 0;
         for (let i = 0; i < inputData.length; i++) { const v = Math.abs(inputData[i]); if (v > mx) mx = v; }
         if (mx < 0.001) _micSilent++;
@@ -774,7 +774,7 @@ async function startMic() {
             }]
           }
         }));
-        if (_micDbg % 25 === 1) log('mic ws sent b64=' + b64.length);
+        if (_micDbg % 100 === 1) log('mic ws sent b64=' + b64.length);
       } catch(err) {
         log('mic ws err: ' + err.message);
       }
@@ -935,7 +935,7 @@ window.addEventListener('DOMContentLoaded', () => {
     tryPlayKeepalive();
   }, { once: true });
 
-  log('KITT v2.0 initialized');
+  log('KITT v2.2 initialized');
 
   // Auto-connect Gemini (no tap needed)
   if (config.geminiApiKey) { setTimeout(() => connectGemini(), 1500); }
