@@ -97,7 +97,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .yt-load-more{width:100%;padding:14px;margin:8px 0 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text-dim);font-family:'Orbitron',monospace;font-size:11px;cursor:pointer;text-align:center;letter-spacing:1px}
 .yt-load-more:active{background:#222}
 #yt-intro.hidden{display:none}
-#log-bar{position:fixed;bottom:0;left:0;right:0;height:20px;background:#0d0d0d;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:8px;color:var(--text-dim);z-index:50;overflow:hidden}
+#log-bar{position:fixed;bottom:0;left:0;right:0;height:28px;background:#0d0d0d;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:13px;color:var(--text-dim);z-index:50;overflow:hidden}
 </style>
 </head>
 <body>
@@ -163,7 +163,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- Log Bar -->
-<div id="log-bar"><span id="log-text">KITT v2.0 ready</span></div>
+<div id="log-bar"><span id="log-text">KITT v2.2 ready</span></div>
 
 <!-- Keepalive silent audio -->
 <audio id="keepalive" loop playsinline>
@@ -607,7 +607,8 @@ async function connectGemini() {
           state.geminiWs = ws;
           state.geminiSessionStart = Date.now();
           updateGeminiUI();
-          startAutoDisconnect();
+          // Auto-start mic after connection
+          setTimeout(() => { if (state.geminiConnected && !state.micActive) startMic(); }, 500);
           log('Gemini connected â');
           // Auto-greeting
           ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: 'KITTãèµ·åãããç­ãæ¨æ¶ãã¦ã' }] }], turnComplete: true } }));
@@ -713,20 +714,32 @@ async function startMic() {
 
     // Create audio pipeline: mic â processor â send to Gemini
     const micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    // iOS may force a different sample rate, so we'll resample if needed
+    // iOS: AudioContext starts suspended, must resume after user gesture
+    if (micCtx.state === 'suspended') {
+      await micCtx.resume();
+      log('micCtx resumed');
+    }
     const actualRate = micCtx.sampleRate;
     const source = micCtx.createMediaStreamSource(stream);
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
+    let _micDbg = 0;
+    let _micSilent = 0;
     processor.onaudioprocess = (e) => {
-      if (!window._micDbg) window._micDbg = 0;
-      window._micDbg++;
-      if (window._micDbg % 30 === 1) console.log('[MIC] onaudioprocess #' + window._micDbg);
+      _micDbg++;
       if (!state.micActive || !state.geminiWs || state.geminiWs.readyState !== WebSocket.OPEN) {
-        if (window._micDbg % 30 === 1) console.log('[MIC] skipped: active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
+        if (_micDbg === 1) log('mic skip #' + _micDbg + ' active=' + state.micActive + ' ws=' + (state.geminiWs ? state.geminiWs.readyState : 'null'));
         return;
       }
       const inputData = e.inputBuffer.getChannelData(0);
+
+      // Check audio level periodically (~6s intervals)
+      if (_micDbg % 100 === 1) {
+        let mx = 0;
+        for (let i = 0; i < inputData.length; i++) { const v = Math.abs(inputData[i]); if (v > mx) mx = v; }
+        if (mx < 0.001) _micSilent++;
+        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' silent=' + _micSilent);
+      }
 
       // Resample if needed (iOS often gives 48000 instead of 16000)
       let pcmData;
@@ -761,7 +774,10 @@ async function startMic() {
             }]
           }
         }));
-      } catch(err) {}
+        if (_micDbg % 100 === 1) log('mic ws sent b64=' + b64.length);
+      } catch(err) {
+        log('mic ws err: ' + err.message);
+      }
     };
 
     source.connect(processor);
@@ -772,7 +788,9 @@ async function startMic() {
     state.micActive = true;
     state._micCtx = micCtx;
     updateMicUI();
-    log('Mic ON (rate: ' + actualRate + ' â 16000)');
+    const track = stream.getAudioTracks()[0];
+    const ts = track ? track.getSettings() : {};
+    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
 
   } catch(e) {
     log('Mic error: ' + e.message);
@@ -847,7 +865,8 @@ function startAutoDisconnect() {
   clearAutoDisconnect();
   state.autoDisconnectTimer = setTimeout(() => {
     log('Auto disconnect (timeout)');
-    disconnectGemini();
+    // Always-on: reconnect instead of disconnect
+    connectGemini();
   }, config.autoDisconnectSec * 1000);
 }
 
@@ -916,7 +935,7 @@ window.addEventListener('DOMContentLoaded', () => {
     tryPlayKeepalive();
   }, { once: true });
 
-  log('KITT v2.0 initialized');
+  log('KITT v2.2 initialized');
 
   // Auto-connect Gemini (no tap needed)
   if (config.geminiApiKey) { setTimeout(() => connectGemini(), 1500); }
@@ -942,6 +961,8 @@ document.addEventListener('visibilitychange', () => {
     if (window._audioCtx && window._audioCtx.state === 'suspended') window._audioCtx.resume();
     // Check for missed offers
     pollFirebase();
+    // Auto-restart mic on foreground
+    if (state.geminiConnected && !state.micActive) { setTimeout(() => startMic(), 300); }
   }
 });
 </script>
