@@ -465,28 +465,32 @@ function onYouTubeIframeAPIReady() {
 }
 
 function initYtPlayer(videoId) {
-  const wrap = document.getElementById('yt-player-wrap');
-  const placeholder = document.getElementById('yt-placeholder');
-  wrap.style.display = 'flex';
-  placeholder.classList.add('hidden');
-  if (state.ytPlayer) { try { state.ytPlayer.destroy(); } catch(e) {} }
-  document.getElementById('yt-player').innerHTML = '';
-  const div = document.createElement('div');
-  div.id = 'yt-player-inner';
-  div.style.cssText = 'width:100%;height:100%';
-  document.getElementById('yt-player').appendChild(div);
-  state.ytPlayer = new YT.Player('yt-player-inner', {
-    videoId: videoId,
-    playerVars: { autoplay: 1, playsinline: 1, modestbranding: 1, rel: 0, fs: 0 },
-    events: {
-      onReady: (e) => {
-        state.ytReady = true;
-        e.target.setVolume(config.normalVolume);
-        log('YT player ready: ' + videoId);
-      },
-      onStateChange: (e) => { state.ytPlaying = e.data === YT.PlayerState.PLAYING; }
-    }
-  });
+  try {
+    const wrap = document.getElementById('yt-player-wrap');
+    const placeholder = document.getElementById('yt-placeholder');
+    if (wrap) wrap.style.display = 'flex';
+    if (placeholder) placeholder.classList.add('hidden');
+    if (state.ytPlayer) { try { state.ytPlayer.destroy(); } catch(e) {} state.ytPlayer = null; state.ytReady = false; }
+    const container = document.getElementById('yt-player');
+    if (container) container.innerHTML = '';
+    const div = document.createElement('div');
+    div.id = 'yt-player-inner';
+    div.style.cssText = 'width:100%;height:100%';
+    if (container) container.appendChild(div);
+    state.ytPlayer = new YT.Player('yt-player-inner', {
+      videoId: videoId,
+      playerVars: { autoplay: 1, playsinline: 1, modestbranding: 1, rel: 0, fs: 0 },
+      events: {
+        onReady: (e) => {
+          state.ytReady = true;
+          e.target.setVolume(config.normalVolume);
+          e.target.playVideo(); // Force play (iOS autoplay workaround)
+          log('YT ready: ' + videoId);
+        },
+        onStateChange: (e) => { state.ytPlaying = e.data === YT.PlayerState.PLAYING; }
+      }
+    });
+  } catch(e) { log('initYtPlayer error: ' + e.message); }
 }
 
 async function ytSearch() {
