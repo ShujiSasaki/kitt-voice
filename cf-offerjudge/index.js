@@ -74,12 +74,13 @@ functions.http('offerJudge', async (req, res) => {
       durationMin = durationMin || parsed.durationMin;
     }
 
-    // Step 2: Parallel fetch - coefficients + store history + recent trends
-    const [coefficients, storeHistory, recentTrends, questInfo] = await Promise.all([
+    // Step 2: Parallel fetch - coefficients + store history + recent trends + weather
+    const [coefficients, storeHistory, recentTrends, questInfo, weather] = await Promise.all([
       getCoefficients(),
       getStoreHistory(storeName),
       getRecentTrends(),
-      getLatestContext('quest')
+      getLatestContext('quest'),
+      getWeather(lat, lng)
     ]);
 
     // Step 3: Need Gemini for image analysis? (fallback if OCR failed)
@@ -103,7 +104,7 @@ functions.http('offerJudge', async (req, res) => {
     const score = calculateScore({
       reward, distanceKm, durationMin,
       coefficients, storeHistory, recentTrends,
-      hourJST, isWeekend, wireless_charging, questInfo
+      hourJST, isWeekend, wireless_charging, questInfo, weather
     });
 
     const decision = score.total >= score.threshold ? 'accept' : 'reject';
@@ -130,6 +131,7 @@ functions.http('offerJudge', async (req, res) => {
         storeName, reward, distanceKm, durationMin,
         decision, confidence, estHourlyRate, reason,
         responseTimeMs, hourJST, dayOfWeek,
+        weather: weather ? weather.condition : null,
         scoreDetail: JSON.stringify(score),
         rawGeminiResponse: geminiAnalysis ? JSON.stringify(geminiAnalysis) : null,
         rawOcrText: ocr_text || null
@@ -430,7 +432,39 @@ async function getLatestContext(type) {
   }
 }
 
-function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHistory, recentTrends, hourJST, isWeekend, wireless_charging, questInfo }) {
+// --- Weather API (Open-Meteo, free, no key) ---
+async function getWeather(lat, lng) {
+  if (!lat || !lng) return null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m,precipitation&timezone=Asia%2FTokyo`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const cur = data.current;
+    if (!cur) return null;
+    // WMO weather codes: 0-3 clear/cloudy, 51-67 drizzle/rain, 71-77 snow, 80-82 rain showers, 95-99 thunderstorm
+    const code = cur.weather_code || 0;
+    let condition = 'clear';
+    if (code >= 51 && code <= 67) condition = 'rain';
+    else if (code >= 71 && code <= 77) condition = 'snow';
+    else if (code >= 80 && code <= 82) condition = 'rain';
+    else if (code >= 95) condition = 'storm';
+    else if (code >= 3) condition = 'cloudy';
+    return {
+      condition,
+      code,
+      temp: cur.temperature_2m,
+      wind: cur.wind_speed_10m,
+      precipitation: cur.precipitation,
+      isRaining: condition === 'rain' || condition === 'storm'
+    };
+  } catch (e) {
+    console.warn('getWeather error:', e.message);
+    return null;
+  }
+}
+
+function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHistory, recentTrends, hourJST, isWeekend, wireless_charging, questInfo, weather }) {
   const c = coefficients;
   const scores = {};
   const rewardPerKm = distanceKm > 0 ? reward / distanceKm : 0;
@@ -493,8 +527,20 @@ function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHi
   for (const [key, weight] of Object.entries(weights)) {
     total += (scores[key] || 1.0) * weight;
   }
+  // Weather adjustment: rain reduces distance penalty (fewer riders = less competition)
+  // but long distance in rain is riskier
+  let weatherNote = null;
+  if (weather && weather.isRaining) {
+    if (distanceKm <= (c.avg_distance || 3.21)) {
+      total *= 1.05; // Short distance + rain = good deal (rain bonus, fewer riders)
+      weatherNote = 'rain_bonus';
+    } else if (distanceKm > (c.avg_distance || 3.21) * 1.5) {
+      total *= 0.95; // Long distance + rain = risky
+      weatherNote = 'rain_penalty';
+    }
+  }
   const threshold = c.score_threshold || 0.85;
-  return { total, threshold, scores, weights, questBonus, timeSlotAvg };
+  return { total, threshold, scores, weights, questBonus, timeSlotAvg, weatherNote };
 }
 
 function getTimeSlotAvg(hourJST, isWeekend, c) {
@@ -543,6 +589,7 @@ function buildTtsText(decision, confidence, score, reward, distanceKm, durationM
     if (score.scores.reward_per_km > 1.3) highlights.push('近くて高単価');
     if (score.scores.store_reputation > 1.1) highlights.push('優良店');
     if (score.questBonus > 0) highlights.push(`クエスト加算${score.questBonus}円`);
+    if (score.weatherNote === 'rain_bonus') highlights.push('雨で近場、狙い目');
 
     const highlightText = highlights.length > 0 ? highlights.join('、') : '総合スコア良好';
 
@@ -558,6 +605,7 @@ function buildTtsText(decision, confidence, score, reward, distanceKm, durationM
     else if (score.scores.hourly_rate < 0.9) problems.push('時給が平均以下');
     if (score.scores.reward_per_km < 0.6) problems.push('距離の割に安い');
     if (score.scores.distance < 0.7) problems.push('遠すぎる');
+    if (score.weatherNote === 'rain_penalty') problems.push('雨で遠い、危険');
 
     const problemText = problems.length > 0 ? problems.join('、') : '基準に届かない';
 
@@ -587,7 +635,7 @@ async function insertOfferLog(data) {
     offer_reward: data.reward || 0,
     offer_distance: data.distanceKm || 0,
     offer_duration: data.durationMin || 0,
-    weather_condition: null, traffic_status: null, quest_progress: null,
+    weather_condition: data.weather || null, traffic_status: null, quest_progress: null,
     actual_accepted: null, actual_payout: null, actual_duration_minutes: null,
     actual_distance_km: null, response_time_ms: data.responseTimeMs || 0,
     raw_gemini_response: data.rawGeminiResponse || null,
@@ -759,11 +807,66 @@ async function syncDeliveryResult(logId, data) {
         result.offer_matched = true;
       }
     }
+    // 3. Auto-recalculate coefficients from accumulated data
+    await recalculateCoefficients();
+    result.coefficients_updated = true;
   } catch (e) {
     console.warn('syncDeliveryResult error:', e.message);
     result.error = e.message;
   }
   return result;
+}
+
+async function recalculateCoefficients() {
+  try {
+    const query = `
+      WITH stats AS (
+        SELECT
+          ROUND(AVG(offer_reward), 2) as avg_reward,
+          ROUND(AVG(offer_distance), 2) as avg_distance,
+          ROUND(AVG(offer_duration), 2) as avg_duration,
+          ROUND(AVG(CASE WHEN offer_distance > 0 THEN offer_reward / offer_distance END), 2) as avg_reward_per_km,
+          ROUND(AVG(CASE WHEN offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_reward_per_hour,
+          ROUND(AVG(CASE WHEN offer_duration > 0 AND offer_distance > 0 THEN (offer_distance / offer_duration) * 60 END), 2) as avg_speed_kmh,
+          ROUND(AVG(CASE WHEN offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as base_hourly_wage,
+          ROUND(AVG(CASE WHEN hour_of_day >= 11 AND hour_of_day < 14 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_lunch,
+          ROUND(AVG(CASE WHEN hour_of_day >= 17 AND hour_of_day < 21 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_dinner,
+          ROUND(AVG(CASE WHEN (hour_of_day >= 22 OR hour_of_day < 7) AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_late_night,
+          ROUND(AVG(CASE WHEN hour_of_day >= 7 AND hour_of_day < 11 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_morning,
+          ROUND(AVG(CASE WHEN day_of_week IN ('Sat','Sun') AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_weekend,
+          ROUND(AVG(CASE WHEN day_of_week NOT IN ('Sat','Sun') AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_weekday,
+          COUNT(*) as total_deliveries
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs_clean\`
+        WHERE offer_reward > 0 AND offer_distance > 0 AND offer_duration > 0
+          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+      )
+      SELECT * FROM stats
+    `;
+    const [rows] = await bigquery.query({ query });
+    if (!rows || !rows[0] || !rows[0].base_hourly_wage) return;
+    const s = rows[0];
+    const updates = {};
+    if (s.avg_reward) updates.avg_reward = s.avg_reward;
+    if (s.avg_distance) updates.avg_distance = s.avg_distance;
+    if (s.avg_duration) updates.avg_duration = s.avg_duration;
+    if (s.avg_reward_per_km) updates.avg_reward_per_km = s.avg_reward_per_km;
+    if (s.avg_reward_per_hour) updates.avg_reward_per_hour = s.avg_reward_per_hour;
+    if (s.avg_speed_kmh) updates.avg_speed_kmh = s.avg_speed_kmh;
+    if (s.base_hourly_wage) updates.base_hourly_wage = s.base_hourly_wage;
+    if (s.avg_hourly_wage_lunch) updates.avg_hourly_wage_lunch = s.avg_hourly_wage_lunch;
+    if (s.avg_hourly_wage_dinner) updates.avg_hourly_wage_dinner = s.avg_hourly_wage_dinner;
+    if (s.avg_hourly_wage_late_night) updates.avg_hourly_wage_late_night = s.avg_hourly_wage_late_night;
+    if (s.avg_hourly_wage_morning) updates.avg_hourly_wage_morning = s.avg_hourly_wage_morning;
+    if (s.avg_hourly_wage_weekend) updates.avg_hourly_wage_weekend = s.avg_hourly_wage_weekend;
+    if (s.avg_hourly_wage_weekday) updates.avg_hourly_wage_weekday = s.avg_hourly_wage_weekday;
+    if (s.total_deliveries) updates.total_deliveries = s.total_deliveries;
+    await updateCoefficients(updates);
+    // Clear coefficient cache so next offerJudge uses fresh values
+    cache.coefficients = { data: null, expiry: 0 };
+    console.log('Coefficients recalculated:', Object.keys(updates).length, 'values updated');
+  } catch (e) {
+    console.warn('recalculateCoefficients error:', e.message);
+  }
 }
 
 console.log('UberEats AI Judge Cloud Functions loaded');
