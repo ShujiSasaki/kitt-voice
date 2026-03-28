@@ -1279,25 +1279,6 @@ function toggleNandemoSort() {
   renderNandemoList();
 }
 
-// Build a map: for each result entry, find the closest preceding offer's time
-function getOfferTimeMap() {
-  const offerTimes = offerLogs.map(o => new Date(o.time).getTime()).sort((a,b) => a - b);
-  const map = {};
-  for (const n of nandemoLogs) {
-    if (n.type !== 'result') continue;
-    const rt = new Date(n.time).getTime();
-    // Find the latest offer before this result (within 2 hours)
-    let best = null;
-    for (let i = offerTimes.length - 1; i >= 0; i--) {
-      if (offerTimes[i] < rt && rt - offerTimes[i] < 7200000) { best = offerTimes[i]; break; }
-    }
-    if (best) {
-      const d = new Date(best);
-      map[n.time] = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    }
-  }
-  return map;
-}
 
 function renderNandemoList() {
   const nandemoEl = document.getElementById('nandemo-log-list');
@@ -1312,7 +1293,6 @@ function renderNandemoList() {
     nandemoEl.innerHTML = '<div class="log-empty">送信履歴なし</div>';
     return;
   }
-  const offerTimeMap = getOfferTimeMap();
   let lastDate = '';
   nandemoEl.innerHTML = filtered.map(n => {
     const t = new Date(n.time);
@@ -1322,12 +1302,11 @@ function renderNandemoList() {
     let dateHeader = '';
     if (dateStr !== lastDate) { lastDate = dateStr; dateHeader = `<div style="padding:6px 4px 2px;font-size:11px;color:var(--text-dim);font-family:'Orbitron',monospace;letter-spacing:1px;border-top:1px solid var(--border);margin-top:4px">${dateStr}</div>`; }
     const imgAttr = n.image_url ? ` onclick="showImageModal('${n.image_url.replace(/'/g,"\\'")}')"` : '';
-    const acceptedTime = offerTimeMap[n.time] || null;
     return `${dateHeader}<div class="log-entry"${imgAttr}>
       <div class="log-time">${timeStr}</div>
       <div class="log-body">
         <span class="log-tag ${n.tag}">${typeLabel[n.type] || n.type}</span>
-        ${formatSummary(n.summary || '', n.type, acceptedTime)}
+        ${formatSummary(n.summary || '', n.type)}
         ${syncInfo ? '<div class="log-detail">' + syncInfo + '</div>' : ''}
       </div>
     </div>`;
@@ -1345,23 +1324,35 @@ function closeImageModal() {
   document.getElementById('image-modal-img').src = '';
 }
 
-function formatSummary(s, type, acceptedTime) {
+function formatSummary(s, type) {
   const h = escHtml(s);
   const rightLine = '<div style="text-align:right;font-weight:700;margin-top:2px">';
   const dimLine = '<div style="text-align:right;color:var(--text-dim);font-size:12px;margin-top:1px">';
-  // リザルト: 「店名 町名 ¥金額 時間 距離 件数」→ 3行表示
+  // リザルト: 「店名 町名 [HH:MM] ¥金額 時間 距離 件数」→ 3行表示
   if (type === 'result' || type === 'order_detail') {
-    const m = h.match(/^(.+?)\s+[¥￥]([\d,]+)\s+(\d+)分\s+([\d.]+)km\s+(\d+)件$/);
+    const m = h.match(/^(.+?)\s+(\d{1,2}:\d{2})\s+[¥￥]([\d,]+)\s+(\d+)分\s+([\d.]+)km\s+(\d+)件$/);
     if (m) {
-      const [, label, amtStr, minStr, distStr, cntStr] = m;
+      const [, label, ssTime, amtStr, minStr, distStr, cntStr] = m;
       const amt = parseInt(amtStr.replace(/,/g,''));
       const min = parseInt(minStr);
       const dist = parseFloat(distStr);
       const cnt = parseInt(cntStr);
-      const timeTag = acceptedTime ? ' <span style="color:var(--amber);font-size:12px;font-weight:400">' + acceptedTime + '</span>' : '';
+      const timeTag = ' <span style="color:var(--amber);font-size:12px;font-weight:400">' + ssTime + '</span>';
       const total = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
       const perItem = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
       return '<b>' + label + '</b>' + timeTag + rightLine + perItem + '</div>' + dimLine + total + '</div>';
+    }
+    // Fallback: no time in summary
+    const m2 = h.match(/^(.+?)\s+[¥￥]([\d,]+)\s+(\d+)分\s+([\d.]+)km\s+(\d+)件$/);
+    if (m2) {
+      const [, label, amtStr, minStr, distStr, cntStr] = m2;
+      const amt = parseInt(amtStr.replace(/,/g,''));
+      const min = parseInt(minStr);
+      const dist = parseFloat(distStr);
+      const cnt = parseInt(cntStr);
+      const total = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
+      const perItem = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
+      return '<b>' + label + '</b>' + rightLine + perItem + '</div>' + dimLine + total + '</div>';
     }
     return h;
   }
