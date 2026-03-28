@@ -412,6 +412,27 @@ cf-offerjudge/    # Cloud Functions ソース
 - KITTの時間感覚ズレ→接続時にJST時刻注入で対応済み
 - 声質・話し方のブレ→プロンプトで一貫性指示済みだが改善余地あり
 - 権限設定: bypassPermissions + rm系のみask/deny
+- バイク走行中の音声認識→AirPods適応型オーディオを左寄り(ノイキャン強め)で対応中
+- KITTがバックグラウンド→フォアグラウンド復帰時にYouTube自動再開(loadVideoById実装済み)
+- iOSショートカット「何でもBOX」の送信先をMake.com→CF nandemoBoxに変更済み
+- 通知の「実効」表記を「AI」に変更済み
+- OCR報酬パーサー修正: ¥9配達UIラベルをスキップ、3桁以上のみ報酬として認識
+
+#### 次セッションでやるべきこと (何でもBOXタブ大改善)
+1. **ピーク条件→ピークに統一**: Geminiプロンプトの「ピーク条件」「ピーク時間クエストの条件画面」を削除、全部「ピーク」にする
+2. **件数と金額は全段合計**: 個別段の金額(¥400, +¥500)ではなく合計(6件 900円)で表示
+3. **ジャンル別ソート機能**: タブ内にフィルターボタン(全部/クエスト/リザルト/受諾/その他)
+4. **画像を2週間保存**: context_logsにimage_base64を保存するか、GCSに画像保存してURLを記録
+5. **フォントサイズ75%**: 現在の22px→16px等に縮小
+6. **タップで画像表示**: 各エントリをタップするとスクショ画像をモーダル表示(閉じるバツボタン付き)
+7. **2週間分スクロール**: dashboardFeedのsinceを14日前にし、LIMIT増やす
+
+#### 画像保存の設計メモ
+- BQにbase64保存は非効率(1枚50-100KB)。GCS(Cloud Storage)に保存してURLをBQに記録が最適
+- context_logsにimage_urlカラム追加が必要
+- nandemoBox CFで画像をGCSにアップ→URLをcontext_logsに保存
+- dashboardFeedでimage_urlも返す→KITTでタップ時にfetch→表示
+- 14日後に自動削除: GCSのLifecycleルールで設定
 
 ### チャット24 (2026-03-27) — 係数BQ完全移行 + Puppeteer検証 + autoモード
 - ✅ 係数BQ完全移行: calculateScore()のweights 7項目 + threshold をBQ dynamic_coefficientsから動的読込に変更
