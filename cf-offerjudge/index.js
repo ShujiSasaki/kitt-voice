@@ -321,6 +321,68 @@ functions.http('dashboardFeed', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 5: /kittConfig - Save/load KITT settings + memory
+// ============================================================
+functions.http('kittConfig', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+
+  if (req.method === 'GET') {
+    // Load latest config from BQ
+    try {
+      const [rows] = await bigquery.query({
+        query: `SELECT config_json FROM \`${PROJECT_ID}.${DATASET}.kitt_config\` ORDER BY updated_at DESC LIMIT 1`
+      });
+      if (rows.length > 0) {
+        res.status(200).json(JSON.parse(rows[0].config_json));
+      } else {
+        res.status(200).json({});
+      }
+    } catch (e) {
+      // Table might not exist yet
+      res.status(200).json({});
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    if (!checkApiKey(req)) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+      const configData = req.body;
+      // Create table if not exists, then upsert
+      const tableId = 'kitt_config';
+      try {
+        await bigquery.dataset(DATASET).table(tableId).get();
+      } catch (e) {
+        // Table doesn't exist, create it
+        await bigquery.dataset(DATASET).createTable(tableId, {
+          schema: {
+            fields: [
+              { name: 'config_json', type: 'STRING' },
+              { name: 'updated_at', type: 'TIMESTAMP' }
+            ]
+          }
+        });
+      }
+      // Delete old and insert new (simple upsert)
+      await bigquery.query({ query: `DELETE FROM \`${PROJECT_ID}.${DATASET}.${tableId}\` WHERE TRUE` });
+      await bigquery.dataset(DATASET).table(tableId).insert([{
+        config_json: JSON.stringify(configData),
+        updated_at: BigQuery.timestamp(new Date())
+      }]);
+      res.status(200).json({ status: 'ok' });
+    } catch (e) {
+      console.error('kittConfig save error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed' });
+});
+
+// ============================================================
 // Helper Functions
 // ============================================================
 

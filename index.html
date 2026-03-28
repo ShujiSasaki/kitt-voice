@@ -330,6 +330,55 @@ function saveSettings() {
   try { localStorage.setItem('kitt-yt-config', JSON.stringify(config)); } catch(e) {}
   document.getElementById('settings-overlay').classList.remove('show');
   log('Settings saved');
+  backupToCloud();
+}
+
+// ============================================================
+// Cloud Backup (settings + memory → BQ via kittConfig CF)
+// ============================================================
+const CONFIG_CF_URL = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/kittConfig';
+
+async function backupToCloud() {
+  try {
+    const backup = {
+      config: config,
+      memory: getMemory(),
+      lastOfferTs: localStorage.getItem('kitt-last-ts'),
+      backedUpAt: new Date().toISOString()
+    };
+    await fetch(CONFIG_CF_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': config.geminiApiKey ? '5a85f03bbef9b37805ee265f83c64c5d56cd6784aaf802d8' : '' },
+      body: JSON.stringify(backup)
+    });
+    log('Cloud backup saved');
+  } catch(e) { console.warn('Backup error:', e.message); }
+}
+
+async function restoreFromCloud() {
+  try {
+    const resp = await fetch(CONFIG_CF_URL);
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    if (!data || !data.config) return false;
+    // Restore config (merge, don't overwrite API key if already set locally)
+    const localKey = config.geminiApiKey;
+    config = { ...DEFAULT_CONFIG, ...data.config };
+    if (localKey && !config.geminiApiKey) config.geminiApiKey = localKey;
+    localStorage.setItem('kitt-yt-config', JSON.stringify(config));
+    // Restore memory
+    if (data.memory && data.memory.length > 0) {
+      const localMem = getMemory();
+      if (localMem.length === 0) {
+        localStorage.setItem(MEMORY_KEY, JSON.stringify(data.memory));
+      }
+    }
+    if (data.lastOfferTs) {
+      localStorage.setItem('kitt-last-ts', data.lastOfferTs);
+    }
+    log('Cloud restore: ' + (data.backedUpAt || 'ok'));
+    return true;
+  } catch(e) { return false; }
 }
 
 // ============================================================
@@ -992,6 +1041,7 @@ function addMemory(entry) {
   mem.push({ time: new Date().toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}), text: entry });
   if (mem.length > MEMORY_MAX) mem.splice(0, mem.length - MEMORY_MAX);
   localStorage.setItem(MEMORY_KEY, JSON.stringify(mem));
+  backupToCloud(); // Sync memory to cloud
 }
 
 function buildSystemPrompt() {
@@ -1232,7 +1282,11 @@ window.addEventListener('DOMContentLoaded', () => {
     tryPlayKeepalive();
   }, { once: true });
 
-  log('KITT v2.3 initialized');
+  log('KITT v2.4 initialized');
+  // Restore from cloud if local storage is empty
+  if (!config.geminiApiKey) {
+    restoreFromCloud().then(ok => { if (ok) log('Settings restored from cloud'); });
+  }
 
   // Auto-connect Gemini (no tap needed)
   if (config.geminiApiKey) { setTimeout(() => connectGemini(), 1500); }
