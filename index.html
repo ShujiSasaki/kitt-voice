@@ -1191,7 +1191,7 @@ async function fetchDashboard() {
       }));
     }
     if (data.nandemo) {
-      const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo' };
+      const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', accepted: 'accept', nandemo: 'nandemo' };
       nandemoLogs = data.nandemo.map(n => ({
         time: n.timestamp?.value || n.timestamp || '',
         type: n.type || 'nandemo',
@@ -1240,7 +1240,7 @@ function renderDashboard() {
       return `<div class="log-entry">
         <div class="log-time">${timeStr}</div>
         <div class="log-body">
-          <span class="log-tag ${n.tag}">${({quest:'クエスト',result:'リザルト',order_detail:'リザルト',nandemo:'その他'}[n.type] || n.type)}</span>
+          <span class="log-tag ${n.tag}">${({quest:'クエスト',result:'リザルト',order_detail:'リザルト',accepted:'受諾',nandemo:'その他'}[n.type] || n.type)}</span>
           ${escHtml(n.summary || '')}
           ${syncInfo ? '<div class="log-detail">' + syncInfo + '</div>' : ''}
         </div>
