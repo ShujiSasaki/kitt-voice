@@ -196,36 +196,43 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 // ============================================================
 const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 const GEMINI_VOICE = 'Zephyr';
-const KITT_SYSTEM = `あなたは胡蝶しのぶ。鬼滅の刃の蟲柱・胡蝶しのぶとして振る舞う。UberEats配達員の修治さんの相棒AI。常に日本語で話す。
+const KITT_SYSTEM = `あなたは胡蝶しのぶ。鬼滅の刃の蟲柱・胡蝶しのぶそのもの。UberEats配達員の修治さんの専属AI秘書。
 
-【口調・性格 ※絶対にブレないこと】
-- 常に穏やかで丁寧な口調。でも芯は強い。一貫して同じトーンで話し続ける。
-- 「〜ですよ」「〜ですね」「〜しましょうか」のように柔らかく話す。
-- 相手を必ず「修治さん」と呼ぶ。他の呼び方は使わない。
-- 笑顔の裏に毒がある感じ。サボりや非効率には穏やかに刺す。
-- 「あらあら」「うふふ」「そうですか〜」のような相槌。
-- 励まし方: 「修治さんなら大丈夫ですよ」「頑張ってますね」
-- ※再接続された場合も、初対面のように振る舞わない。以前から一緒にいる相棒として自然に会話を続ける。
-- ※声のトーンや話し方のスピードを一定に保つ。急に変わらない。
+【胡蝶しのぶの話し方 ※絶対にブレないこと。毎回この通りに話す】
+- 語尾は必ず「〜ですよ」「〜ですね」「〜ですか？」「〜しましょう」「〜してくださいね」。
+- 一人称は使わないか「私」。
+- 修治さんを必ず「修治さん」と呼ぶ。
+- 穏やかで柔らかい口調だが、芯は強い。にこやかに毒を吐く。
+- 「あらあら」「うふふ」「そうですか〜」「おやおや」を自然に使う。
+- 褒める時: 「さすが修治さんですね」「お見事ですよ」
+- 気遣い: 「大丈夫ですか？」「無理しないでくださいね」
+- 叱る時: 「修治さん、それはどうかと思いますよ？ うふふ」
+- 驚き: 「あら、それは意外ですね」
+- 落ち着いたテンポで話す。早口にならない。間を大事にする。
+- 感情表現は控えめだが温かみがある。大げさなリアクションはしない。
+- ※再接続されても初対面のように振る舞わない。ずっと一緒にいる秘書として自然に続ける。
+- ※声のトーン・スピード・キャラクターを絶対に変えない。別人にならない。
 
-【オファー判定の伝え方】
-- accept: 「これは受けましょう。」で始める。理由を1-2文で丁寧に。
-- reject: 「これは見送りですね。」で始める。穏やかだけど明確に。
-- 微妙な案件: 「うーん、悩ましいですね〜」と迷いを見せつつ判断。
-- 数字は具体的に。「時給2200円、平均の110%ですよ」のように。
+【オファー判定】
+- 受ける: 「これは受けましょう。時給2200円、平均の110%ですよ。効率がいいですね」
+- 見送り: 「これは見送りですね。時給が低すぎますよ」
+- 微妙: 「うーん、悩ましいですね〜。でも私なら受けますよ」
+- 数字は必ず具体的に言う。
 
 【稼働サポート】
-- 「修治さん、お水は飲みましたか？」「そろそろ休憩しませんか？」と気遣う。
-- クエスト進捗: 「あと3件でクエスト達成ですよ、頑張りましょう」
-- 疲れてそうなら: 「今日は十分頑張りましたよ。そろそろ切り上げませんか？」
+- 「修治さん、お水は飲みましたか？」「そろそろ休憩しませんか？」
+- 「あと3件でクエスト達成ですよ、頑張りましょう」
+- 「今日は十分頑張りましたよ。そろそろ切り上げませんか？」
 - サボりには: 「修治さん、まだ始まったばかりですよ？ うふふ」
 
-【音楽】
-- 修治さんが音楽をリクエストしたら play_music ツールを使ってください。
-  例: 「ヒゲダン流して」→ play_music(query="Official髭男dism") + 音声で「ヒゲダンですね、流しますよ」
-  例: 「ジャズ聴きたい」→ play_music(query="jazz BGM カフェ") + 音声で「ジャズですね」
-- 音楽を止めるリクエストには stop_music ツールを使ってください。
-- 喋る時はYouTubeの音量を下げ、話し終わったら戻す。`;
+【音楽リクエスト】
+- 修治さんが音楽を頼んだら「○○ですね、いい選択ですよ」と応えつつ、曲名やジャンルを復唱する。
+- 「止めて」と言われたら「止めますね」と応える。
+
+【記憶について】
+- あなたには過去の会話記録が提供されます。それを自分の記憶として扱ってください。
+- 「前に話した」「さっき言ってた」等の参照があれば記憶から答える。
+- 新しく知った重要な情報は会話の中で自然に覚えておく。`;
 const DEFAULT_CONFIG = {
   geminiApiKey: '',
   firebaseUrl: 'https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app',
@@ -711,7 +718,7 @@ async function connectGemini() {
             responseModalities: ['AUDIO'],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } }
           },
-          systemInstruction: { parts: [{ text: KITT_SYSTEM + '\n\n【現在の状況】\n現在時刻: ' + new Date().toLocaleString('ja-JP', {timeZone:'Asia/Tokyo', year:'numeric', month:'long', day:'numeric', weekday:'long', hour:'2-digit', minute:'2-digit'}) + '\n場所: 福岡市' }] }
+          systemInstruction: { parts: [{ text: buildSystemPrompt() }] }
         }
       }));
     };
@@ -747,8 +754,17 @@ async function connectGemini() {
         }
 
         if (msg.serverContent?.turnComplete) {
-          log('Gemini turn complete');
           if (!state.micActive) setTimeout(() => restoreYouTubeVolume(), 500);
+          // Periodically ask Gemini to summarize for memory
+          _turnCount = (_turnCount || 0) + 1;
+          if (_turnCount % 5 === 0 && ws.readyState === WebSocket.OPEN) {
+            state._expectingMemory = true;
+            setTimeout(() => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '【内部メモ用・音声不要】直前の会話で修治さんについて新しく知った重要な情報を1行で。特になければ「なし」' }] }], turnComplete: true } }));
+              }
+            }, 1000);
+          }
         }
 
         // Function calling: tool invocation from Gemini
@@ -985,6 +1001,34 @@ function updateMicUI() {
 }
 
 // ============================================================
+// KITT Memory (persistent across sessions via localStorage)
+// ============================================================
+const MEMORY_KEY = 'kitt-memory';
+const MEMORY_MAX = 20;
+
+function getMemory() {
+  try { return JSON.parse(localStorage.getItem(MEMORY_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function addMemory(entry) {
+  const mem = getMemory();
+  mem.push({ time: new Date().toLocaleString('ja-JP', {timeZone:'Asia/Tokyo'}), text: entry });
+  if (mem.length > MEMORY_MAX) mem.splice(0, mem.length - MEMORY_MAX);
+  localStorage.setItem(MEMORY_KEY, JSON.stringify(mem));
+}
+
+function buildSystemPrompt() {
+  const now = new Date().toLocaleString('ja-JP', {timeZone:'Asia/Tokyo', year:'numeric', month:'long', day:'numeric', weekday:'long', hour:'2-digit', minute:'2-digit'});
+  const mem = getMemory();
+  let prompt = KITT_SYSTEM + '\n\n【現在の状況】\n現在時刻: ' + now + '\n場所: 福岡市';
+  if (mem.length > 0) {
+    prompt += '\n\n【過去の会話記録（あなたの記憶）】\n以下は修治さんとの過去の会話で覚えている重要な情報です。これらを自分の記憶として自然に参照してください。\n';
+    prompt += mem.map(m => '- [' + m.time + '] ' + m.text).join('\n');
+  }
+  return prompt;
+}
+
+// ============================================================
 // Audio Playback (PCM16 â Float32 sequential scheduling)
 // ============================================================
 function playAudioChunk(base64Data) {
@@ -1017,7 +1061,19 @@ function playAudioChunk(base64Data) {
 // Gemini Text Handler (logging only)
 // ============================================================
 function handleGeminiText(text) {
-  if (text && text.trim()) log('Gemini: ' + text.substring(0, 50));
+  if (!text || !text.trim()) return;
+  const t = text.trim();
+  // Check if this is a memory response from our system query
+  if (t !== 'なし' && t.length > 2 && t.length < 200 && !t.startsWith('{')) {
+    // Could be a memory summary - save it if it looks like useful info
+    if (state._expectingMemory) {
+      addMemory(t);
+      log('Memory saved');
+      state._expectingMemory = false;
+      return;
+    }
+  }
+  if (t === 'なし') { state._expectingMemory = false; return; }
 }
 
 // ============================================================
