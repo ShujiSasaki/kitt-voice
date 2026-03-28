@@ -177,6 +177,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="setting-row"><label>FIREBASE URL</label><input type="text" id="fb-url-input" value=""></div>
   <div class="setting-row"><label>POLLING SEC</label><input type="number" id="poll-sec-input" value="3" min="1" max="30"></div>
   <div class="setting-row"><label>AUTO DISCONNECT SEC</label><input type="number" id="auto-dc-input" value="600" min="30" max="1800"></div>
+  <div class="setting-row"><label>VOICE</label><select id="voice-select" style="background:#1a1a1a;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-family:'Orbitron',monospace;font-size:10px;width:150px"><option value="Zephyr">Zephyr</option><option value="Kore">Kore</option><option value="Aoede">Aoede</option><option value="Leda">Leda</option><option value="Puck">Puck</option><option value="Charon">Charon</option><option value="Orus">Orus</option><option value="Autonoe">Autonoe</option><option value="Umbriel">Umbriel</option><option value="Erinome">Erinome</option><option value="Laomedeia">Laomedeia</option><option value="Schedar">Schedar</option><option value="Achird">Achird</option><option value="Sadachbia">Sadachbia</option><option value="Fenrir">Fenrir</option><option value="Enceladus">Enceladus</option><option value="Algieba">Algieba</option><option value="Algenib">Algenib</option><option value="Achernar">Achernar</option><option value="Gacrux">Gacrux</option><option value="Zubenelgenubi">Zubenelgenubi</option><option value="Sadaltager">Sadaltager</option><option value="Callirrhoe">Callirrhoe</option><option value="Iapetus">Iapetus</option><option value="Despina">Despina</option><option value="Rasalgethi">Rasalgethi</option><option value="Alnilam">Alnilam</option><option value="Pulcherrima">Pulcherrima</option><option value="Vindemiatrix">Vindemiatrix</option><option value="Sulafat">Sulafat</option></select></div>
   <div class="setting-row"><label>YT DUCK VOLUME</label><input type="number" id="duck-vol-input" value="5" min="0" max="100"></div>
   <div class="setting-row"><label>YT NORMAL VOLUME</label><input type="number" id="normal-vol-input" value="70" min="0" max="100"></div>
   <button id="settings-close" onclick="saveSettings()">SAVE & CLOSE</button>
@@ -239,7 +240,8 @@ const DEFAULT_CONFIG = {
   pollingSec: 3,
   autoDisconnectSec: 600,
   duckVolume: 5,
-  normalVolume: 70
+  normalVolume: 70,
+  voice: 'Kore'
 };
 
 let config = {...DEFAULT_CONFIG};
@@ -312,6 +314,7 @@ function toggleSettings() {
     document.getElementById('auto-dc-input').value = config.autoDisconnectSec;
     document.getElementById('duck-vol-input').value = config.duckVolume;
     document.getElementById('normal-vol-input').value = config.normalVolume;
+    document.getElementById('voice-select').value = config.voice || 'Kore';
     el.classList.add('show');
   }
 }
@@ -323,6 +326,7 @@ function saveSettings() {
   config.autoDisconnectSec = parseInt(document.getElementById('auto-dc-input').value) || 600;
   config.duckVolume = parseInt(document.getElementById('duck-vol-input').value) || 5;
   config.normalVolume = parseInt(document.getElementById('normal-vol-input').value) || 70;
+  config.voice = document.getElementById('voice-select').value || 'Kore';
   try { localStorage.setItem('kitt-yt-config', JSON.stringify(config)); } catch(e) {}
   document.getElementById('settings-overlay').classList.remove('show');
   log('Settings saved');
@@ -681,7 +685,7 @@ async function connectGemini() {
           model: `models/${GEMINI_WS_MODEL}`,
           generationConfig: {
             responseModalities: ['AUDIO'],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } }
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice || GEMINI_VOICE } } }
           },
           systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
           tools: [{ functionDeclarations: [
