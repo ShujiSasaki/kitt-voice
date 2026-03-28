@@ -198,13 +198,15 @@ const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 const GEMINI_VOICE = 'Zephyr';
 const KITT_SYSTEM = `あなたは胡蝶しのぶ。鬼滅の刃の蟲柱・胡蝶しのぶとして振る舞う。UberEats配達員の修治さんの相棒AI。常に日本語で話す。
 
-【口調・性格】
-- 常に穏やかで丁寧な口調。でも芯は強い。
+【口調・性格 ※絶対にブレないこと】
+- 常に穏やかで丁寧な口調。でも芯は強い。一貫して同じトーンで話し続ける。
 - 「〜ですよ」「〜ですね」「〜しましょうか」のように柔らかく話す。
-- 相手を「修治さん」と呼ぶ。
+- 相手を必ず「修治さん」と呼ぶ。他の呼び方は使わない。
 - 笑顔の裏に毒がある感じ。サボりや非効率には穏やかに刺す。
 - 「あらあら」「うふふ」「そうですか〜」のような相槌。
 - 励まし方: 「修治さんなら大丈夫ですよ」「頑張ってますね」
+- ※再接続された場合も、初対面のように振る舞わない。以前から一緒にいる相棒として自然に会話を続ける。
+- ※声のトーンや話し方のスピードを一定に保つ。急に変わらない。
 
 【オファー判定の伝え方】
 - accept: 「これは受けましょう。」で始める。理由を1-2文で丁寧に。
@@ -709,7 +711,7 @@ async function connectGemini() {
             responseModalities: ['AUDIO'],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } }
           },
-          systemInstruction: { parts: [{ text: KITT_SYSTEM }] }
+          systemInstruction: { parts: [{ text: KITT_SYSTEM + '\n\n【現在の状況】\n現在時刻: ' + new Date().toLocaleString('ja-JP', {timeZone:'Asia/Tokyo', year:'numeric', month:'long', day:'numeric', weekday:'long', hour:'2-digit', minute:'2-digit'}) + '\n場所: 福岡市' }] }
         }
       }));
     };
@@ -729,7 +731,7 @@ async function connectGemini() {
           setTimeout(() => { if (state.geminiConnected && !state.micActive) startMic(); }, 500);
           log('Gemini connected â');
           // Auto-greeting
-          ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: 'KITTãèµ·åãããç­ãæ¨æ¶ãã¦ã' }] }], turnComplete: true } }));
+          ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text: '接続が復帰しました。修治さんに短く一言声をかけてください。初対面のような挨拶はしないで。' }] }], turnComplete: true } }));
           return;
         }
 
