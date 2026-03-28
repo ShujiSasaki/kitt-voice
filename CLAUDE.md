@@ -344,25 +344,74 @@ cf-offerjudge/    # Cloud Functions ソース
 
 ## 完了済みタスク
 
-### チャット25 (2026-03-28) — ビジョン擦り合わせ + システム全体監査 + 改善実装
+### チャット25 (2026-03-28) — ビジョン擦り合わせ + システム全面改善 + KITT UI/UX改善
+
+#### ビジョン・設計
 - ✅ KITTビジョン確定: 配達判定ツール→個人AI執事に再定義
 - ✅ 判断モデル整理: 6レイヤー・20+項目の複合判断を言語化
 - ✅ システム全体監査: BQ/CF実態とCLAUDE.mdの乖離を特定
 - ✅ CLAUDE.md全面改訂: 文字化け修正 + ビジョン反映 + 実態反映
 - ✅ メモリ保存: ビジョン・プロフィール・監査結果・フィードバック
+
+#### CF改善
 - ✅ OCR改行バグ修正: `split('\n')` → `split(/\\n|\n/)`
 - ✅ CFフォールバック値をBQ実データに更新 (全箇所)
 - ✅ getTimeSlotAvgに深夜帯(22-6時)追加
-- ✅ store_reputation計算に地雷度反映 (低時給ペナルティ、遠距離ペナルティ)
-- ✅ getStoreHistoryクエリ拡張 (avg_duration, avg_reward_per_km, avg_hourly_rate追加)
-- ✅ buildDecisionReasonに「近場」「地雷店」理由追加
-- ✅ offerJudge CFデプロイ完了・テスト通過 (地雷店reject確認)
+- ✅ store_reputation計算に地雷度反映 (低時給/遠距離ペナルティ)
+- ✅ 天気API (Open-Meteo) をofferJudgeに追加 (雨ボーナス/ペナルティ)
+- ✅ Geminiモデル更新: gemini-2.0-flash → gemini-2.5-flash (旧モデル廃止対応)
+- ✅ nandemoBoxのGeminiプロンプト大幅改善 (日本語+具体例+responseMimeType=JSON)
+- ✅ nandemoBoxにFIREBASE_DB_SECRET環境変数追加 (RTDB書き込み修正)
+- ✅ dynamic_coefficients自動再計算: リザルト送信時にoffer_logs_cleanから係数自動更新
+- ✅ dashboardFeed CFエンドポイント新規作成 (BQから直接ログ取得)
+
+#### BQ改善
 - ✅ BQビュー3つ作成: offer_delivery_match, judgment_accuracy, store_risk_score
-- ✅ ytSearch Node.js 22アップグレード完了
-- ✅ 全CF Node.js 22統一完了
-- ✅ context_logs → delivery_history自動転記: 既存116件バックフィル完了
-- ✅ actual_accepted自動判定: nandemoBoxにsyncDeliveryResult追加 (result/order_detail投入時に自動でdelivery_history転記 + offer_logsのactual_accepted更新)
-- ✅ nandemoBox + offerJudge CFデプロイ完了
+- ✅ context_logs → delivery_history自動転記: 既存116件バックフィル
+- ✅ actual_accepted自動判定: syncDeliveryResult (店名部分一致でoffer_logs更新)
+- ✅ nandemoBox投入時にdelivery_history自動転記 + 係数自動再計算
+
+#### KITT PWA改善
+- ✅ LOGタブ → オファー/何でもBOXの2タブに分離、文字サイズ2倍
+- ✅ ダッシュボードをBQ直接取得に変更 (RTDBの上書き問題解消)
+- ✅ 何でもBOXのジャンルタグ日本語化 (クエスト/リザルト/その他)
+- ✅ クエスト表記整理: ピーク/連続/週前半/週後半 (タイトルからクエスト文字削除)
+- ✅ 設定画面に声の選択ドロップダウン追加 (30種類のGemini声)
+- ✅ KITTシステムプロンプト: 胡蝶しのぶキャラ設定 (修治さん呼び)
+- ✅ 時刻・場所をシステムプロンプトに動的注入
+- ✅ 声質一貫性指示 (再接続時も初対面にならない)
+- ✅ 永続記憶: localStorageに会話記録保存、再接続時にプロンプト注入
+- ✅ ws.onclose自動再接続 (2秒後) + 5分keepalive再接続
+- ✅ 重複ログ防止: lastOfferTimestampをlocalStorageに永続化
+- ✅ v2.3系としてGitHub Pagesデプロイ
+
+#### iOSショートカット修正
+- ✅ 何でもBOXの送信先URL: Make.com → Cloud Functions nandemoBoxに変更
+- ✅ 本文形式: ファイル → JSONに変更
+
+#### 音楽再生 (function calling)
+- ✅ Gemini function calling (tools) でplay_music/stop_musicを定義
+- ✅ toolCallを検知してYouTube検索結果をYouTubeタブに表示
+- ✅ ユーザーがYouTubeタブから選んで再生する方式に落ち着いた
+
+#### 失敗・教訓 (次回以降の注意)
+- ✗ `responseModalities: ['AUDIO', 'TEXT']` → Native Audioモデルで接続不可。**絶対にAUDIOのみ**
+- ✗ toolsのfunctionDeclarationsに`behavior: 'NON_BLOCKING'`を入れるとsetup失敗
+- ✗ toolResponseに`id`フィールドを入れるとWS切断→再起動ループ。**nameとresponseのみ**
+- ✗ iOS SafariではユーザージェスチャーなしにYouTube autoplayが効かない
+- ✗ iOSショートカットの「本文を要求：ファイル」はmultipart送信になりCFがJSONパースできない。**JSONを選ぶ**
+- ⚠️ nandemoBoxとofferJudgeでGemini APIキーが異なっていた→統一必要
+- ⚠️ Geminiが長いstructured_dataを返すとmaxOutputTokensで途切れる→JSONパース失敗のフォールバック必須
+- ⚠️ RTDBのバリデーションルールで新しいパスへの書き込みがブロックされる→offer_ttsパスを共用
+
+#### Shujiの要望メモ (次セッション引き継ぎ)
+- 声質をもっと胡蝶しのぶに寄せたい (現在の30種類の声は全部低いと感じている)
+- キャラ設定は試行錯誤中。しのぶ以外も試すかも
+- 音楽は「KITTに声で指示→YouTubeタブに検索結果→自分でタップ再生」でOK
+- 会話記憶は永続化済みだが、記憶の質と量の調整が必要
+- KITTの時間感覚ズレ→接続時にJST時刻注入で対応済み
+- 声質・話し方のブレ→プロンプトで一貫性指示済みだが改善余地あり
+- 権限設定: bypassPermissions + rm系のみask/deny
 
 ### チャット24 (2026-03-27) — 係数BQ完全移行 + Puppeteer検証 + autoモード
 - ✅ 係数BQ完全移行: calculateScore()のweights 7項目 + threshold をBQ dynamic_coefficientsから動的読込に変更
@@ -418,12 +467,15 @@ cf-offerjudge/    # Cloud Functions ソース
 | # | タスク | 状態 |
 |---|--------|------|
 | 1 | リアルオファーでのKITT音声報告テスト | 未確認 |
-| 2 | リザルト突き合わせ (offer × delivery × charging) | ✅ BQビュー+自動転記 (2026-03-28) |
+| 2 | リザルト突き合わせ (offer × delivery × charging) | ✅ 完了 (2026-03-28) |
 | 3 | CFスコアリング特徴量拡張 (7項目→AI選択) | 未実装 |
-| 4 | OCR改行バグ修正 (`split('\n')` → `split(/\\n|\n/)`) | ✅ 修正済み (2026-03-28) |
-| 5 | ytSearch Node.js 22アップグレード | ✅ 完了 (2026-03-28) |
+| 4 | OCR改行バグ修正 | ✅ 完了 (2026-03-28) |
+| 5 | ytSearch Node.js 22 | ✅ 完了 (2026-03-28) |
 | 6 | 走行中の音声認識改善 | 未着手 |
 | 7 | バックグラウンド音声継続 (iOS制約) | 未着手 |
+| 8 | KITTの声質改善 (しのぶっぽい高い声) | Gemini30種全部低い。カスタム音声不可 |
+| 9 | 音楽の完全自動再生 (iOS autoplay制限) | 現状は検索→手動タップ再生で妥協 |
+| 10 | Gemini function calling安定化 (toolResponseでWS切断問題) | idフィールド除去で一部改善、要検証 |
 
 ### Puppeteer MCP (2026-03-27 検証済み)
 settings.json にPuppeteer MCPサーバーを登録済み (`~/.claude/settings.json` → `mcpServers.puppeteer`)。
