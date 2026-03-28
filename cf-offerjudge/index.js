@@ -370,7 +370,12 @@ functions.http('dashboardFeed', async (req, res) => {
       params: { since }
     });
     const [nandemoRows] = await bigquery.query({
-      query: `SELECT timestamp, type, summary FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 20`,
+      query: `SELECT timestamp,
+        CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"type":\\s*"(quest|accepted|result)"')
+          THEN REGEXP_EXTRACT(summary, r'"type":\\s*"([^"]+)"') ELSE type END as type,
+        CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"summary":\\s*"')
+          THEN REGEXP_EXTRACT(summary, r'"summary":\\s*"([^"]+)"') ELSE summary END as summary
+        FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 30`,
       params: { since }
     });
     res.status(200).json({ offers: offerRows, nandemo: nandemoRows });
