@@ -593,11 +593,13 @@ async function playMusicByQuery(query) {
 function playPendingMusic() {
   const btn = document.getElementById('music-prompt');
   btn.style.display = 'none';
-  if (!_pendingMusic) return;
+  if (!_pendingMusic) { log('♪ no pending music'); return; }
   const m = _pendingMusic;
   _pendingMusic = null;
-  log('♪ playing: ' + (m.title || m.videoId));
+  log('♪ playing: ' + m.videoId);
+  log('♪ ytApiReady: ' + ytApiReady + ' ytPlayer: ' + !!state.ytPlayer);
   playYtVideo(m.videoId, m.title || '', m.channel || '', m.duration || '');
+  log('♪ playYtVideo called');
 }
 
 function playYtVideo(videoId, title, channel, duration) {
