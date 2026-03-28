@@ -1326,11 +1326,8 @@ function formatSummary(s, type) {
       const dist = parseFloat(distStr);
       const cnt = parseInt(cntStr);
       const line2 = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
-      if (cnt > 1) {
-        const line3 = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
-        return '<b>' + label + '</b>' + rightLine + line2 + '</div>' + dimLine + line3 + '</div>';
-      }
-      return '<b>' + label + '</b>' + rightLine + line2 + '</div>';
+      const line3 = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
+      return '<b>' + label + '</b>' + rightLine + line2 + '</div>' + dimLine + line3 + '</div>';
     }
     return h;
   }
