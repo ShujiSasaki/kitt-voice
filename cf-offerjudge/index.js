@@ -1,5 +1,6 @@
 const functions = require('@google-cloud/functions-framework');
 const { BigQuery } = require('@google-cloud/bigquery');
+const { Storage } = require('@google-cloud/storage');
 // Firebase RTDB via REST API (no SDK needed)
 
 // --- Config ---
@@ -10,9 +11,28 @@ const FIREBASE_DB_SECRET = process.env.FIREBASE_DB_SECRET || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const CF_API_KEY = process.env.CF_API_KEY || '';
 const GEMINI_MODEL = 'gemini-2.5-flash';
+const GCS_BUCKET = 'kitt-screenshots-0549297663';
 
 // --- Init ---
 const bigquery = new BigQuery({ projectId: PROJECT_ID });
+const storage = new Storage({ projectId: PROJECT_ID });
+
+// --- GCS Screenshot Upload ---
+async function uploadScreenshot(base64Data, prefix) {
+  try {
+    const ext = base64Data.startsWith('/9j/') ? 'jpg' : 'png';
+    const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+    const filename = `${prefix}_${Date.now()}.${ext}`;
+    const bucket = storage.bucket(GCS_BUCKET);
+    const file = bucket.file(filename);
+    const buffer = Buffer.from(base64Data, 'base64');
+    await file.save(buffer, { contentType: mime, metadata: { cacheControl: 'public, max-age=86400' } });
+    return `https://storage.googleapis.com/${GCS_BUCKET}/${filename}`;
+  } catch (e) {
+    console.warn('GCS upload error:', e.message);
+    return null;
+  }
+}
 // Firebase RTDB accessed via REST API
 
 // --- Auth Helper ---
@@ -115,9 +135,10 @@ functions.http('offerJudge', async (req, res) => {
 
     const reason = buildDecisionReason(decision, score, reward, distanceKm, durationMin, estHourlyRate, coefficients);
 
-    // Step 5: Parallel write - BigQuery + Firebase RTDB
+    // Step 5: Parallel write - BigQuery + Firebase RTDB + GCS screenshot
     const logId = `offer_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
     const responseTimeMs = Date.now() - startTime;
+    const offerImageUrl = image_base64 ? await uploadScreenshot(image_base64, 'offer') : null;
 
     // [FIX #3] TTS text: accept/reject で明確に指示を変える
     const ttsText = buildTtsText(decision, confidence, score, reward, distanceKm, durationMin, estHourlyRate, storeName, coefficients);
@@ -134,7 +155,8 @@ functions.http('offerJudge', async (req, res) => {
         weather: weather ? weather.condition : null,
         scoreDetail: JSON.stringify(score),
         rawGeminiResponse: geminiAnalysis ? JSON.stringify(geminiAnalysis) : null,
-        rawOcrText: ocr_text || null
+        rawOcrText: ocr_text || null,
+        imageUrl: offerImageUrl
       }),
       fetch(rtdbUrl, {
         method: 'PUT',
@@ -206,6 +228,12 @@ functions.http('nandemoBox', async (req, res) => {
     const logId = `ctx_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
     let logType = analysisResult.type || 'nandemo';
 
+    // Upload screenshot to GCS (2-week retention)
+    let imageUrl = null;
+    if (image_base64) {
+      imageUrl = await uploadScreenshot(image_base64, 'nandemo');
+    }
+
     // Quest result: match with uploaded quest info to identify quest type
     if (logType === 'quest_result') {
       logType = 'result'; // Display as リザルト
@@ -272,6 +300,7 @@ functions.http('nandemoBox', async (req, res) => {
         ai_note: analysisResult.ai_note || '',
         raw_gemini_response: JSON.stringify(analysisResult),
         image_size_kb: image_base64 ? Math.round(image_base64.length * 0.75 / 1024) : 0,
+        image_url: imageUrl || null,
         processing_time_sec: (Date.now() - startTime) / 1000
       }]);
     }
@@ -366,7 +395,7 @@ functions.http('dashboardFeed', async (req, res) => {
   try {
     const since = req.query.since || new Date(Date.now() - 24*60*60*1000).toISOString();
     const [offerRows] = await bigquery.query({
-      query: `SELECT timestamp, gemini_decision as decision, store_name, offer_reward as reward, offer_distance as distance, offer_duration as duration, estimated_hourly_rate as hourly, decision_reason as reason, confidence, ROUND(SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.total') AS FLOAT64), 2) as score FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 200`,
+      query: `SELECT timestamp, gemini_decision as decision, store_name, offer_reward as reward, offer_distance as distance, offer_duration as duration, estimated_hourly_rate as hourly, decision_reason as reason, confidence, ROUND(SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.total') AS FLOAT64), 2) as score, image_url FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 200`,
       params: { since }
     });
     const [nandemoRows] = await bigquery.query({
@@ -376,7 +405,8 @@ functions.http('dashboardFeed', async (req, res) => {
         REPLACE(
           CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"summary":\\s*"')
             THEN REGEXP_EXTRACT(summary, r'"summary":\\s*"([^"]+)"') ELSE summary END,
-          'ピーク条件', 'ピーク') as summary
+          'ピーク条件', 'ピーク') as summary,
+        image_url
         FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 300`,
       params: { since }
     });
@@ -808,7 +838,8 @@ async function insertOfferLog(data) {
     weather_info: null, store_name: data.storeName || '',
     day_of_week: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getUTCDay()],
     hour_of_day: (new Date().getUTCHours() + 9) % 24,
-    decision_reason_detail: data.scoreDetail || null
+    decision_reason_detail: data.scoreDetail || null,
+    image_url: data.imageUrl || null
   };
   await bigquery.dataset(DATASET).table('offer_logs').insert([row]);
 }
@@ -850,7 +881,7 @@ summaryには必ず画面に表示されている具体的な数字・日時・�
 {"type":"quest","summary":"週後半 3/27(木)-3/30(日) 15/120件 11,780円","structured_data":{"quest_type":"週後半","quest_period":"3/27-3/30","quest_progress":"15/120","quest_total_reward":11780},"ai_note":"詳細メモ"}
 
 クエスト達成・クエストリザルト画面(クエストボーナス獲得の画面):
-{"type":"quest_result","summary":"¥700 3回乗車達成","structured_data":{"reward":700,"trips_completed":3,"completion_time":"19:49"},"ai_note":"詳細メモ"}
+{"type":"quest_result","summary":"クエスト達成 ¥700 3件達成 19:49","structured_data":{"reward":700,"trips_completed":3,"completion_time":"19:49"},"ai_note":"詳細メモ"}
 
 注文詳細の場合(summaryは「配達 件数 金額 時間 距離 店舗名 ドロップ先の町名」の順):
 {"type":"order_detail","summary":"配達 1件 ¥462 15分 3.07km 鮨よし田天神 天神","structured_data":{"store_name":"鮨 よし田 天神","delivery_fee":"462","distance":"3.07 km","duration":"15分57秒","dropoff_area":"天神"},"ai_note":"詳細メモ"}
