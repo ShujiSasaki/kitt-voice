@@ -213,13 +213,12 @@ functions.http('nandemoBox', async (req, res) => {
 
     const { image_base64, ocr_text, lat, lng } = req.body;
 
-    let analysisResult = null;
-    if (image_base64) {
-      // [FIX #1] ocrText → ocr_text (未定義変数バグ修正)
-      analysisResult = await analyzeNandemoImage(image_base64, ocr_text);
-    } else if (ocr_text) {
-      analysisResult = await analyzeNandemoText(ocr_text);
-    }
+    // Step 1: Gemini分析 + GCSアップロードを並列実行
+    const [analysisResult, imageUrl] = await Promise.all([
+      image_base64 ? analyzeNandemoImage(image_base64, ocr_text) :
+      ocr_text ? analyzeNandemoText(ocr_text) : Promise.resolve(null),
+      image_base64 ? uploadScreenshot(image_base64, 'nandemo') : Promise.resolve(null)
+    ]);
 
     if (!analysisResult) {
       return res.status(400).json({ error: 'No image or text provided' });
@@ -228,121 +227,82 @@ functions.http('nandemoBox', async (req, res) => {
     const logId = `ctx_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
     let logType = analysisResult.type || 'nandemo';
 
-    // Upload screenshot to GCS (2-week retention)
-    let imageUrl = null;
-    if (image_base64) {
-      imageUrl = await uploadScreenshot(image_base64, 'nandemo');
-    }
-
-    // Quest result: match with uploaded quest info to identify quest type
+    // Quest result: simplified matching
     if (logType === 'quest_result') {
-      logType = 'result'; // Display as リザルト
-      const reward = analysisResult.structured_data?.reward || 0;
-      try {
-        const [quests] = await bigquery.query({
-          query: `SELECT summary FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = 'quest' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY) ORDER BY timestamp DESC LIMIT 20`
-        });
-        // Match by reward tier: find quest whose tier rewards include this amount
-        let questType = '';
-        for (const q of quests) {
-          const s = q.summary || '';
-          if (s.includes('ピーク') && !questType) {
-            // Check if reward matches a tier (700, 900, 1100, 1300 etc)
-            const tiersMatch = s.match(/([0-9,]+)円/);
-            if (tiersMatch) questType = 'ピーク';
-          }
-          if (s.includes('連続') && !questType) questType = '連続';
-          if (s.includes('週前半') && !questType) questType = '週前半';
-          if (s.includes('週後半') && !questType) questType = '週後半';
-        }
-        // Count how many quest_results already exist today to determine tier
-        const [resultRows] = await bigquery.query({
-          query: `SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = 'result' AND summary LIKE '%段目%' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 12 HOUR)`
-        });
-        const tierNum = (resultRows[0]?.cnt || 0) + 1;
-        // Get total tiers from quest info
-        const totalTiers = 4; // Default, most quests have 4 tiers
-        const rewardStr = reward > 0 ? `¥${reward.toLocaleString()}` : analysisResult.summary;
-        analysisResult.summary = `${questType || 'クエスト'} ${rewardStr} ${tierNum}段目/${totalTiers}段`;
-      } catch(e) {
-        console.warn('quest_result matching error:', e.message);
-      }
+      logType = 'result';
     }
 
-    // Merge consecutive accepted entries (within 60s) into one
-    let merged = false;
-    if (logType === 'accepted') {
-      try {
-        const [recentRows] = await bigquery.query({
-          query: `SELECT log_id, summary, structured_data FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = 'accepted' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 60 SECOND) ORDER BY timestamp DESC LIMIT 1`
-        });
-        if (recentRows.length > 0) {
-          const prev = recentRows[0];
-          const newSummary = analysisResult.summary || '';
-          // Merge: keep the one with more info, or combine
-          const combinedSummary = prev.summary.length >= newSummary.length ? prev.summary : newSummary;
-          await bigquery.query({
-            query: `UPDATE \`${PROJECT_ID}.${DATASET}.context_logs\` SET summary = @summary, ai_note = CONCAT(IFNULL(ai_note,''), ' | ', @note) WHERE log_id = @logId`,
-            params: { summary: combinedSummary, note: analysisResult.ai_note || '', logId: prev.log_id }
-          });
-          merged = true;
-        }
-      } catch(e) { console.warn('merge check error:', e.message); }
-    }
-
-    if (!merged) {
-      await bigquery.dataset(DATASET).table('context_logs').insert([{
-        log_id: logId,
-        timestamp: BigQuery.timestamp(new Date()),
-        type: logType,
-        summary: analysisResult.summary || '',
-        structured_data: JSON.stringify(analysisResult.structured_data || {}),
-        ai_note: analysisResult.ai_note || '',
-        raw_gemini_response: JSON.stringify(analysisResult),
-        image_size_kb: image_base64 ? Math.round(image_base64.length * 0.75 / 1024) : 0,
-        image_url: imageUrl || null,
-        processing_time_sec: (Date.now() - startTime) / 1000
-      }]);
-    }
-
-    if (analysisResult.coefficient_updates) {
-      await updateCoefficients(analysisResult.coefficient_updates);
-    }
-
-    // Auto-sync: result/order_detail → delivery_history + offer_logs.actual_accepted
-    let syncResult = null;
-    if ((analysisResult.type === 'result' || analysisResult.type === 'order_detail') && analysisResult.structured_data) {
-      syncResult = await syncDeliveryResult(logId, analysisResult.structured_data);
-    }
-
-    // Write to RTDB for KITT dashboard - use offer_tts path (has public read + auth write)
-    const nandemoRtdbUrl = FIREBASE_DB_URL + '/offer_tts.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
-    fetch(nandemoRtdbUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        offer: {
-          reward: 0, distance: 0, duration: 0, store_name: '',
-          nandemo_type: analysisResult.type || 'nandemo',
-          nandemo_summary: analysisResult.summary || '',
-          nandemo_sync: syncResult
-        },
-        timestamp: Date.now(),
-        is_nandemo: true
-      })
-    }).catch(e => console.warn('RTDB nandemo write error:', e.message));
-
+    // Step 2: レスポンスを先に返す (ショートカットを速く終わらせる)
     res.status(200).json({
       status: 'ok',
       type: analysisResult.type,
       summary: analysisResult.summary,
-      sync: syncResult,
       processing_time_ms: Date.now() - startTime
     });
 
+    // Step 3: バックグラウンドでBQ書き込み + sync (レスポンス後)
+    try {
+      // Merge consecutive accepted entries (within 60s) into one
+      let merged = false;
+      if (logType === 'accepted') {
+        try {
+          const [recentRows] = await bigquery.query({
+            query: `SELECT log_id, summary FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = 'accepted' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 60 SECOND) ORDER BY timestamp DESC LIMIT 1`
+          });
+          if (recentRows.length > 0) {
+            await bigquery.query({
+              query: `UPDATE \`${PROJECT_ID}.${DATASET}.context_logs\` SET summary = @summary, ai_note = CONCAT(IFNULL(ai_note,''), ' | ', @note) WHERE log_id = @logId`,
+              params: { summary: analysisResult.summary || recentRows[0].summary, note: analysisResult.ai_note || '', logId: recentRows[0].log_id }
+            });
+            merged = true;
+          }
+        } catch(e) { console.warn('merge check error:', e.message); }
+      }
+
+      const bgTasks = [];
+      if (!merged) {
+        bgTasks.push(bigquery.dataset(DATASET).table('context_logs').insert([{
+          log_id: logId,
+          timestamp: BigQuery.timestamp(new Date()),
+          type: logType,
+          summary: analysisResult.summary || '',
+          structured_data: JSON.stringify(analysisResult.structured_data || {}),
+          ai_note: analysisResult.ai_note || '',
+          raw_gemini_response: JSON.stringify(analysisResult),
+          image_size_kb: image_base64 ? Math.round(image_base64.length * 0.75 / 1024) : 0,
+          image_url: imageUrl || null,
+          processing_time_sec: (Date.now() - startTime) / 1000
+        }]));
+      }
+
+      // Sync + RTDB in parallel
+      let syncResult = null;
+      if ((analysisResult.type === 'result' || analysisResult.type === 'order_detail') && analysisResult.structured_data) {
+        bgTasks.push(syncDeliveryResult(logId, analysisResult.structured_data).then(r => { syncResult = r; }).catch(e => console.warn('sync error:', e.message)));
+      }
+      if (analysisResult.coefficient_updates) {
+        bgTasks.push(updateCoefficients(analysisResult.coefficient_updates).catch(e => console.warn('coeff error:', e.message)));
+      }
+
+      await Promise.all(bgTasks);
+
+      // RTDB notification (fire and forget)
+      const nandemoRtdbUrl = FIREBASE_DB_URL + '/offer_tts.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+      fetch(nandemoRtdbUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          offer: { reward: 0, distance: 0, duration: 0, store_name: '', nandemo_type: analysisResult.type || 'nandemo', nandemo_summary: analysisResult.summary || '', nandemo_sync: syncResult },
+          timestamp: Date.now(), is_nandemo: true
+        })
+      }).catch(e => console.warn('RTDB write error:', e.message));
+    } catch(bgErr) {
+      console.error('nandemoBox background error:', bgErr);
+    }
+
   } catch (error) {
     console.error('nandemoBox error:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
