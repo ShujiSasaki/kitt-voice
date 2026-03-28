@@ -276,6 +276,7 @@ document.querySelectorAll('.tab[data-panel]').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.getElementById(panel + '-panel').classList.add('active');
     state.activePanel = panel;
+    if (panel === 'log') fetchDashboard();
   });
 });
 
@@ -976,23 +977,51 @@ function tryPlayKeepalive() {
 }
 
 // ============================================================
-// Dashboard: Nandemo handler + render
+// Dashboard: Feed from BQ via CF + render
 // ============================================================
+const DASHBOARD_URL = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/dashboardFeed';
+let dashboardLastFetch = 0;
+
 function handleNewNandemo(data) {
+  // Trigger immediate dashboard refresh when nandemo detected
+  fetchDashboard();
   const offer = data.offer || {};
-  const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo', schedule: 'nandemo', other: 'nandemo' };
-  const nType = offer.nandemo_type || 'nandemo';
-  nandemoLogs.unshift({
-    time: new Date().toISOString(),
-    type: nType,
-    tag: tagMap[nType] || 'nandemo',
-    summary: offer.nandemo_summary || '',
-    sync: offer.nandemo_sync || null
-  });
-  if (nandemoLogs.length > 50) nandemoLogs = nandemoLogs.slice(0, 50);
-  localStorage.setItem('kitt-nandemo-logs', JSON.stringify(nandemoLogs));
-  renderDashboard();
-  log('NandemoBox: ' + nType + ' ' + (offer.nandemo_summary || '').substring(0, 30));
+  log('NandemoBox: ' + (offer.nandemo_type || '') + ' ' + (offer.nandemo_summary || '').substring(0, 40));
+}
+
+async function fetchDashboard() {
+  const now = Date.now();
+  if (now - dashboardLastFetch < 5000) return; // Throttle: max once per 5s
+  dashboardLastFetch = now;
+  try {
+    const resp = await fetch(DASHBOARD_URL + '?since=' + new Date(now - 24*60*60*1000).toISOString());
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.offers) {
+      offerLogs = data.offers.map(o => ({
+        time: o.timestamp?.value || o.timestamp || '',
+        decision: o.decision || 'unknown',
+        store: o.store_name || '',
+        reward: o.reward || 0,
+        distance: o.distance || 0,
+        duration: o.duration || 0,
+        hourly: Math.round(o.hourly || 0),
+        reason: o.reason || '',
+        score: o.score || 0,
+        confidence: o.confidence || ''
+      }));
+    }
+    if (data.nandemo) {
+      const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo' };
+      nandemoLogs = data.nandemo.map(n => ({
+        time: n.timestamp?.value || n.timestamp || '',
+        type: n.type || 'nandemo',
+        tag: tagMap[n.type] || 'nandemo',
+        summary: n.summary || ''
+      }));
+    }
+    renderDashboard();
+  } catch(e) { log('Dashboard fetch error: ' + e.message); }
 }
 
 function renderDashboard() {
@@ -1049,6 +1078,9 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 window.addEventListener('DOMContentLoaded', () => {
   startFirebasePolling();
   renderDashboard();
+  fetchDashboard();
+  // Refresh dashboard periodically
+  setInterval(fetchDashboard, 30000);
   renderYtHistory();
 
   // Load YouTube IFrame API

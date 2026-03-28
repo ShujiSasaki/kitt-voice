@@ -9,7 +9,7 @@ const FIREBASE_DB_URL = 'https://ubereats-kitt-default-rtdb.asia-southeast1.fire
 const FIREBASE_DB_SECRET = process.env.FIREBASE_DB_SECRET || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const CF_API_KEY = process.env.CF_API_KEY || '';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // --- Init ---
 const bigquery = new BigQuery({ projectId: PROJECT_ID });
@@ -293,6 +293,29 @@ functions.http('chargingEvent', async (req, res) => {
 
   } catch (error) {
     console.error('chargingEvent error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT 4: /dashboardFeed - Recent logs for KITT dashboard
+// ============================================================
+functions.http('dashboardFeed', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    const since = req.query.since || new Date(Date.now() - 24*60*60*1000).toISOString();
+    const [offerRows] = await bigquery.query({
+      query: `SELECT timestamp, gemini_decision as decision, store_name, offer_reward as reward, offer_distance as distance, offer_duration as duration, estimated_hourly_rate as hourly, decision_reason as reason, confidence, ROUND(SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.total') AS FLOAT64), 2) as score FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 20`,
+      params: { since }
+    });
+    const [nandemoRows] = await bigquery.query({
+      query: `SELECT timestamp, type, summary FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 20`,
+      params: { since }
+    });
+    res.status(200).json({ offers: offerRows, nandemo: nandemoRows });
+  } catch (error) {
+    console.error('dashboardFeed error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -672,18 +695,52 @@ async function analyzeOfferImage(imageBase64, coefficients) {
 async function analyzeNandemoImage(imageBase64, ocrText) {
   if (!GEMINI_API_KEY) return { type: 'nandemo', summary: ocrText || 'image received', structured_data: {} };
   try {
-    const prompt = 'Analyze UberEats delivery screenshot. Return JSON with type, summary, structured_data, ai_note, coefficient_updates';
+    const prompt = `UberEatsの配達に関するスクリーンショットを分析してJSON形式で返してください。
+summaryには必ず画面に表示されている具体的な数字・日時・金額を含めてください。
+
+配達完了画面の場合:
+{"type":"result","summary":"配達完了 ¥576 大衆焼肉港のたまや 3.64km 31分","structured_data":{"store_name":"大衆焼肉 港のたまや","delivery_fee":"576","distance":"3.64 km","duration":"31分49秒","dropoff_address":"福岡県福岡市中央区警固1丁目","delivery_date":"2026年3月24日","delivery_time":"午後6時51分"},"ai_note":"詳細メモ"}
+
+クエスト画面の場合(件数は全段階の合計、金額も全段階の合計):
+{"type":"quest","summary":"クエスト 3/28(土) 10:30-15:00 12件 4,000円","structured_data":{"quest_period":"3月28日(土) 10:30-15:00","quest_total_trips":12,"quest_total_reward":4000,"quest_tiers":[{"trips":3,"reward":700},{"trips":3,"reward":900},{"trips":3,"reward":1100},{"trips":3,"reward":1300}],"quest_progress":"0/3"},"ai_note":"詳細メモ"}
+
+注文詳細の場合:
+{"type":"order_detail","summary":"¥462 鮨よし田天神 3.07km 15分","structured_data":{"store_name":"鮨 よし田 天神","delivery_fee":"462","distance":"3.07 km","duration":"15分57秒"},"ai_note":"詳細メモ"}
+
+その他:
+{"type":"nandemo","summary":"画面の内容を具体的に1行で","structured_data":{},"ai_note":"詳細メモ"}
+
+重要: summaryは具体的な数字を含む短い1行にしてください。JSONのみ返してください。`;
+    const mimeType = imageBase64.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/png', data: imageBase64 }}]}], generationConfig: { temperature: 0.3, maxOutputTokens: 800 }})
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: imageBase64 }}]}], generationConfig: { temperature: 0.2, maxOutputTokens: 2000, responseMimeType: 'application/json' }})
       });
     const result = await response.json();
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('Gemini nandemo response:', JSON.stringify(result).substring(0, 500));
+    if (result.error) {
+      console.error('Gemini API error:', result.error.message);
+      return { type: 'nandemo', summary: 'Gemini error: ' + result.error.message, structured_data: {} };
+    }
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Strip markdown code blocks
+    text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    return { type: 'nandemo', summary: 'Failed to parse', structured_data: {} };
-  } catch (e) { return { type: 'nandemo', summary: e.message, structured_data: {} }; }
+    if (jsonMatch) {
+      try { return JSON.parse(jsonMatch[0]); } catch(pe) {
+        // Try fixing common JSON issues (trailing commas, unescaped quotes)
+        const fixed = jsonMatch[0].replace(/,\s*([}\]])/g, '$1');
+        try { return JSON.parse(fixed); } catch(pe2) {
+          return { type: 'nandemo', summary: text.substring(0, 150), structured_data: {}, parse_error: pe.message };
+        }
+      }
+    }
+    return { type: 'nandemo', summary: text.substring(0, 150) || 'Failed to parse', structured_data: {} };
+  } catch (e) {
+    console.error('analyzeNandemoImage error:', e.message);
+    return { type: 'nandemo', summary: 'Error: ' + e.message, structured_data: {} };
+  }
 }
 
 async function analyzeNandemoText(text) {
