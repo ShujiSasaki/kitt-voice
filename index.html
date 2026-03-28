@@ -80,20 +80,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .yt-result-ch{font-size:10px;color:var(--text-dim);margin-top:4px;font-family:-apple-system,sans-serif}
 .yt-searching{text-align:center;font-size:10px;color:var(--amber);padding:12px}
 
-/* === Log Dashboard Panel === */
-#log-panel{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 8px 36px}
-.log-section-title{font-size:10px;letter-spacing:2px;color:var(--red);padding:8px 4px 4px;border-bottom:1px solid var(--border);margin-bottom:4px}
-.log-entry{display:flex;gap:8px;padding:6px 4px;border-bottom:1px solid #1a1a1a;font-family:-apple-system,sans-serif;font-size:11px;line-height:1.4}
-.log-entry .log-time{flex:0 0 42px;color:var(--text-dim);font-size:9px;font-family:'Orbitron',monospace;padding-top:1px}
+/* === Log Panels === */
+#offer-log-panel,#nandemo-log-panel{background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 8px 36px}
+.log-entry{display:flex;gap:10px;padding:10px 6px;border-bottom:1px solid #1a1a1a;font-family:-apple-system,sans-serif;font-size:22px;line-height:1.4}
+.log-entry .log-time{flex:0 0 52px;color:var(--text-dim);font-size:18px;font-family:'Orbitron',monospace;padding-top:2px}
 .log-entry .log-body{flex:1;min-width:0}
-.log-entry .log-tag{display:inline-block;font-size:8px;font-family:'Orbitron',monospace;letter-spacing:1px;padding:1px 4px;border-radius:2px;margin-right:4px}
+.log-entry .log-tag{display:inline-block;font-size:16px;font-family:-apple-system,sans-serif;letter-spacing:1px;padding:2px 6px;border-radius:3px;margin-right:6px}
 .log-tag.accept{background:rgba(48,208,96,.15);color:var(--green)}
 .log-tag.reject{background:rgba(224,48,48,.15);color:var(--red)}
 .log-tag.result{background:rgba(0,229,255,.15);color:var(--cyan)}
 .log-tag.quest{background:rgba(255,149,0,.15);color:var(--amber)}
 .log-tag.nandemo{background:rgba(102,102,102,.2);color:var(--text-dim)}
-.log-entry .log-detail{color:var(--text-dim);font-size:10px;margin-top:2px}
-.log-empty{text-align:center;color:var(--text-dim);font-size:10px;padding:20px;letter-spacing:1px}
+.log-entry .log-detail{color:var(--text-dim);font-size:18px;margin-top:4px}
+.log-empty{text-align:center;color:var(--text-dim);font-size:20px;padding:30px;letter-spacing:1px}
 
 /* === Settings === */
 #settings-overlay{display:none;position:fixed;inset:0;z-index:300;background:var(--overlay-bg);padding:20px;overflow-y:auto}
@@ -118,7 +117,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <div id="tab-bar">
   <div class="tab active" data-panel="kitt">KITT</div>
   <div class="tab" data-panel="yt">YouTube</div>
-  <div class="tab" data-panel="log">LOG</div>
+  <div class="tab" data-panel="offer-log">オファー</div>
+  <div class="tab" data-panel="nandemo-log">何でもBOX</div>
   <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
 </div>
 
@@ -158,12 +158,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
   </div>
 
-  <!-- Log Dashboard Panel -->
-  <div id="log-panel" class="panel">
-    <div class="log-section-title">OFFER JUDGE</div>
-    <div id="offer-log-list"><div class="log-empty">No offers yet</div></div>
-    <div class="log-section-title" style="margin-top:8px">NANDEMO BOX</div>
-    <div id="nandemo-log-list"><div class="log-empty">No submissions yet</div></div>
+  <!-- Offer Log Panel -->
+  <div id="offer-log-panel" class="panel">
+    <div id="offer-log-list"><div class="log-empty">オファー履歴なし</div></div>
+  </div>
+
+  <!-- Nandemo Log Panel -->
+  <div id="nandemo-log-panel" class="panel">
+    <div id="nandemo-log-list"><div class="log-empty">送信履歴なし</div></div>
   </div>
 </div>
 
@@ -276,7 +278,7 @@ document.querySelectorAll('.tab[data-panel]').forEach(tab => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.getElementById(panel + '-panel').classList.add('active');
     state.activePanel = panel;
-    if (panel === 'log') fetchDashboard();
+    if (panel === 'offer-log' || panel === 'nandemo-log') fetchDashboard();
   });
 });
 
@@ -1028,7 +1030,7 @@ function renderDashboard() {
   // Offers
   const offerEl = document.getElementById('offer-log-list');
   if (offerLogs.length === 0) {
-    offerEl.innerHTML = '<div class="log-empty">No offers yet</div>';
+    offerEl.innerHTML = '<div class="log-empty">オファー履歴なし</div>';
   } else {
     offerEl.innerHTML = offerLogs.map(o => {
       const t = new Date(o.time);
@@ -1052,7 +1054,7 @@ function renderDashboard() {
   // Nandemo
   const nandemoEl = document.getElementById('nandemo-log-list');
   if (nandemoLogs.length === 0) {
-    nandemoEl.innerHTML = '<div class="log-empty">No submissions yet</div>';
+    nandemoEl.innerHTML = '<div class="log-empty">送信履歴なし</div>';
   } else {
     nandemoEl.innerHTML = nandemoLogs.map(n => {
       const t = new Date(n.time);
