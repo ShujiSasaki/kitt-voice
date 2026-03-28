@@ -1294,7 +1294,7 @@ function renderNandemoList() {
       <div class="log-time">${timeStr}</div>
       <div class="log-body">
         <span class="log-tag ${n.tag}">${typeLabel[n.type] || n.type}</span>
-        ${formatSummary(n.summary || '')}
+        ${formatSummary(n.summary || '', n.type)}
         ${syncInfo ? '<div class="log-detail">' + syncInfo + '</div>' : ''}
       </div>
     </div>`;
@@ -1312,15 +1312,22 @@ function closeImageModal() {
   document.getElementById('image-modal-img').src = '';
 }
 
-function formatSummary(s) {
+function formatSummary(s, type) {
   const h = escHtml(s);
-  // 件数・金額パターンを2行目に分離して右揃え太字
+  const rightLine = '<div style="text-align:right;font-weight:700;margin-top:2px">';
+  // リザルト: 「店名 町名 件数 ¥金額 時間 距離」→ 1行目: 店名 町名 / 2行目: 件数 金額 時間 距離
+  if (type === 'result' || type === 'order_detail') {
+    const m = h.match(/^(.+?)\s+(\d+件\s+[¥￥].+)$/);
+    if (m) return '<b>' + m[1] + '</b>' + rightLine + m[2] + '</div>';
+    return h;
+  }
+  // クエスト: 件数・金額パターンを2行目に分離して右揃え太字
   // パターン1: 時刻あり (ピーク 3/28(土) 10:30-15:00 6件 1,600円)
   let m = h.match(/^(.+?\d{1,2}:\d{2})\s+(\d+件.+)$/);
-  if (m) return m[1] + '<div style="text-align:right;font-weight:700;margin-top:2px">' + m[2] + '</div>';
+  if (m) return m[1] + rightLine + m[2] + '</div>';
   // パターン2: 時刻なし (連続 4日間 40件 5,000円 / ピーク 12件 4,000円)
   m = h.match(/^(.+?)\s+(\d+件\s+[\d,]+円.*)$/);
-  if (m) return m[1] + '<div style="text-align:right;font-weight:700;margin-top:2px">' + m[2] + '</div>';
+  if (m) return m[1] + rightLine + m[2] + '</div>';
   return h;
 }
 
