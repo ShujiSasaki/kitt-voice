@@ -867,7 +867,7 @@ async function analyzeNandemoImage(imageBase64, ocrText) {
     const prompt = `UberEatsの配達に関するスクリーンショットを分析してJSON形式で返してください。
 summaryには必ず画面に表示されている具体的な数字・日時・金額を含めてください。
 
-配達完了画面の場合(summaryは「店舗名 ドロップ先町名 ¥金額 時間 距離 件数」の順。町名は市区より後だけ。1件なら「1件」、ダブルなら「2件」):
+配達完了画面の場合(summaryは「店舗名 ドロップ先町名 ¥金額 時間 距離 件数」の順。町名は市区より後だけ。件数=画面に表示されているポイント数。「2ポイント」なら「2件」):
 {"type":"result","summary":"大衆焼肉港のたまや 警固 ¥576 31分 3.64km 1件","structured_data":{"store_name":"大衆焼肉 港のたまや","delivery_fee":"576","distance":"3.64 km","duration":"31分49秒","dropoff_address":"警固1丁目","delivery_date":"2026年3月24日","delivery_time":"午後6時51分"},"ai_note":"詳細メモ"}
 
 ピーク(特定の時間帯のクエスト。条件画面・進捗画面どちらもこの形式。件数と金額は全段の合計を書く):
