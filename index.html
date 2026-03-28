@@ -666,7 +666,7 @@ async function connectGemini() {
         setup: {
           model: `models/${GEMINI_WS_MODEL}`,
           generationConfig: {
-            responseModalities: ['AUDIO', 'TEXT'],
+            responseModalities: ['AUDIO'],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } }
           },
           systemInstruction: { parts: [{ text: KITT_SYSTEM }] }
