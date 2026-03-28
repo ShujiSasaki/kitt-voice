@@ -709,11 +709,7 @@ async function connectGemini() {
             responseModalities: ['AUDIO'],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } }
           },
-          systemInstruction: { parts: [{ text: KITT_SYSTEM }] },
-          tools: [{ functionDeclarations: [
-            { name: 'play_music', description: '修治さんが音楽の再生をリクエストしたときに必ず呼ぶ。「〇〇流して」「〇〇聴きたい」等の音楽リクエストには必ずこのツールを使う。', parameters: { type: 'object', properties: { query: { type: 'string', description: 'YouTube検索クエリ（アーティスト名、曲名、ジャンル等）' } }, required: ['query'] } },
-            { name: 'stop_music', description: '音楽を止めるリクエストのときに必ず呼ぶ。「音楽止めて」「止めて」等。', parameters: { type: 'object', properties: {} } }
-          ]}]
+          systemInstruction: { parts: [{ text: KITT_SYSTEM }] }
         }
       }));
     };
