@@ -373,8 +373,10 @@ functions.http('dashboardFeed', async (req, res) => {
       query: `SELECT timestamp,
         CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"type":\\s*"(quest|accepted|result|quest_result|order_detail)"')
           THEN REGEXP_EXTRACT(summary, r'"type":\\s*"([^"]+)"') ELSE type END as type,
-        CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"summary":\\s*"')
-          THEN REGEXP_EXTRACT(summary, r'"summary":\\s*"([^"]+)"') ELSE summary END as summary
+        REPLACE(
+          CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"summary":\\s*"')
+            THEN REGEXP_EXTRACT(summary, r'"summary":\\s*"([^"]+)"') ELSE summary END,
+          'ピーク条件', 'ピーク') as summary
         FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 300`,
       params: { since }
     });
