@@ -231,7 +231,6 @@ let state = {
   geminiConnected: false,
   geminiConnecting: false,
   firebasePolling: null,
-  lastOfferTimestamp: null,
   ytPlayer: null,
   ytReady: false,
   ytPlaying: false,
@@ -245,7 +244,8 @@ let state = {
   micStream: null,
   micProcessor: null,
   micSource: null,
-  lastNandemoTimestamp: null
+  lastNandemoTimestamp: null,
+  lastOfferTimestamp: localStorage.getItem('kitt-last-ts') || null
 };
 
 // Load dashboard logs from localStorage
@@ -338,8 +338,12 @@ async function pollFirebase() {
     const latency = Date.now() - t0;
     updateFirebaseStatus('online', latency);
     if (!data || !data.timestamp) return;
-    if (data.timestamp === state.lastOfferTimestamp) return;
-    state.lastOfferTimestamp = data.timestamp;
+    // Compare as string to handle both number and ISO string timestamps
+    const tsKey = String(data.timestamp);
+    if (tsKey === state.lastOfferTimestamp) return;
+    state.lastOfferTimestamp = tsKey;
+    // Persist last timestamp so reload doesn't re-trigger
+    localStorage.setItem('kitt-last-ts', tsKey);
     if (data.is_nandemo) {
       handleNewNandemo(data);
     } else {
