@@ -1279,17 +1279,17 @@ function toggleNandemoSort() {
   renderNandemoList();
 }
 
-// Build a map: for each result entry, find the closest preceding accepted entry's time
-function getAcceptedTimeMap() {
-  const acceptedTimes = nandemoLogs.filter(n => n.type === 'accepted').map(n => new Date(n.time).getTime()).sort((a,b) => a - b);
+// Build a map: for each result entry, find the closest preceding offer's time
+function getOfferTimeMap() {
+  const offerTimes = offerLogs.map(o => new Date(o.time).getTime()).sort((a,b) => a - b);
   const map = {};
   for (const n of nandemoLogs) {
     if (n.type !== 'result') continue;
     const rt = new Date(n.time).getTime();
-    // Find the latest accepted before this result (within 2 hours)
+    // Find the latest offer before this result (within 2 hours)
     let best = null;
-    for (let i = acceptedTimes.length - 1; i >= 0; i--) {
-      if (acceptedTimes[i] < rt && rt - acceptedTimes[i] < 7200000) { best = acceptedTimes[i]; break; }
+    for (let i = offerTimes.length - 1; i >= 0; i--) {
+      if (offerTimes[i] < rt && rt - offerTimes[i] < 7200000) { best = offerTimes[i]; break; }
     }
     if (best) {
       const d = new Date(best);
@@ -1312,7 +1312,7 @@ function renderNandemoList() {
     nandemoEl.innerHTML = '<div class="log-empty">送信履歴なし</div>';
     return;
   }
-  const acceptedMap = getAcceptedTimeMap();
+  const offerTimeMap = getOfferTimeMap();
   let lastDate = '';
   nandemoEl.innerHTML = filtered.map(n => {
     const t = new Date(n.time);
@@ -1322,7 +1322,7 @@ function renderNandemoList() {
     let dateHeader = '';
     if (dateStr !== lastDate) { lastDate = dateStr; dateHeader = `<div style="padding:6px 4px 2px;font-size:11px;color:var(--text-dim);font-family:'Orbitron',monospace;letter-spacing:1px;border-top:1px solid var(--border);margin-top:4px">${dateStr}</div>`; }
     const imgAttr = n.image_url ? ` onclick="showImageModal('${n.image_url.replace(/'/g,"\\'")}')"` : '';
-    const acceptedTime = acceptedMap[n.time] || null;
+    const acceptedTime = offerTimeMap[n.time] || null;
     return `${dateHeader}<div class="log-entry"${imgAttr}>
       <div class="log-time">${timeStr}</div>
       <div class="log-body">
@@ -1361,7 +1361,7 @@ function formatSummary(s, type, acceptedTime) {
       const timeTag = acceptedTime ? ' <span style="color:var(--amber);font-size:12px;font-weight:400">' + acceptedTime + '</span>' : '';
       const total = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
       const perItem = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
-      return '<b>' + label + '</b>' + timeTag + rightLine + total + '</div>' + dimLine + perItem + '</div>';
+      return '<b>' + label + '</b>' + timeTag + rightLine + perItem + '</div>' + dimLine + total + '</div>';
     }
     return h;
   }
