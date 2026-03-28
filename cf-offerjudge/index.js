@@ -694,7 +694,7 @@ function buildDecisionReason(decision, score, reward, distanceKm, durationMin, e
   }
   const waitMin = (coefficients.next_offer_interval_sec || 300) / 60;
   const effectiveRate = durationMin > 0 ? Math.round((reward / (durationMin + waitMin)) * 60) : 0;
-  return `${decision === 'accept' ? '\u53D7\u3051\u308B' : '\u30D1\u30B9'} \xA5${Math.round(estHourlyRate).toLocaleString()}/h${effectiveRate > 0 ? '(\u5B9F\u52B9\xA5' + effectiveRate.toLocaleString() + '/h)' : ''}`;
+  return `${decision === 'accept' ? '\u53D7\u3051\u308B' : '\u30D1\u30B9'} \xA5${Math.round(estHourlyRate).toLocaleString()}/h${effectiveRate > 0 ? '(AI\xA5' + effectiveRate.toLocaleString() + '/h)' : ''}`;
 }
 
 // [NEW] KITT向けTTSテキスト生成 - 1-2文、5秒以内で読める長さ
