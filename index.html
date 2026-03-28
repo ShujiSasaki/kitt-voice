@@ -562,19 +562,28 @@ async function ytSearch() {
 }
 
 async function playMusicByQuery(query) {
-  log('Music search: ' + query);
+  log('♪ searching: ' + query);
   const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
   try {
     const resp = await fetch(cfSearchUrl + '?q=' + encodeURIComponent(query));
-    if (!resp.ok) { log('Music search failed'); return; }
+    log('♪ fetch status: ' + resp.status);
+    if (!resp.ok) { log('♪ search failed'); return; }
     const data = await resp.json();
     const items = data.results || [];
-    if (items.length === 0) { log('Music: no results'); return; }
+    log('♪ results: ' + items.length);
+    if (items.length === 0) { log('♪ no results'); return; }
     const first = items[0];
-    log('Music playing: ' + (first.title || first.videoId));
-    playYtVideo(first.videoId, first.title || query, first.channel || '', first.duration || '');
+    log('♪ play: ' + first.videoId + ' ' + (first.title || '').substring(0, 30));
+    if (state.ytPlayer && state.ytReady) {
+      log('♪ loadVideoById');
+      state.ytPlayer.loadVideoById(first.videoId);
+      state.ytPlayer.setVolume(config.normalVolume);
+    } else {
+      log('♪ playYtVideo (new player)');
+      playYtVideo(first.videoId, first.title || query, first.channel || '', first.duration || '');
+    }
   } catch(e) {
-    log('Music error: ' + e.message);
+    log('♪ error: ' + e.message);
   }
 }
 
@@ -1171,7 +1180,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Resume AudioContext on first tap (iOS)
+  // Resume AudioContext + init YT player on first tap (iOS autoplay unlock)
   document.addEventListener('touchstart', () => {
     if (window._audioCtx && window._audioCtx.state === 'suspended') window._audioCtx.resume();
     tryPlayKeepalive();
