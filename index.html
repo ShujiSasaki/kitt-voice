@@ -185,6 +185,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button class="log-filter-btn" data-filter="result" onclick="filterNandemo('result',this)">リザルト</button>
       <button class="log-filter-btn" data-filter="accepted" onclick="filterNandemo('accepted',this)">受諾</button>
       <button class="log-filter-btn" data-filter="nandemo" onclick="filterNandemo('nandemo',this)">その他</button>
+      <span style="flex:1"></span>
+      <button class="log-filter-btn" id="sort-btn" onclick="toggleNandemoSort()" style="font-size:10px">SS順</button>
     </div>
     <div id="nandemo-log-list"><div class="log-empty">送信履歴なし</div></div>
   </div>
@@ -1262,25 +1264,55 @@ function renderDashboard() {
 }
 
 let nandemoFilter = 'all';
+let nandemoSort = 'ss'; // 'ss' = スクショ順(timestamp DESC), 'accepted' = 受諾順
 
 function filterNandemo(filter, btn) {
   nandemoFilter = filter;
-  document.querySelectorAll('#nandemo-filters .log-filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#nandemo-filters .log-filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   renderNandemoList();
+}
+
+function toggleNandemoSort() {
+  nandemoSort = nandemoSort === 'ss' ? 'accepted' : 'ss';
+  document.getElementById('sort-btn').textContent = nandemoSort === 'ss' ? 'SS順' : '受諾順';
+  renderNandemoList();
+}
+
+// Build a map: for each result entry, find the closest preceding accepted entry's time
+function getAcceptedTimeMap() {
+  const acceptedTimes = nandemoLogs.filter(n => n.type === 'accepted').map(n => new Date(n.time).getTime()).sort((a,b) => a - b);
+  const map = {};
+  for (const n of nandemoLogs) {
+    if (n.type !== 'result') continue;
+    const rt = new Date(n.time).getTime();
+    // Find the latest accepted before this result (within 2 hours)
+    let best = null;
+    for (let i = acceptedTimes.length - 1; i >= 0; i--) {
+      if (acceptedTimes[i] < rt && rt - acceptedTimes[i] < 7200000) { best = acceptedTimes[i]; break; }
+    }
+    if (best) {
+      const d = new Date(best);
+      map[n.time] = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+  }
+  return map;
 }
 
 function renderNandemoList() {
   const nandemoEl = document.getElementById('nandemo-log-list');
   const typeLabel = {quest:'クエスト',quest_result:'クエスト達成',result:'リザルト',order_detail:'リザルト',accepted:'受諾',nandemo:'その他'};
-  // Filter: quest includes quest_result
   const filterMap = { quest: ['quest','quest_result'], result: ['result','order_detail'], accepted: ['accepted'], nandemo: ['nandemo'] };
-  const filtered = nandemoFilter === 'all' ? nandemoLogs : nandemoLogs.filter(n => (filterMap[nandemoFilter] || []).includes(n.type));
+  let filtered = nandemoFilter === 'all' ? [...nandemoLogs] : nandemoLogs.filter(n => (filterMap[nandemoFilter] || []).includes(n.type));
+  if (nandemoSort === 'accepted') {
+    // Sort by accepted time: group result entries near their accepted entry
+    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+  }
   if (filtered.length === 0) {
     nandemoEl.innerHTML = '<div class="log-empty">送信履歴なし</div>';
     return;
   }
-  // Group by date
+  const acceptedMap = getAcceptedTimeMap();
   let lastDate = '';
   nandemoEl.innerHTML = filtered.map(n => {
     const t = new Date(n.time);
@@ -1290,11 +1322,12 @@ function renderNandemoList() {
     let dateHeader = '';
     if (dateStr !== lastDate) { lastDate = dateStr; dateHeader = `<div style="padding:6px 4px 2px;font-size:11px;color:var(--text-dim);font-family:'Orbitron',monospace;letter-spacing:1px;border-top:1px solid var(--border);margin-top:4px">${dateStr}</div>`; }
     const imgAttr = n.image_url ? ` onclick="showImageModal('${n.image_url.replace(/'/g,"\\'")}')"` : '';
+    const acceptedTime = acceptedMap[n.time] || null;
     return `${dateHeader}<div class="log-entry"${imgAttr}>
       <div class="log-time">${timeStr}</div>
       <div class="log-body">
         <span class="log-tag ${n.tag}">${typeLabel[n.type] || n.type}</span>
-        ${formatSummary(n.summary || '', n.type)}
+        ${formatSummary(n.summary || '', n.type, acceptedTime)}
         ${syncInfo ? '<div class="log-detail">' + syncInfo + '</div>' : ''}
       </div>
     </div>`;
@@ -1312,7 +1345,7 @@ function closeImageModal() {
   document.getElementById('image-modal-img').src = '';
 }
 
-function formatSummary(s, type) {
+function formatSummary(s, type, acceptedTime) {
   const h = escHtml(s);
   const rightLine = '<div style="text-align:right;font-weight:700;margin-top:2px">';
   const dimLine = '<div style="text-align:right;color:var(--text-dim);font-size:12px;margin-top:1px">';
@@ -1325,9 +1358,10 @@ function formatSummary(s, type) {
       const min = parseInt(minStr);
       const dist = parseFloat(distStr);
       const cnt = parseInt(cntStr);
+      const timeTag = acceptedTime ? ' <span style="color:var(--amber);font-size:12px;font-weight:400">' + acceptedTime + '</span>' : '';
       const total = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
       const perItem = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
-      return '<b>' + label + '</b>' + rightLine + total + '</div>' + dimLine + perItem + '</div>';
+      return '<b>' + label + '</b>' + timeTag + rightLine + total + '</div>' + dimLine + perItem + '</div>';
     }
     return h;
   }
