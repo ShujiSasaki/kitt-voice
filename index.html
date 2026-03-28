@@ -139,6 +139,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       </div>
     </div>
     <div id="gemini-status">ã¿ãããã¦èµ·å</div>
+    <div id="music-prompt" style="display:none;margin-top:16px;padding:16px 24px;background:rgba(255,149,0,.15);border:1px solid var(--amber);border-radius:8px;cursor:pointer;text-align:center;font-family:-apple-system,sans-serif;font-size:20px;color:var(--amber)" onclick="playPendingMusic()"></div>
   </div>
 
   <!-- YouTube Panel -->
@@ -565,30 +566,38 @@ async function ytSearch() {
   if (!isLoadMore) resultsEl.innerHTML = '<div class="yt-searching">æ¤ç´¢å¤±æ</div>';
 }
 
+let _pendingMusic = null;
+
 async function playMusicByQuery(query) {
   log('♪ searching: ' + query);
   const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
   try {
     const resp = await fetch(cfSearchUrl + '?q=' + encodeURIComponent(query));
-    log('♪ fetch status: ' + resp.status);
     if (!resp.ok) { log('♪ search failed'); return; }
     const data = await resp.json();
     const items = data.results || [];
-    log('♪ results: ' + items.length);
     if (items.length === 0) { log('♪ no results'); return; }
     const first = items[0];
-    log('♪ play: ' + first.videoId + ' ' + (first.title || '').substring(0, 30));
-    if (state.ytPlayer && state.ytReady) {
-      log('♪ loadVideoById');
-      state.ytPlayer.loadVideoById(first.videoId);
-      state.ytPlayer.setVolume(config.normalVolume);
-    } else {
-      log('♪ playYtVideo (new player)');
-      playYtVideo(first.videoId, first.title || query, first.channel || '', first.duration || '');
-    }
+    const title = (first.title || query).substring(0, 30);
+    log('♪ found: ' + title);
+    _pendingMusic = first;
+    const btn = document.getElementById('music-prompt');
+    btn.textContent = '♪ ' + title + ' ▶ タップ再生';
+    btn.style.display = 'block';
+    setTimeout(() => { if (btn.style.display === 'block') btn.style.display = 'none'; }, 30000);
   } catch(e) {
     log('♪ error: ' + e.message);
   }
+}
+
+function playPendingMusic() {
+  const btn = document.getElementById('music-prompt');
+  btn.style.display = 'none';
+  if (!_pendingMusic) return;
+  const m = _pendingMusic;
+  _pendingMusic = null;
+  log('♪ playing: ' + (m.title || m.videoId));
+  playYtVideo(m.videoId, m.title || '', m.channel || '', m.duration || '');
 }
 
 function playYtVideo(videoId, title, channel, duration) {
