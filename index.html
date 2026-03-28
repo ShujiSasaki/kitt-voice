@@ -1327,7 +1327,7 @@ function formatSummary(s, type) {
       const cnt = parseInt(cntStr);
       const total = `¥${amtStr} ${minStr}分 ${distStr}km ${cntStr}件`;
       const perItem = `¥${Math.round(amt/cnt).toLocaleString()} ${Math.round(min/cnt)}分 ${(dist/cnt).toFixed(1)}km /件`;
-      return '<b>' + label + '</b>' + dimLine + perItem + '</div>' + rightLine + total + '</div>';
+      return '<b>' + label + '</b>' + rightLine + total + '</div>' + dimLine + perItem + '</div>';
     }
     return h;
   }
