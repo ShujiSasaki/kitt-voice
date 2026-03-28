@@ -714,13 +714,22 @@ async function connectGemini() {
     ws.onerror = () => { log('Gemini error'); };
 
     ws.onclose = (e) => {
-      log(`Gemini disconnected (code ${e.code})`);
+      log(`Gemini disconnected (code ${e.code}), auto-reconnecting...`);
       if (state.micActive) stopMic();
       state.geminiConnected = false;
       state.geminiConnecting = false;
       state.geminiWs = null;
       updateGeminiUI();
       clearAutoDisconnect();
+      // Always-on: auto-reconnect after 2 seconds
+      if (config.geminiApiKey) {
+        setTimeout(() => {
+          if (!state.geminiConnected && !state.geminiConnecting) {
+            log('Auto-reconnecting...');
+            connectGemini();
+          }
+        }, 2000);
+      }
     };
   } catch(e) {
     log('Gemini connection failed: ' + e.message);
@@ -976,11 +985,13 @@ function handleGeminiText(text) {
 // ============================================================
 function startAutoDisconnect() {
   clearAutoDisconnect();
+  // Reconnect before server timeout (every 5 min regardless of setting)
+  const reconnectSec = Math.min(config.autoDisconnectSec, 300);
   state.autoDisconnectTimer = setTimeout(() => {
-    log('Auto disconnect (timeout)');
+    log('Keepalive reconnect');
     // Always-on: reconnect instead of disconnect
     connectGemini();
-  }, config.autoDisconnectSec * 1000);
+  }, reconnectSec * 1000);
 }
 
 function resetAutoDisconnect() {
