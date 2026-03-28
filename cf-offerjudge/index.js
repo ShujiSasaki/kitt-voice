@@ -204,17 +204,42 @@ functions.http('nandemoBox', async (req, res) => {
     }
 
     const logId = `ctx_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
-    await bigquery.dataset(DATASET).table('context_logs').insert([{
-      log_id: logId,
-      timestamp: BigQuery.timestamp(new Date()),
-      type: analysisResult.type || 'nandemo',
-      summary: analysisResult.summary || '',
-      structured_data: JSON.stringify(analysisResult.structured_data || {}),
-      ai_note: analysisResult.ai_note || '',
-      raw_gemini_response: JSON.stringify(analysisResult),
-      image_size_kb: image_base64 ? Math.round(image_base64.length * 0.75 / 1024) : 0,
-      processing_time_sec: (Date.now() - startTime) / 1000
-    }]);
+    const logType = analysisResult.type || 'nandemo';
+
+    // Merge consecutive accepted entries (within 60s) into one
+    let merged = false;
+    if (logType === 'accepted') {
+      try {
+        const [recentRows] = await bigquery.query({
+          query: `SELECT log_id, summary, structured_data FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = 'accepted' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 60 SECOND) ORDER BY timestamp DESC LIMIT 1`
+        });
+        if (recentRows.length > 0) {
+          const prev = recentRows[0];
+          const newSummary = analysisResult.summary || '';
+          // Merge: keep the one with more info, or combine
+          const combinedSummary = prev.summary.length >= newSummary.length ? prev.summary : newSummary;
+          await bigquery.query({
+            query: `UPDATE \`${PROJECT_ID}.${DATASET}.context_logs\` SET summary = @summary, ai_note = CONCAT(IFNULL(ai_note,''), ' | ', @note) WHERE log_id = @logId`,
+            params: { summary: combinedSummary, note: analysisResult.ai_note || '', logId: prev.log_id }
+          });
+          merged = true;
+        }
+      } catch(e) { console.warn('merge check error:', e.message); }
+    }
+
+    if (!merged) {
+      await bigquery.dataset(DATASET).table('context_logs').insert([{
+        log_id: logId,
+        timestamp: BigQuery.timestamp(new Date()),
+        type: logType,
+        summary: analysisResult.summary || '',
+        structured_data: JSON.stringify(analysisResult.structured_data || {}),
+        ai_note: analysisResult.ai_note || '',
+        raw_gemini_response: JSON.stringify(analysisResult),
+        image_size_kb: image_base64 ? Math.round(image_base64.length * 0.75 / 1024) : 0,
+        processing_time_sec: (Date.now() - startTime) / 1000
+      }]);
+    }
 
     if (analysisResult.coefficient_updates) {
       await updateCoefficients(analysisResult.coefficient_updates);
