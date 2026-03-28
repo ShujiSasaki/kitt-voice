@@ -340,8 +340,12 @@ async function pollFirebase() {
     if (!data || !data.timestamp) return;
     if (data.timestamp === state.lastOfferTimestamp) return;
     state.lastOfferTimestamp = data.timestamp;
-    log('NEW OFFER detected');
-    handleNewOffer(data);
+    if (data.is_nandemo) {
+      handleNewNandemo(data);
+    } else {
+      log('NEW OFFER detected');
+      handleNewOffer(data);
+    }
   } catch (e) {
     updateFirebaseStatus('error', null);
     log('Firebase error: ' + e.message);
@@ -968,35 +972,23 @@ function tryPlayKeepalive() {
 }
 
 // ============================================================
-// Dashboard: Nandemo polling + render
+// Dashboard: Nandemo handler + render
 // ============================================================
-function startNandemoPolling() {
-  setInterval(pollNandemo, config.pollingSec * 2000); // Poll half as often as offers
-  pollNandemo();
-}
-
-async function pollNandemo() {
-  try {
-    const resp = await fetch(config.firebaseUrl + '/nandemo_log.json');
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (!data || !data.timestamp) return;
-    if (data.timestamp === state.lastNandemoTimestamp) return;
-    state.lastNandemoTimestamp = data.timestamp;
-    // New nandemo entry
-    const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo', schedule: 'nandemo', other: 'nandemo' };
-    nandemoLogs.unshift({
-      time: data.timestamp,
-      type: data.type || 'nandemo',
-      tag: tagMap[data.type] || 'nandemo',
-      summary: data.summary || '',
-      sync: data.sync || null
-    });
-    if (nandemoLogs.length > 50) nandemoLogs = nandemoLogs.slice(0, 50);
-    localStorage.setItem('kitt-nandemo-logs', JSON.stringify(nandemoLogs));
-    renderDashboard();
-    log('NandemoBox: ' + (data.type || '') + ' ' + (data.summary || '').substring(0, 30));
-  } catch(e) {}
+function handleNewNandemo(data) {
+  const offer = data.offer || {};
+  const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', nandemo: 'nandemo', schedule: 'nandemo', other: 'nandemo' };
+  const nType = offer.nandemo_type || 'nandemo';
+  nandemoLogs.unshift({
+    time: new Date().toISOString(),
+    type: nType,
+    tag: tagMap[nType] || 'nandemo',
+    summary: offer.nandemo_summary || '',
+    sync: offer.nandemo_sync || null
+  });
+  if (nandemoLogs.length > 50) nandemoLogs = nandemoLogs.slice(0, 50);
+  localStorage.setItem('kitt-nandemo-logs', JSON.stringify(nandemoLogs));
+  renderDashboard();
+  log('NandemoBox: ' + nType + ' ' + (offer.nandemo_summary || '').substring(0, 30));
 }
 
 function renderDashboard() {
@@ -1052,7 +1044,6 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
   startFirebasePolling();
-  startNandemoPolling();
   renderDashboard();
   renderYtHistory();
 

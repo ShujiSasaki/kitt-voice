@@ -226,16 +226,20 @@ functions.http('nandemoBox', async (req, res) => {
       syncResult = await syncDeliveryResult(logId, analysisResult.structured_data);
     }
 
-    // Write to RTDB for KITT dashboard
-    const nandemoRtdbUrl = FIREBASE_DB_URL + '/nandemo_log.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    // Write to RTDB for KITT dashboard - use offer_tts path (has public read + auth write)
+    const nandemoRtdbUrl = FIREBASE_DB_URL + '/offer_tts.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
     fetch(nandemoRtdbUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        type: analysisResult.type || 'nandemo',
-        summary: analysisResult.summary || '',
-        sync: syncResult,
-        timestamp: new Date().toISOString()
+        offer: {
+          reward: 0, distance: 0, duration: 0, store_name: '',
+          nandemo_type: analysisResult.type || 'nandemo',
+          nandemo_summary: analysisResult.summary || '',
+          nandemo_sync: syncResult
+        },
+        timestamp: Date.now(),
+        is_nandemo: true
       })
     }).catch(e => console.warn('RTDB nandemo write error:', e.message));
 
