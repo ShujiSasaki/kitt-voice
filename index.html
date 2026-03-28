@@ -670,9 +670,9 @@ async function connectGemini() {
           },
           systemInstruction: { parts: [{ text: KITT_SYSTEM }] },
           tools: [{ functionDeclarations: [
-            { name: 'play_music', description: '修治さんが音楽をリクエストしたときに呼ぶ。YouTube検索して再生する。', parameters: { type: 'object', properties: { query: { type: 'string', description: 'YouTube検索クエリ（アーティスト名、曲名、ジャンル等）' } }, required: ['query'] } },
-            { name: 'stop_music', description: '音楽を止めるときに呼ぶ。', parameters: { type: 'object', properties: {} } }
-          ]}]
+            { name: 'play_music', description: '修治さんが音楽の再生をリクエストしたときに必ず呼ぶ。「〇〇流して」「〇〇聴きたい」等の音楽リクエストには必ずこのツールを使う。', parameters: { type: 'object', properties: { query: { type: 'string', description: 'YouTube検索クエリ（アーティスト名、曲名、ジャンル等）' } }, required: ['query'] } },
+            { name: 'stop_music', description: '音楽を止めるリクエストのときに必ず呼ぶ。「音楽止めて」「止めて」等。', parameters: { type: 'object', properties: {} } }
+          ], behavior: 'NON_BLOCKING' }]
         }
       }));
     };
@@ -734,7 +734,10 @@ async function connectGemini() {
             ws.send(JSON.stringify({ toolResponse: { functionResponses: responses } }));
           }
         }
-      } catch(e) {}
+        // Debug: log all message keys
+        const keys = Object.keys(msg);
+        if (!keys.includes('serverContent')) log('WS msg keys: ' + keys.join(','));
+      } catch(e) { log('WS parse error: ' + e.message); }
     };
 
     ws.onerror = () => { log('Gemini error'); };
