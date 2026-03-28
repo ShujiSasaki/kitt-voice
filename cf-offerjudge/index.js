@@ -414,9 +414,18 @@ functions.http('kittConfig', async (req, res) => {
 function parseOcrText(text) {
   const result = { storeName: '', reward: 0, distanceKm: 0, durationMin: 0 };
 
-  // Reward: ¥650, ￥1,200, 650円, etc.
-    const rewardMatch = text.match(/[¥￥·•]\s*([0-9,]+)/) || text.match(/([0-9,]+)\s*円/);
-  if (rewardMatch) result.reward = parseInt(rewardMatch[1].replace(/,/g, ''));
+  // Reward: ·1,596 or ¥650 or 650円 (skip "¥9 配達" UI label patterns)
+  const rewardLines = text.split(/\\n|\n/);
+  for (const rl of rewardLines) {
+    const trimmed = rl.trim();
+    if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
+    if (/^\+/.test(trimmed)) continue;
+    const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/) || trimmed.match(/([0-9,]{3,})\s*円/);
+    if (m) {
+      result.reward = parseInt(m[1].replace(/,/g, ''));
+      break;
+    }
+  }
 
   // Distance: 2.3km, 2.3 km, 2.3キロ, etc.
   const distMatch = text.match(/([0-9]+\.?[0-9]*)\s*(?:km|キロ)/i);
