@@ -1314,6 +1314,15 @@ document.addEventListener('visibilitychange', () => {
     pollFirebase();
     // Auto-restart mic on foreground
     if (state.geminiConnected && !state.micActive) { setTimeout(() => startMic(), 300); }
+    // Resume YouTube playback if it was playing before background
+    if (state.ytPlayer && state.ytReady && state._ytWasPlaying) {
+      setTimeout(() => {
+        try { state.ytPlayer.playVideo(); log('YT resumed'); } catch(e) {}
+      }, 500);
+    }
+  } else {
+    // Going to background: remember if YouTube was playing
+    state._ytWasPlaying = state.ytPlaying;
   }
 });
 </script>
