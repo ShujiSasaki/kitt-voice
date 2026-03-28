@@ -561,6 +561,23 @@ async function ytSearch() {
   if (!isLoadMore) resultsEl.innerHTML = '<div class="yt-searching">æ¤ç´¢å¤±æ</div>';
 }
 
+async function playMusicByQuery(query) {
+  log('Music search: ' + query);
+  const cfSearchUrl = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/ytSearch';
+  try {
+    const resp = await fetch(cfSearchUrl + '?q=' + encodeURIComponent(query));
+    if (!resp.ok) { log('Music search failed'); return; }
+    const data = await resp.json();
+    const items = data.results || [];
+    if (items.length === 0) { log('Music: no results'); return; }
+    const first = items[0];
+    log('Music playing: ' + (first.title || first.videoId));
+    playYtVideo(first.videoId, first.title || query, first.channel || '', first.duration || '');
+  } catch(e) {
+    log('Music error: ' + e.message);
+  }
+}
+
 function playYtVideo(videoId, title, channel, duration) {
   if (ytApiReady) {
     initYtPlayer(videoId);
@@ -718,10 +735,7 @@ async function connectGemini() {
           for (const fc of msg.toolCall.functionCalls || []) {
             log('Tool: ' + fc.name);
             if (fc.name === 'play_music' && fc.args?.query) {
-              setTimeout(() => {
-                document.getElementById('yt-input').value = fc.args.query;
-                ytSearch();
-              }, 2000);
+              playMusicByQuery(fc.args.query);
               responses.push({ id: fc.id, name: fc.name, response: { result: 'playing: ' + fc.args.query } });
             } else if (fc.name === 'stop_music') {
               if (state.ytPlayer && state.ytReady) state.ytPlayer.pauseVideo();
