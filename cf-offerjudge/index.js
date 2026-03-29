@@ -417,6 +417,66 @@ functions.http('dashboardFeed', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 4.5: /bqStats - BigQuery stats for KITT dashboard
+// ============================================================
+functions.http('bqStats', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, recentAccuracy] = await Promise.all([
+      // 1. Table row counts
+      bigquery.query({ query: `
+        SELECT 'offer_logs' as t, COUNT(*) as cnt, MIN(timestamp) as oldest, MAX(timestamp) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        UNION ALL SELECT 'context_logs', COUNT(*), MIN(timestamp), MAX(timestamp) FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+        UNION ALL SELECT 'delivery_history', COUNT(*), MIN(timestamp), MAX(timestamp) FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
+        UNION ALL SELECT 'charging_logs', COUNT(*), MIN(timestamp_utc), MAX(timestamp_utc) FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
+        UNION ALL SELECT 'dynamic_coefficients', COUNT(*), NULL, NULL FROM \`${PROJECT_ID}.${DATASET}.dynamic_coefficients\`
+      `}).then(r => r[0]),
+      // 2. All coefficients
+      bigquery.query({ query: `SELECT coefficient_name, coefficient_value, last_updated, description FROM \`${PROJECT_ID}.${DATASET}.dynamic_coefficients\` ORDER BY coefficient_name` }).then(r => r[0]),
+      // 3. Offer stats (last 7 days)
+      bigquery.query({ query: `
+        SELECT COUNT(*) as total, COUNTIF(gemini_decision='accept') as accepted, COUNTIF(gemini_decision='reject') as rejected,
+        ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(offer_distance),2) as avg_dist, ROUND(AVG(offer_duration),0) as avg_dur,
+        ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
+        ROUND(AVG(CASE WHEN gemini_decision='accept' THEN estimated_hourly_rate END),0) as avg_hourly_accept,
+        ROUND(AVG(CASE WHEN gemini_decision='reject' THEN estimated_hourly_rate END),0) as avg_hourly_reject,
+        ROUND(AVG(response_time_ms),0) as avg_response_ms
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+      `}).then(r => r[0]),
+      // 4. Context logs by type
+      bigquery.query({ query: `SELECT type, COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.context_logs\` GROUP BY type ORDER BY cnt DESC` }).then(r => r[0]),
+      // 5. Store ranking (top 10 by frequency)
+      bigquery.query({ query: `
+        SELECT store_name, COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
+        COUNTIF(gemini_decision='accept') as accepts
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE store_name != '' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        GROUP BY store_name ORDER BY cnt DESC LIMIT 15
+      `}).then(r => r[0]),
+      // 6. Hourly breakdown (last 7 days)
+      bigquery.query({ query: `
+        SELECT hour_of_day, COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
+        COUNTIF(gemini_decision='accept') as accepts
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+        GROUP BY hour_of_day ORDER BY hour_of_day
+      `}).then(r => r[0]),
+      // 7. Judgment accuracy (score distribution)
+      bigquery.query({ query: `
+        SELECT
+          CASE WHEN SAFE_CAST(JSON_VALUE(decision_reason_detail,'$.total') AS FLOAT64) >= 0.85 THEN 'accept_zone' ELSE 'reject_zone' END as zone,
+          COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+        GROUP BY zone
+      `}).then(r => r[0])
+    ]);
+    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, recentAccuracy });
+  } catch (error) {
+    console.error('bqStats error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
 // ENDPOINT 5: /kittConfig - Save/load KITT settings + memory
 // ============================================================
 functions.http('kittConfig', async (req, res) => {

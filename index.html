@@ -101,6 +101,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .log-tag.nandemo{background:rgba(102,102,102,.2);color:var(--text-dim)}
 .log-entry .log-detail{color:var(--text-dim);font-size:13px;margin-top:3px}
 .log-empty{text-align:center;color:var(--text-dim);font-size:14px;padding:30px;letter-spacing:1px}
+/* === BQ Panel === */
+.bq-section{margin-bottom:16px}
+.bq-section h3{font-size:12px;color:var(--red);font-family:'Orbitron',monospace;letter-spacing:2px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.bq-table{width:100%;border-collapse:collapse;font-size:12px}
+.bq-table th{text-align:left;color:var(--text-dim);font-weight:400;padding:3px 6px;border-bottom:1px solid var(--border)}
+.bq-table td{padding:3px 6px;border-bottom:1px solid #1a1a1a}
+.bq-table td.num{text-align:right;font-family:'Orbitron',monospace;font-size:11px}
+.bq-stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a1a}
+.bq-stat .label{color:var(--text-dim)}
+.bq-stat .value{font-family:'Orbitron',monospace;font-size:12px}
+.bq-bar{height:14px;background:var(--red);border-radius:2px;min-width:2px}
 /* === Image Modal === */
 #image-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column}
 #image-modal.show{display:flex}
@@ -132,6 +143,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="tab" data-panel="yt">YouTube</div>
   <div class="tab" data-panel="offer-log">オファー</div>
   <div class="tab" data-panel="nandemo-log">何でもBOX</div>
+  <div class="tab" data-panel="bq">BQ</div>
   <div class="tab" style="flex:0 0 36px;font-size:14px" onclick="toggleSettings()">â</div>
 </div>
 
@@ -189,6 +201,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button class="log-filter-btn" id="sort-btn" style="font-size:10px">SS順</button>
     </div>
     <div id="nandemo-log-list"><div class="log-empty">送信履歴なし</div></div>
+  </div>
+
+  <!-- BQ Panel -->
+  <div id="bq-panel" class="panel">
+    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 8px 36px;font-family:-apple-system,sans-serif;font-size:13px">
+      <div id="bq-content"><div class="log-empty">読み込み中...</div></div>
+    </div>
   </div>
 </div>
 
@@ -329,6 +348,7 @@ function switchTab(panel) {
   document.getElementById(panel + '-panel')?.classList.add('active');
   state.activePanel = panel;
   if (panel === 'offer-log' || panel === 'nandemo-log') fetchDashboard();
+  if (panel === 'bq') fetchBqStats();
 }
 document.querySelectorAll('.tab[data-panel]').forEach(tab => {
   const panel = tab.dataset.panel;
@@ -1428,6 +1448,96 @@ function formatSummary(s, type) {
   m = h.match(/^(.+?)\s+(\d+件\s+[\d,]+円.*)$/);
   if (m) return m[1] + rightLine + m[2] + '</div>';
   return h;
+}
+
+// ============================================================
+// BQ Stats Dashboard
+// ============================================================
+const BQ_STATS_URL = 'https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net/bqStats';
+let bqStatsLastFetch = 0;
+
+async function fetchBqStats() {
+  const now = Date.now();
+  if (now - bqStatsLastFetch < 10000) return;
+  bqStatsLastFetch = now;
+  const el = document.getElementById('bq-content');
+  try {
+    const resp = await fetch(BQ_STATS_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const d = await resp.json();
+    el.innerHTML = renderBqStats(d);
+  } catch(e) {
+    el.innerHTML = '<div class="log-empty">BQ取得エラー: ' + e.message + '</div>';
+  }
+}
+
+function renderBqStats(d) {
+  let html = '';
+  // 1. Tables overview
+  html += '<div class="bq-section"><h3>TABLES</h3><table class="bq-table"><tr><th>テーブル</th><th>件数</th><th>最古</th><th>最新</th></tr>';
+  for (const t of (d.tables || [])) {
+    const oldest = t.oldest ? new Date(t.oldest.value || t.oldest).toLocaleDateString('ja-JP') : '-';
+    const newest = t.newest ? new Date(t.newest.value || t.newest).toLocaleDateString('ja-JP') : '-';
+    html += `<tr><td>${t.t}</td><td class="num">${Number(t.cnt).toLocaleString()}</td><td class="num">${oldest}</td><td class="num">${newest}</td></tr>`;
+  }
+  html += '</table></div>';
+
+  // 2. Offer stats (7 days)
+  const o = d.offerStats || {};
+  html += '<div class="bq-section"><h3>OFFER STATS (7日間)</h3>';
+  html += `<div class="bq-stat"><span class="label">オファー数</span><span class="value">${o.total || 0}</span></div>`;
+  html += `<div class="bq-stat"><span class="label">受諾 / 拒否</span><span class="value" style="color:var(--green)">${o.accepted || 0}</span> / <span class="value" style="color:var(--red)">${o.rejected || 0}</span></div>`;
+  html += `<div class="bq-stat"><span class="label">承諾率</span><span class="value">${o.total > 0 ? Math.round(o.accepted / o.total * 100) : 0}%</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均報酬</span><span class="value">¥${o.avg_reward || 0}</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均距離 / 時間</span><span class="value">${o.avg_dist || 0}km / ${o.avg_dur || 0}分</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均時給</span><span class="value">¥${o.avg_hourly || 0}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">承諾案件 平均時給</span><span class="value" style="color:var(--green)">¥${o.avg_hourly_accept || 0}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">拒否案件 平均時給</span><span class="value" style="color:var(--red)">¥${o.avg_hourly_reject || 0}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均レスポンス</span><span class="value">${o.avg_response_ms || 0}ms</span></div>`;
+  html += '</div>';
+
+  // 3. Hourly breakdown
+  if (d.hourlyStats?.length > 0) {
+    const maxCnt = Math.max(...d.hourlyStats.map(h => Number(h.cnt)));
+    html += '<div class="bq-section"><h3>TIME OF DAY (7日間)</h3><table class="bq-table"><tr><th>時間帯</th><th>件数</th><th></th><th>平均¥/h</th></tr>';
+    for (const h of d.hourlyStats) {
+      const pct = maxCnt > 0 ? Math.round(h.cnt / maxCnt * 100) : 0;
+      html += `<tr><td>${h.hour_of_day}時</td><td class="num">${h.cnt}</td><td><div class="bq-bar" style="width:${pct}%"></div></td><td class="num">¥${h.avg_hourly}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
+  // 4. Store ranking
+  if (d.storeRanking?.length > 0) {
+    html += '<div class="bq-section"><h3>STORE RANKING (30日間)</h3><table class="bq-table"><tr><th>店舗</th><th>件数</th><th>平均¥</th><th>¥/h</th></tr>';
+    for (const s of d.storeRanking) {
+      html += `<tr><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.store_name)}</td><td class="num">${s.cnt}</td><td class="num">¥${s.avg_reward}</td><td class="num">¥${s.avg_hourly}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
+  // 5. Context logs by type
+  if (d.contextStats?.length > 0) {
+    html += '<div class="bq-section"><h3>何でもBOX (TYPE別)</h3><table class="bq-table"><tr><th>タイプ</th><th>件数</th></tr>';
+    for (const c of d.contextStats) {
+      html += `<tr><td>${c.type}</td><td class="num">${c.cnt}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
+  // 6. Coefficients
+  if (d.coefficients?.length > 0) {
+    html += '<div class="bq-section"><h3>DYNAMIC COEFFICIENTS</h3><table class="bq-table"><tr><th>名前</th><th>値</th><th>更新日</th></tr>';
+    for (const c of d.coefficients) {
+      const val = Number(c.coefficient_value);
+      const valStr = val >= 1 ? Math.round(val).toLocaleString() : val.toFixed(2);
+      const updated = c.last_updated ? new Date(c.last_updated.value || c.last_updated).toLocaleDateString('ja-JP') : '-';
+      html += `<tr><td style="font-size:11px">${c.coefficient_name}</td><td class="num">${valStr}</td><td class="num">${updated}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
+  return html;
 }
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
