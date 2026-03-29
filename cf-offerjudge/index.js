@@ -362,8 +362,9 @@ functions.http('offerScreenshot', async (req, res) => {
     const imageUrl = await uploadScreenshot(image_base64, 'offer');
     if (!imageUrl) return res.status(500).json({ error: 'Upload failed' });
     // Update most recent offer_log (within last 2 minutes)
+    // BQ UPDATE doesn't support ORDER BY LIMIT, so use subquery for log_id
     await bigquery.query({
-      query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET image_url = @url WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 MINUTE) AND image_url IS NULL ORDER BY timestamp DESC LIMIT 1`,
+      query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET image_url = @url WHERE log_id = (SELECT log_id FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 MINUTE) AND (image_url IS NULL OR image_url = '') ORDER BY timestamp DESC LIMIT 1)`,
       params: { url: imageUrl }
     });
     res.status(200).json({ status: 'ok', image_url: imageUrl });
@@ -485,8 +486,8 @@ function parseOcrText(text) {
     if (/^\+/.test(trimmed)) continue;
     const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/) || trimmed.match(/([0-9,]{3,})\s*円/);
     if (m) {
-      result.reward = parseInt(m[1].replace(/,/g, ''));
-      break;
+      const val = parseInt(m[1].replace(/,/g, ''));
+      if (val >= 100) { result.reward = val; break; } // Skip 0000, 000 etc
     }
   }
 
