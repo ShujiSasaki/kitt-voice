@@ -186,7 +186,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button class="log-filter-btn" data-filter="accepted" onclick="filterNandemo('accepted',this)">受諾</button>
       <button class="log-filter-btn" data-filter="nandemo" onclick="filterNandemo('nandemo',this)">その他</button>
       <span style="flex:1"></span>
-      <button class="log-filter-btn" id="sort-btn" onclick="toggleNandemoSort()" style="font-size:10px">SS順</button>
+      <button class="log-filter-btn" id="sort-btn" style="font-size:10px">SS順</button>
     </div>
     <div id="nandemo-log-list"><div class="log-empty">送信履歴なし</div></div>
   </div>
@@ -1225,6 +1225,23 @@ async function fetchDashboard() {
         confidence: o.confidence || '',
         image_url: o.image_url || null
       }));
+      // Fill missing image_urls from RTDB offer_images
+      try {
+        const imgResp = await fetch(config.firebaseUrl + '/offer_images.json');
+        if (imgResp.ok) {
+          const imgData = await imgResp.json();
+          if (imgData) {
+            const imgEntries = Object.values(imgData).sort((a,b) => b.t - a.t);
+            for (const o of offerLogs) {
+              if (o.image_url) continue;
+              const ot = new Date(o.time).getTime();
+              // Find closest image within 3 minutes
+              const match = imgEntries.find(img => Math.abs(img.t - ot) < 180000);
+              if (match) o.image_url = match.url;
+            }
+          }
+        }
+      } catch(e) {}
     }
     if (data.nandemo) {
       const tagMap = { result: 'result', order_detail: 'result', quest: 'quest', quest_result: 'quest_result', accepted: 'accepted', nandemo: 'nandemo' };
@@ -1281,10 +1298,18 @@ function filterNandemo(filter, btn) {
 }
 
 function toggleNandemoSort() {
-  nandemoSort = nandemoSort === 'ss' ? 'accepted' : 'ss';
-  document.getElementById('sort-btn').textContent = nandemoSort === 'ss' ? 'SS順' : '受諾順';
+  nandemoSort = nandemoSort === 'ss' ? 'offer' : 'ss';
+  document.getElementById('sort-btn').textContent = nandemoSort === 'ss' ? 'SS順' : 'オファー順';
   renderNandemoList();
 }
+// Bind sort button with touchend for iOS
+document.addEventListener('DOMContentLoaded', () => {
+  const sb = document.getElementById('sort-btn');
+  if (sb) {
+    sb.addEventListener('click', toggleNandemoSort);
+    sb.addEventListener('touchend', (e) => { e.preventDefault(); toggleNandemoSort(); });
+  }
+});
 
 
 function renderNandemoList() {
@@ -1292,9 +1317,15 @@ function renderNandemoList() {
   const typeLabel = {quest:'クエスト',quest_result:'クエスト達成',result:'リザルト',order_detail:'リザルト',accepted:'受諾',nandemo:'その他'};
   const filterMap = { quest: ['quest','quest_result'], result: ['result','order_detail'], accepted: ['accepted'], nandemo: ['nandemo'] };
   let filtered = nandemoFilter === 'all' ? [...nandemoLogs] : nandemoLogs.filter(n => (filterMap[nandemoFilter] || []).includes(n.type));
-  if (nandemoSort === 'accepted') {
-    // Sort by accepted time: group result entries near their accepted entry
-    filtered.sort((a, b) => new Date(b.time) - new Date(a.time));
+  if (nandemoSort === 'offer') {
+    // Sort by offer time (HH:MM in summary) instead of screenshot upload time
+    filtered.sort((a, b) => {
+      const getOfferTime = (s) => { const m = s.match(/(\d{1,2}):(\d{2})\s+[¥￥]/); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; };
+      const ta = getOfferTime(a.summary || '');
+      const tb = getOfferTime(b.summary || '');
+      if (ta >= 0 && tb >= 0) return tb - ta;
+      return new Date(b.time) - new Date(a.time);
+    });
   }
   if (filtered.length === 0) {
     nandemoEl.innerHTML = '<div class="log-empty">送信履歴なし</div>';

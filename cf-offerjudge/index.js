@@ -361,12 +361,19 @@ functions.http('offerScreenshot', async (req, res) => {
     // Upload to GCS
     const imageUrl = await uploadScreenshot(image_base64, 'offer');
     if (!imageUrl) return res.status(500).json({ error: 'Upload failed' });
-    // Update most recent offer_log (within last 2 minutes)
-    // BQ UPDATE doesn't support ORDER BY LIMIT, so use subquery for log_id
-    await bigquery.query({
-      query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET image_url = @url WHERE log_id = (SELECT log_id FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 MINUTE) AND (image_url IS NULL OR image_url = '') ORDER BY timestamp DESC LIMIT 1)`,
-      params: { url: imageUrl }
+    // Save URL to RTDB (instant) - PWA will match by timestamp
+    const rtdbUrl = FIREBASE_DB_URL + '/offer_images.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    const ts = Date.now();
+    await fetch(rtdbUrl.replace('.json', `/${ts}.json`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: imageUrl, t: ts })
     });
+    // Also try BQ update (may fail due to streaming buffer, that's ok)
+    bigquery.query({
+      query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET image_url = @url WHERE log_id = (SELECT log_id FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE) AND (image_url IS NULL OR image_url = '') ORDER BY timestamp DESC LIMIT 1)`,
+      params: { url: imageUrl }
+    }).catch(() => {}); // Ignore streaming buffer error
     res.status(200).json({ status: 'ok', image_url: imageUrl });
   } catch (e) {
     console.error('offerScreenshot error:', e);
