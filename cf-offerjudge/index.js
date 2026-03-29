@@ -426,9 +426,9 @@ functions.http('bqStats', async (req, res) => {
     const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, recentAccuracy] = await Promise.all([
       // 1. Table row counts
       bigquery.query({ query: `
-        SELECT 'offer_logs' as t, COUNT(*) as cnt, MIN(timestamp) as oldest, MAX(timestamp) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-        UNION ALL SELECT 'context_logs', COUNT(*), MIN(timestamp), MAX(timestamp) FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
-        UNION ALL SELECT 'delivery_history', COUNT(*), MIN(timestamp), MAX(timestamp) FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
+        SELECT 'offer_logs' as t, COUNT(*) as cnt, CAST(MIN(timestamp) AS STRING) as oldest, CAST(MAX(timestamp) AS STRING) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        UNION ALL SELECT 'context_logs', COUNT(*), CAST(MIN(timestamp) AS STRING), CAST(MAX(timestamp) AS STRING) FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+        UNION ALL SELECT 'delivery_history', COUNT(*), CAST(MIN(timestamp) AS STRING), CAST(MAX(timestamp) AS STRING) FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
         UNION ALL SELECT 'charging_logs', COUNT(*), MIN(timestamp_utc), MAX(timestamp_utc) FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
         UNION ALL SELECT 'dynamic_coefficients', COUNT(*), NULL, NULL FROM \`${PROJECT_ID}.${DATASET}.dynamic_coefficients\`
       `}).then(r => r[0]),
