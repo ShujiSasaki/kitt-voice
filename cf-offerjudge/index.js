@@ -498,13 +498,19 @@ function parseOcrText(text) {
     }
   }
 
-  // Distance: 2.3km, 2.3 km, 2.3キロ, etc.
-  const distMatch = text.match(/([0-9]+\.?[0-9]*)\s*(?:km|キロ)/i);
+  // Distance: 「合計XX分（Y.Ykm）」を最優先
+  const distMatch = text.match(/合計.*?([0-9]+\.?[0-9]*)\s*km/i) || text.match(/([0-9]+\.?[0-9]*)\s*(?:km|キロ)/i);
   if (distMatch) result.distanceKm = parseFloat(distMatch[1]);
 
-  // Duration: 15分, 15 min, 約15分, etc.
-  const durMatch = text.match(/約?\s*([0-9]+)\s*分/) || text.match(/([0-9]+)\s*min/i);
-  if (durMatch) result.durationMin = parseInt(durMatch[1]);
+  // Duration: 「合計XX分」を最優先（バッテリー%等の誤検知防止）
+  const durMatch = text.match(/合計\s*\+?\s*([0-9]+)\s*分/) || text.match(/合計\s*([0-9]+)\s*時間\s*([0-9]+)\s*分/);
+  if (durMatch) {
+    result.durationMin = durMatch[2] ? parseInt(durMatch[1]) * 60 + parseInt(durMatch[2]) : parseInt(durMatch[1]);
+  } else {
+    // Fallback: 「XX分」だが合計行の近くにあるものだけ
+    const fallback = text.match(/([0-9]+)\s*min/i);
+    if (fallback) result.durationMin = parseInt(fallback[1]);
+  }
 
   // Store name: first line that's not numbers/distance/reward
   const skipPatterns = /^[0-9,.\s¥￥]+$|km|キロ|分|min|配達|ピック|ドロップ|合計|距離|時間|予想|到着|注文/i;
