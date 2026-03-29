@@ -460,16 +460,28 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. Judgment accuracy (score distribution)
+      // 7. Offer vs actual delivery gap (オファー表示 vs 実績のズレ)
       bigquery.query({ query: `
         SELECT
-          CASE WHEN SAFE_CAST(JSON_VALUE(decision_reason_detail,'$.total') AS FLOAT64) >= 0.85 THEN 'accept_zone' ELSE 'reject_zone' END as zone,
-          COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward
-        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
-        GROUP BY zone
+          ROUND(AVG(d.reward - o.offer_reward), 0) as avg_reward_gap,
+          ROUND(AVG(d.duration - o.offer_duration), 1) as avg_duration_gap,
+          ROUND(AVG(d.distance - o.offer_distance), 2) as avg_distance_gap,
+          ROUND(AVG(o.offer_reward), 0) as avg_offer_reward,
+          ROUND(AVG(d.reward), 0) as avg_actual_reward,
+          ROUND(AVG(o.offer_duration), 0) as avg_offer_dur,
+          ROUND(AVG(d.duration), 0) as avg_actual_dur,
+          ROUND(AVG(o.offer_distance), 2) as avg_offer_dist,
+          ROUND(AVG(d.distance), 2) as avg_actual_dist,
+          COUNT(*) as match_count
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+        JOIN \`${PROJECT_ID}.${DATASET}.delivery_history\` d
+          ON o.store_name = d.store_name
+          AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 120
+          AND o.gemini_decision = 'accept'
       `}).then(r => r[0])
     ]);
-    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, recentAccuracy });
+    const offerGap = recentAccuracy[0] || {};
+    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap });
   } catch (error) {
     console.error('bqStats error:', error);
     res.status(500).json({ error: error.message });
