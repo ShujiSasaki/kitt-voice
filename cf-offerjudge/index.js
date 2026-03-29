@@ -487,7 +487,7 @@ function parseOcrText(text) {
     const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/) || trimmed.match(/([0-9,]{3,})\s*円/);
     if (m) {
       const val = parseInt(m[1].replace(/,/g, ''));
-      if (val >= 100) { result.reward = val; break; } // Skip 0000, 000 etc
+      if (val >= 100 && val <= 9999) { result.reward = val; break; } // 100-9999円のみ有効
     }
   }
 
