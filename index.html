@@ -1539,7 +1539,8 @@ function renderBqStats(d) {
   html += `<div class="bq-stat"><span class="label">全体の平均時給</span><span class="value">¥${fmt(o.avg_hourly || 0)}/h</span></div>`;
   html += `<div class="bq-stat"><span class="label">受諾判定した案件の平均時給</span><span class="value" style="color:var(--green)">¥${fmt(o.avg_hourly_accept || 0)}/h</span></div>`;
   html += `<div class="bq-stat"><span class="label">拒否判定した案件の平均時給</span><span class="value" style="color:var(--red)">¥${fmt(o.avg_hourly_reject || 0)}/h</span></div>`;
-  html += `<div class="bq-stat"><span class="label">KITT判定にかかった時間</span><span class="value">${((o.avg_response_ms || 0) / 1000).toFixed(1)}秒</span></div>`;
+  html += `<div class="bq-stat"><span class="label">KITT判定処理時間 (サーバー内部)</span><span class="value">${((o.avg_response_ms || 0) / 1000).toFixed(1)}秒</span></div>`;
+  html += '<div style="color:var(--text-dim);font-size:11px;margin-top:-2px;margin-bottom:4px">※ショートカット全体(スクショ→OCR→送信→判定→通知)はこれより長い</div>';
   html += '</div>';
 
   // 4. 時間帯別
@@ -1589,7 +1590,7 @@ function renderBqStats(d) {
 
   // 8. 外部リサーチ
   html += '<div class="bq-section"><h3>外部情報収集</h3>';
-  html += '<div style="color:var(--text-dim);font-size:13px;padding:8px 0">external_researchテーブルに82件蓄積済み。<br>SNS・ネットからの自動リサーチは未実装。</div>';
+  html += '<div style="color:var(--text-dim);font-size:13px;padding:8px 0">外部リサーチデータ82件蓄積済み (過去に手動収集)。<br>定期的なSNS・ネット自動リサーチは機能スコープに含まれているが未稼働。<br>→ 次のステップとして自動化を検討中。</div>';
   html += '</div>';
 
   return html;

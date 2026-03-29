@@ -460,16 +460,26 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. Offer vs actual delivery gap (全期間、オファーとリザルトの突き合わせ)
+      // 7. Offer vs actual delivery gap (全期間、日本語店名の先頭部分一致 + 時間近傍)
       bigquery.query({ query: `
-        WITH matched AS (
-          SELECT o.offer_reward, o.offer_duration, o.offer_distance, o.store_name, o.timestamp as offer_ts,
-            d.reward as actual_reward, d.duration as actual_duration, d.distance as actual_distance
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
-          JOIN \`${PROJECT_ID}.${DATASET}.delivery_history\` d
-            ON LOWER(REPLACE(o.store_name,' ','')) = LOWER(REPLACE(d.store_name,' ',''))
-            AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 120
-          WHERE o.gemini_decision = 'accept' AND o.offer_reward > 0 AND d.reward > 0
+        WITH offer_ja AS (
+          SELECT *, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE gemini_decision = 'accept' AND offer_reward > 0 AND store_name != ''
+        ),
+        delivery_ja AS (
+          SELECT *, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+          FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
+          WHERE reward > 0 AND store_name != ''
+        ),
+        matched AS (
+          SELECT o.offer_reward, o.offer_duration, o.offer_distance,
+            d.reward as actual_reward, d.duration as actual_duration, d.distance as actual_distance,
+            ROW_NUMBER() OVER (PARTITION BY d.delivery_id ORDER BY ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE))) as rn
+          FROM offer_ja o
+          JOIN delivery_ja d
+            ON o.store_short = d.store_short
+            AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 180
         )
         SELECT
           COUNT(*) as match_count,
@@ -482,7 +492,7 @@ functions.http('bqStats', async (req, res) => {
           ROUND(AVG(offer_distance), 2) as avg_offer_dist,
           ROUND(AVG(actual_distance), 2) as avg_actual_dist,
           ROUND(AVG(actual_distance - offer_distance), 2) as avg_distance_gap
-        FROM matched
+        FROM matched WHERE rn = 1
       `}).then(r => r[0])
     ]);
     const offerGap = recentAccuracy[0] || {};
