@@ -1524,7 +1524,21 @@ function renderBqStats(d) {
     const kGap = Number(g.avg_distance_gap);
     html += `<div class="bq-stat"><span class="label">距離</span><span class="value">表示 ${g.avg_offer_dist}km → 実績 ${g.avg_actual_dist}km`;
     html += ` <span style="color:${kGap<=0?'var(--green)':'var(--red)'}">（${kGap>0?'+':''}${g.avg_distance_gap}km）</span></span></div>`;
+    if (g.avg_store_wait_min) {
+      html += `<div class="bq-stat"><span class="label">平均店舗待機</span><span class="value">${g.avg_store_wait_min}分</span></div>`;
+    }
+    html += '<div style="color:var(--text-dim);font-size:11px;margin-top:4px">※オファー→受諾→リザルト→充電ON/OFFを突き合わせて算出</div>';
     html += '</div>';
+  }
+
+  // 2.5 店舗別待機時間ランキング
+  if (d.storeWait?.length > 0) {
+    html += '<div class="bq-section"><h3>店舗待機が長い店 (充電ログから推定)</h3><table class="bq-table"><tr><th>店舗</th><th>回数</th><th>平均待機</th><th>最大待機</th></tr>';
+    for (const s of d.storeWait) {
+      const color = s.avg_wait_min > 10 ? 'var(--red)' : s.avg_wait_min > 5 ? 'var(--amber)' : 'var(--text)';
+      html += `<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.store_name)}</td><td class="num">${fmt(s.cnt)}</td><td class="num" style="color:${color}">${s.avg_wait_min}分</td><td class="num">${s.max_wait_min}分</td></tr>`;
+    }
+    html += '</table></div>';
   }
 
   // 3. 直近7日間 KITTの判定結果

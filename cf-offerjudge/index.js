@@ -423,7 +423,7 @@ functions.http('bqStats', async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
   try {
-    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, recentAccuracy] = await Promise.all([
+    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, offerGapRaw, storeWaitRaw] = await Promise.all([
       // 1. Table row counts
       bigquery.query({ query: `
         SELECT 'offer_logs' as t, COUNT(*) as cnt, CAST(MIN(timestamp) AS STRING) as oldest, CAST(MAX(timestamp) AS STRING) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
@@ -460,43 +460,89 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. Offer vs actual delivery gap (全期間、日本語店名の先頭部分一致 + 時間近傍)
+      // 7. 4データソース突き合わせ (offer → accepted → result → charging)
       bigquery.query({ query: `
-        WITH offer_ja AS (
-          SELECT *, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+        WITH offers AS (
+          SELECT log_id, timestamp, store_name, offer_reward, offer_duration, offer_distance,
+            REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
           FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE gemini_decision = 'accept' AND offer_reward > 0 AND store_name != ''
+          WHERE offer_reward > 0 AND store_name != '' AND LENGTH(store_name) > 1
         ),
-        delivery_ja AS (
-          SELECT *, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+        results AS (
+          SELECT delivery_id, timestamp, store_name, reward, duration, distance,
+            REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
           FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
           WHERE reward > 0 AND store_name != ''
         ),
+        charging AS (
+          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging, lat, lng
+          FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
+          WHERE timestamp_utc IS NOT NULL
+        ),
+        -- Step1: result ← offer (店名先頭一致 OR 時間近傍30分以内)
         matched AS (
-          SELECT o.offer_reward, o.offer_duration, o.offer_distance,
-            d.reward as actual_reward, d.duration as actual_duration, d.distance as actual_distance,
-            ROW_NUMBER() OVER (PARTITION BY d.delivery_id ORDER BY ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE))) as rn
-          FROM offer_ja o
-          JOIN delivery_ja d
-            ON o.store_short = d.store_short
-            AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 180
+          SELECT r.delivery_id, r.timestamp as result_ts, r.store_name as result_store, r.reward, r.duration, r.distance,
+            o.log_id as offer_id, o.timestamp as offer_ts, o.store_name as offer_store, o.offer_reward, o.offer_duration, o.offer_distance,
+            ROW_NUMBER() OVER (PARTITION BY r.delivery_id ORDER BY
+              CASE WHEN o.store_short = r.store_short THEN 0 ELSE 1 END,
+              ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE))
+            ) as rn
+          FROM results r
+          JOIN offers o ON ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 180
+            AND (o.store_short = r.store_short OR ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 40)
+        ),
+        final AS (SELECT * FROM matched WHERE rn = 1),
+        -- Step2: 充電ログから店舗待機時間推定 (オファー後の最初のcharging ON→OFF = 店到着→出発)
+        with_wait AS (
+          SELECT f.*,
+            (SELECT MIN(c1.ts) FROM charging c1 WHERE c1.wireless_charging = true AND c1.ts > f.offer_ts AND c1.ts < f.result_ts) as arrive_store_ts,
+            (SELECT MIN(c2.ts) FROM charging c2 WHERE c2.wireless_charging = false AND c2.ts > (SELECT MIN(c3.ts) FROM charging c3 WHERE c3.wireless_charging = true AND c3.ts > f.offer_ts AND c3.ts < f.result_ts) AND c2.ts < f.result_ts) as leave_store_ts
+          FROM final f
         )
         SELECT
           COUNT(*) as match_count,
           ROUND(AVG(offer_reward), 0) as avg_offer_reward,
-          ROUND(AVG(actual_reward), 0) as avg_actual_reward,
-          ROUND(AVG(actual_reward - offer_reward), 0) as avg_reward_gap,
+          ROUND(AVG(reward), 0) as avg_actual_reward,
+          ROUND(AVG(reward - offer_reward), 0) as avg_reward_gap,
           ROUND(AVG(offer_duration), 0) as avg_offer_dur,
-          ROUND(AVG(actual_duration), 0) as avg_actual_dur,
-          ROUND(AVG(actual_duration - offer_duration), 1) as avg_duration_gap,
+          ROUND(AVG(duration), 0) as avg_actual_dur,
+          ROUND(AVG(duration - offer_duration), 1) as avg_duration_gap,
           ROUND(AVG(offer_distance), 2) as avg_offer_dist,
-          ROUND(AVG(actual_distance), 2) as avg_actual_dist,
-          ROUND(AVG(actual_distance - offer_distance), 2) as avg_distance_gap
-        FROM matched WHERE rn = 1
+          ROUND(AVG(distance), 2) as avg_actual_dist,
+          ROUND(AVG(distance - offer_distance), 2) as avg_distance_gap,
+          ROUND(AVG(CASE WHEN leave_store_ts IS NOT NULL AND arrive_store_ts IS NOT NULL THEN TIMESTAMP_DIFF(leave_store_ts, arrive_store_ts, SECOND)/60.0 END), 1) as avg_store_wait_min
+        FROM with_wait
+      `}).then(r => r[0]),
+      // 8. 店舗別待機時間ランキング (充電ON→OFF間隔から推定)
+      bigquery.query({ query: `
+        WITH offers AS (
+          SELECT log_id, timestamp, store_name, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE store_name != '' AND LENGTH(store_name) > 1
+        ),
+        charging AS (
+          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging
+          FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
+          WHERE timestamp_utc IS NOT NULL
+        ),
+        store_waits AS (
+          SELECT o.store_short,
+            (SELECT MIN(c1.ts) FROM charging c1 WHERE c1.wireless_charging = true AND c1.ts > o.timestamp AND TIMESTAMP_DIFF(c1.ts, o.timestamp, MINUTE) < 30) as arrive_ts,
+            (SELECT MIN(c2.ts) FROM charging c2 WHERE c2.wireless_charging = false AND c2.ts > (SELECT MIN(c3.ts) FROM charging c3 WHERE c3.wireless_charging = true AND c3.ts > o.timestamp AND TIMESTAMP_DIFF(c3.ts, o.timestamp, MINUTE) < 30) AND TIMESTAMP_DIFF(c2.ts, o.timestamp, MINUTE) < 60) as leave_ts
+          FROM offers o
+        )
+        SELECT store_short as store_name,
+          COUNT(*) as cnt,
+          ROUND(AVG(TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND)/60.0), 1) as avg_wait_min,
+          ROUND(MAX(TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND)/60.0), 1) as max_wait_min
+        FROM store_waits
+        WHERE arrive_ts IS NOT NULL AND leave_ts IS NOT NULL AND TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND) > 30
+        GROUP BY store_short HAVING cnt >= 2
+        ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0])
     ]);
-    const offerGap = recentAccuracy[0] || {};
-    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap });
+    const offerGap = (offerGapRaw || [])[0] || {};
+    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap, storeWait: storeWaitRaw || [] });
   } catch (error) {
     console.error('bqStats error:', error);
     res.status(500).json({ error: error.message });
