@@ -1604,8 +1604,10 @@ function renderBqStats(d) {
 
   // 8. 外部リサーチ
   html += '<div class="bq-section"><h3>外部情報収集</h3>';
-  html += '<div style="color:var(--text-dim);font-size:13px;padding:8px 0">外部リサーチデータ82件蓄積済み (過去に手動収集)。<br>定期的なSNS・ネット自動リサーチは機能スコープに含まれているが未稼働。<br>→ 次のステップとして自動化を検討中。</div>';
-  html += '</div>';
+  html += '<div style="font-size:13px;padding:8px 0">';
+  html += '<div style="color:var(--text-dim);margin-bottom:6px">82件蓄積 (3/14〜3/24に1回だけ手動収集)<br>ソース: ニュースサイト検索 "UberEats fukuoka"</div>';
+  html += '<div style="color:var(--amber)">自動収集は未着手。CLAUDE.mdの機能スコープに記載あり。<br>定期実行の仕組み(Cloud Scheduler等)が必要。</div>';
+  html += '</div></div>';
 
   return html;
 }
