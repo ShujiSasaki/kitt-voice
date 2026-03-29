@@ -814,6 +814,7 @@ async function connectGemini() {
         if (msg.serverContent?.turnComplete) {
           if (!state.micActive) setTimeout(() => restoreYouTubeVolume(), 500);
           // Periodically ask Gemini to summarize for memory
+          if (typeof _turnCount === 'undefined') window._turnCount = 0;
           _turnCount = (_turnCount || 0) + 1;
           if (_turnCount % 5 === 0 && ws.readyState === WebSocket.OPEN) {
             state._expectingMemory = true;
