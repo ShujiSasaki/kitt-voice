@@ -460,7 +460,7 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. 4データソース突き合わせ (offer → accepted → result → charging)
+      // 7. オファー vs 実績のズレ (店名先頭一致 + 時間近傍でマッチ)
       bigquery.query({ query: `
         WITH offers AS (
           SELECT log_id, timestamp, store_name, offer_reward, offer_duration, offer_distance,
@@ -474,15 +474,9 @@ functions.http('bqStats', async (req, res) => {
           FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
           WHERE reward > 0 AND store_name != ''
         ),
-        charging AS (
-          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging, lat, lng
-          FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
-          WHERE timestamp_utc IS NOT NULL
-        ),
-        -- Step1: result ← offer (店名先頭一致 OR 時間近傍30分以内)
         matched AS (
-          SELECT r.delivery_id, r.timestamp as result_ts, r.store_name as result_store, r.reward, r.duration, r.distance,
-            o.log_id as offer_id, o.timestamp as offer_ts, o.store_name as offer_store, o.offer_reward, o.offer_duration, o.offer_distance,
+          SELECT r.delivery_id, r.reward, r.duration, r.distance,
+            o.offer_reward, o.offer_duration, o.offer_distance,
             ROW_NUMBER() OVER (PARTITION BY r.delivery_id ORDER BY
               CASE WHEN o.store_short = r.store_short THEN 0 ELSE 1 END,
               ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE))
@@ -490,14 +484,6 @@ functions.http('bqStats', async (req, res) => {
           FROM results r
           JOIN offers o ON ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 180
             AND (o.store_short = r.store_short OR ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 40)
-        ),
-        final AS (SELECT * FROM matched WHERE rn = 1),
-        -- Step2: 充電ログから店舗待機時間推定 (オファー後の最初のcharging ON→OFF = 店到着→出発)
-        with_wait AS (
-          SELECT f.*,
-            (SELECT MIN(c1.ts) FROM charging c1 WHERE c1.wireless_charging = true AND c1.ts > f.offer_ts AND c1.ts < f.result_ts) as arrive_store_ts,
-            (SELECT MIN(c2.ts) FROM charging c2 WHERE c2.wireless_charging = false AND c2.ts > (SELECT MIN(c3.ts) FROM charging c3 WHERE c3.wireless_charging = true AND c3.ts > f.offer_ts AND c3.ts < f.result_ts) AND c2.ts < f.result_ts) as leave_store_ts
-          FROM final f
         )
         SELECT
           COUNT(*) as match_count,
@@ -509,34 +495,46 @@ functions.http('bqStats', async (req, res) => {
           ROUND(AVG(duration - offer_duration), 1) as avg_duration_gap,
           ROUND(AVG(offer_distance), 2) as avg_offer_dist,
           ROUND(AVG(distance), 2) as avg_actual_dist,
-          ROUND(AVG(distance - offer_distance), 2) as avg_distance_gap,
-          ROUND(AVG(CASE WHEN leave_store_ts IS NOT NULL AND arrive_store_ts IS NOT NULL THEN TIMESTAMP_DIFF(leave_store_ts, arrive_store_ts, SECOND)/60.0 END), 1) as avg_store_wait_min
-        FROM with_wait
+          ROUND(AVG(distance - offer_distance), 2) as avg_distance_gap
+        FROM matched WHERE rn = 1
       `}).then(r => r[0]),
-      // 8. 店舗別待機時間ランキング (充電ON→OFF間隔から推定)
+      // 8. 店舗別待機時間ランキング (充電ON→OFFペアからJOINで推定)
       bigquery.query({ query: `
-        WITH offers AS (
-          SELECT log_id, timestamp, store_name, REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE store_name != '' AND LENGTH(store_name) > 1
-        ),
-        charging AS (
-          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging
+        WITH charging_on AS (
+          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, lat, lng,
+            ROW_NUMBER() OVER (ORDER BY timestamp_utc) as rn
           FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
-          WHERE timestamp_utc IS NOT NULL
+          WHERE wireless_charging = true AND timestamp_utc IS NOT NULL
         ),
-        store_waits AS (
-          SELECT o.store_short,
-            (SELECT MIN(c1.ts) FROM charging c1 WHERE c1.wireless_charging = true AND c1.ts > o.timestamp AND TIMESTAMP_DIFF(c1.ts, o.timestamp, MINUTE) < 30) as arrive_ts,
-            (SELECT MIN(c2.ts) FROM charging c2 WHERE c2.wireless_charging = false AND c2.ts > (SELECT MIN(c3.ts) FROM charging c3 WHERE c3.wireless_charging = true AND c3.ts > o.timestamp AND TIMESTAMP_DIFF(c3.ts, o.timestamp, MINUTE) < 30) AND TIMESTAMP_DIFF(c2.ts, o.timestamp, MINUTE) < 60) as leave_ts
-          FROM offers o
+        charging_off AS (
+          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts,
+            ROW_NUMBER() OVER (ORDER BY timestamp_utc) as rn
+          FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
+          WHERE wireless_charging = false AND timestamp_utc IS NOT NULL
+        ),
+        -- Pair: each ON with the next OFF
+        pairs AS (
+          SELECT c_on.ts as arrive_ts, c_off.ts as leave_ts,
+            TIMESTAMP_DIFF(c_off.ts, c_on.ts, SECOND)/60.0 as wait_min
+          FROM charging_on c_on
+          JOIN charging_off c_off ON c_off.ts > c_on.ts
+            AND TIMESTAMP_DIFF(c_off.ts, c_on.ts, MINUTE) < 30
+            AND NOT EXISTS (SELECT 1 FROM charging_on c2 WHERE c2.ts > c_on.ts AND c2.ts < c_off.ts)
+        ),
+        -- Match pairs to nearest offer
+        with_store AS (
+          SELECT p.wait_min, REGEXP_EXTRACT(o.store_name, r'^([^\\s]+)') as store_short,
+            ROW_NUMBER() OVER (PARTITION BY p.arrive_ts ORDER BY ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE))) as rn
+          FROM pairs p
+          JOIN \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+            ON ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE)) < 30
+            AND o.store_name != '' AND LENGTH(o.store_name) > 1
+          WHERE p.wait_min > 0.5 AND p.wait_min < 25
         )
-        SELECT store_short as store_name,
-          COUNT(*) as cnt,
-          ROUND(AVG(TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND)/60.0), 1) as avg_wait_min,
-          ROUND(MAX(TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND)/60.0), 1) as max_wait_min
-        FROM store_waits
-        WHERE arrive_ts IS NOT NULL AND leave_ts IS NOT NULL AND TIMESTAMP_DIFF(leave_ts, arrive_ts, SECOND) > 30
+        SELECT store_short as store_name, COUNT(*) as cnt,
+          ROUND(AVG(wait_min), 1) as avg_wait_min,
+          ROUND(MAX(wait_min), 1) as max_wait_min
+        FROM with_store WHERE rn = 1
         GROUP BY store_short HAVING cnt >= 2
         ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0])
