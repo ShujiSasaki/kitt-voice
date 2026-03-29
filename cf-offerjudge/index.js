@@ -417,6 +417,87 @@ functions.http('dashboardFeed', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 4.4: /weatherCheck - 定期天気チェック (Cloud Scheduler)
+// ============================================================
+functions.http('weatherCheck', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    // 福岡中心部
+    const lat = 33.59, lng = 130.40;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&timezone=Asia/Tokyo&forecast_days=1`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    const now = new Date();
+    const jstHour = (now.getUTCHours() + 9) % 24;
+
+    // 今後6時間の降水予報を抽出
+    const hourly = data.hourly || {};
+    const forecast = [];
+    for (let i = 0; i < (hourly.time || []).length; i++) {
+      const h = new Date(hourly.time[i]);
+      const fHour = h.getHours();
+      if (fHour >= jstHour && fHour < jstHour + 6) {
+        forecast.push({
+          hour: fHour,
+          temp: hourly.temperature_2m?.[i],
+          precip_prob: hourly.precipitation_probability?.[i],
+          precip_mm: hourly.precipitation?.[i],
+          weather_code: hourly.weather_code?.[i],
+          wind: hourly.wind_speed_10m?.[i]
+        });
+      }
+    }
+
+    // 天気コード→日本語
+    const weatherName = (code) => {
+      if (code <= 1) return '晴れ';
+      if (code <= 3) return '曇り';
+      if (code <= 49) return '霧';
+      if (code <= 59) return '小雨';
+      if (code <= 69) return '雨';
+      if (code <= 79) return 'みぞれ';
+      if (code <= 82) return '強い雨';
+      if (code <= 86) return '雪';
+      if (code <= 99) return '雷雨';
+      return '不明';
+    };
+
+    const current = data.current || {};
+    const weatherData = {
+      timestamp: Date.now(),
+      current: {
+        temp: current.temperature_2m,
+        humidity: current.relative_humidity_2m,
+        weather: weatherName(current.weather_code),
+        weather_code: current.weather_code,
+        wind: current.wind_speed_10m,
+        precip_mm: current.precipitation
+      },
+      forecast: forecast.map(f => ({
+        ...f,
+        weather: weatherName(f.weather_code)
+      })),
+      rain_alert: forecast.some(f => f.precip_prob > 50) ? '降水注意' : forecast.some(f => f.precip_prob > 30) ? '降水可能性あり' : null
+    };
+
+    // RTDB に保存 (KITT PWAが読む)
+    const rtdbUrl = FIREBASE_DB_URL + '/weather.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    await fetch(rtdbUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(weatherData)
+    });
+
+    res.status(200).json({ status: 'ok', weather: weatherData });
+  } catch (e) {
+    console.error('weatherCheck error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // ENDPOINT 4.5: /bqStats - BigQuery stats for KITT dashboard
 // ============================================================
 functions.http('bqStats', async (req, res) => {

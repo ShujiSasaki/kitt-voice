@@ -1462,13 +1462,50 @@ async function fetchBqStats() {
   bqStatsLastFetch = now;
   const el = document.getElementById('bq-content');
   try {
-    const resp = await fetch(BQ_STATS_URL);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const d = await resp.json();
-    el.innerHTML = renderBqStats(d);
+    // BQ stats + weather を並列取得
+    const [bqResp, weatherResp] = await Promise.all([
+      fetch(BQ_STATS_URL),
+      fetch(config.firebaseUrl + '/weather.json').catch(() => null)
+    ]);
+    if (!bqResp.ok) throw new Error('HTTP ' + bqResp.status);
+    const d = await bqResp.json();
+    let weatherData = null;
+    if (weatherResp?.ok) weatherData = await weatherResp.json();
+    el.innerHTML = renderWeather(weatherData) + renderBqStats(d);
   } catch(e) {
     el.innerHTML = '<div class="log-empty">BQ取得エラー: ' + e.message + '</div>';
   }
+}
+
+function renderWeather(w) {
+  if (!w) return '';
+  const c = w.current || {};
+  const age = Math.round((Date.now() - w.timestamp) / 60000);
+  const ageStr = age < 60 ? age + '分前' : Math.floor(age/60) + '時間前';
+  let html = '<div class="bq-section"><h3>天気 (福岡)</h3>';
+  html += '<div style="color:var(--text-dim);font-size:11px;margin-bottom:6px">更新: ' + ageStr + ' (毎時自動更新)</div>';
+  // Current
+  const tempColor = c.temp > 30 ? 'var(--red)' : c.temp < 10 ? '#4fc3f7' : 'var(--text)';
+  html += `<div class="bq-stat"><span class="label">現在</span><span class="value">${c.weather} <span style="color:${tempColor}">${c.temp}°C</span> 湿度${c.humidity}% 風${c.wind}km/h</span></div>`;
+  if (c.precip_mm > 0) {
+    html += `<div class="bq-stat"><span class="label">降水</span><span class="value" style="color:var(--cyan)">${c.precip_mm}mm</span></div>`;
+  }
+  // Rain alert
+  if (w.rain_alert) {
+    html += `<div style="background:rgba(224,48,48,.15);color:var(--red);padding:6px 10px;border-radius:6px;margin:6px 0;font-weight:700">${w.rain_alert}</div>`;
+  }
+  // Forecast
+  if (w.forecast?.length > 0) {
+    html += '<table class="bq-table" style="margin-top:8px"><tr><th>時間</th><th>天気</th><th>気温</th><th>降水確率</th><th>降水量</th></tr>';
+    for (const f of w.forecast) {
+      const probColor = f.precip_prob > 50 ? 'var(--red)' : f.precip_prob > 30 ? 'var(--amber)' : 'var(--text-dim)';
+      const precipColor = f.precip_mm > 0 ? 'var(--cyan)' : 'var(--text-dim)';
+      html += `<tr><td>${f.hour}時</td><td>${f.weather}</td><td class="num">${f.temp}°C</td><td class="num" style="color:${probColor}">${f.precip_prob}%</td><td class="num" style="color:${precipColor}">${f.precip_mm}mm</td></tr>`;
+    }
+    html += '</table>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderBqStats(d) {
