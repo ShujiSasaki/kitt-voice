@@ -1251,7 +1251,7 @@ function renderDashboard() {
       const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const tagClass = o.decision === 'accept' ? 'accept' : 'reject';
       const tagText = o.decision === 'accept' ? 'OK' : 'SKIP';
-      const imgAttr = o.image_url ? ` onclick="showImageModal('${o.image_url.replace(/'/g,"\\'")}')"` : '';
+      const imgAttr = o.image_url ? ` onclick="showImageModal('${o.image_url.replace(/'/g,"\\'")}')" style="cursor:pointer"` : '';
       return `<div class="log-entry"${imgAttr}>
         <div class="log-time">${timeStr}</div>
         <div class="log-body">
