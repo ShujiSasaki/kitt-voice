@@ -607,16 +607,49 @@ functions.http('kittConfig', async (req, res) => {
 function parseOcrText(text) {
   const result = { storeName: '', reward: 0, distanceKm: 0, durationMin: 0 };
 
-  // Reward: ·1,596 or ¥650 or 650円 (skip "¥9 配達" UI label patterns)
+  // Reward: 「合計XX分」行の近くにある報酬を最優先 → fallbackで上から探索
   const rewardLines = text.split(/\\n|\n/);
-  for (const rl of rewardLines) {
-    const trimmed = rl.trim();
-    if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-    if (/^\+/.test(trimmed)) continue;
-    const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/) || trimmed.match(/([0-9,]{3,})\s*円/);
-    if (m) {
-      const val = parseInt(m[1].replace(/,/g, ''));
-      if (val >= 100 && val <= 9999) { result.reward = val; break; } // 100-9999円のみ有効
+  const goukeiIdx = rewardLines.findIndex(l => /合計.*分/.test(l));
+
+  // Strategy 1: 合計行の上5行以内で中点パターン(·XXX)を探す = 最も信頼度が高い
+  if (goukeiIdx > 0) {
+    for (let i = goukeiIdx - 1; i >= Math.max(0, goukeiIdx - 5); i--) {
+      const trimmed = rewardLines[i].trim();
+      if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
+      if (/^\+/.test(trimmed)) continue;
+      const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
+      if (m) {
+        const val = parseInt(m[1].replace(/,/g, ''));
+        if (val >= 100 && val <= 9999) { result.reward = val; break; }
+      }
+    }
+  }
+
+  // Strategy 2: Fallback - 上から探すが中点パターン(·)を優先
+  if (!result.reward) {
+    for (const rl of rewardLines) {
+      const trimmed = rl.trim();
+      if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
+      if (/^\+/.test(trimmed)) continue;
+      const m = trimmed.match(/[·•]\s*([0-9,]{3,})/);
+      if (m) {
+        const val = parseInt(m[1].replace(/,/g, ''));
+        if (val >= 100 && val <= 9999) { result.reward = val; break; }
+      }
+    }
+  }
+
+  // Strategy 3: Last resort - ¥パターン (地図数字の誤検知リスクあり)
+  if (!result.reward) {
+    for (const rl of rewardLines) {
+      const trimmed = rl.trim();
+      if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
+      if (/^\+/.test(trimmed)) continue;
+      const m = trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
+      if (m) {
+        const val = parseInt(m[1].replace(/,/g, ''));
+        if (val >= 100 && val <= 3000) { result.reward = val; break; } // ¥パターンは3000円以下のみ
+      }
     }
   }
 
