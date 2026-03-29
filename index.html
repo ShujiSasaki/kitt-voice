@@ -1474,16 +1474,29 @@ async function fetchBqStats() {
 function renderBqStats(d) {
   const tableNameJa = { offer_logs:'オファー判定ログ', context_logs:'何でもBOX', delivery_history:'配達履歴', charging_logs:'充電ログ', dynamic_coefficients:'判定係数' };
   const typeNameJa = { accepted:'受諾', quest:'クエスト', result:'リザルト', quest_result:'クエスト達成', nandemo:'その他', other:'その他' };
-  const coeffNameJa = {
-    base_hourly_wage:'基準時給(90日平均)', avg_reward:'平均報酬', avg_distance:'平均距離(km)', avg_duration:'平均時間(分)',
-    avg_reward_per_km:'平均km単価', avg_speed_kmh:'平均速度(km/h)',
-    avg_hourly_wage_lunch:'ランチ帯時給(11-14時)', avg_hourly_wage_dinner:'ディナー帯時給(17-21時)',
-    avg_hourly_wage_weekend:'週末時給', avg_hourly_wage_weekday:'平日時給', avg_hourly_wage_late_night:'深夜帯時給(22-6時)',
-    next_offer_interval_sec:'次オファー待機(秒)', score_threshold:'受諾スコア閾値',
-    weight_hourly_rate:'重み: 時給', weight_reward_per_km:'重み: km単価', weight_market:'重み: 市場比較',
-    weight_distance:'重み: 距離', weight_store_reputation:'重み: 店舗評価',
-    weight_opportunity:'重み: 機会コスト', weight_quest_adjusted:'重み: クエスト'
+  const coeffJa = {
+    base_hourly_wage:       { name:'基準時給 (90日平均)', unit:'円/h' },
+    avg_reward:             { name:'平均報酬', unit:'円' },
+    avg_distance:           { name:'平均距離', unit:'km' },
+    avg_duration:           { name:'平均時間', unit:'分' },
+    avg_reward_per_km:      { name:'平均km単価', unit:'円/km' },
+    avg_speed_kmh:          { name:'平均速度', unit:'km/h' },
+    avg_hourly_wage_lunch:  { name:'ランチ帯時給 (11-14時)', unit:'円/h' },
+    avg_hourly_wage_dinner: { name:'ディナー帯時給 (17-21時)', unit:'円/h' },
+    avg_hourly_wage_weekend:{ name:'週末時給', unit:'円/h' },
+    avg_hourly_wage_weekday:{ name:'平日時給', unit:'円/h' },
+    avg_hourly_wage_late_night:{ name:'深夜帯時給 (22-6時)', unit:'円/h' },
+    next_offer_interval_sec:{ name:'次オファー待機予測', unit:'秒' },
+    score_threshold:        { name:'受諾スコア閾値', unit:'' },
+    weight_hourly_rate:     { name:'重み: 時給', unit:'%' },
+    weight_reward_per_km:   { name:'重み: km単価', unit:'%' },
+    weight_market:          { name:'重み: 市場比較', unit:'%' },
+    weight_distance:        { name:'重み: 距離', unit:'%' },
+    weight_store_reputation:{ name:'重み: 店舗評価', unit:'%' },
+    weight_opportunity:     { name:'重み: 機会コスト', unit:'%' },
+    weight_quest_adjusted:  { name:'重み: クエスト', unit:'%' }
   };
+  const fmt = (n) => Number(n).toLocaleString();
   let html = '';
 
   // 1. データ蓄積状況
@@ -1493,36 +1506,40 @@ function renderBqStats(d) {
     const oldest = t.oldest ? new Date(t.oldest.value || t.oldest).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '';
     const newest = t.newest ? new Date(t.newest.value || t.newest).toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '';
     const period = oldest && newest ? oldest + '〜' + newest : '-';
-    html += `<tr><td>${name}</td><td class="num">${Number(t.cnt).toLocaleString()}</td><td class="num">${period}</td></tr>`;
+    html += `<tr><td>${name}</td><td class="num">${fmt(t.cnt)}</td><td class="num">${period}</td></tr>`;
   }
   html += '</table></div>';
 
-  // 2. オファー vs 実績のズレ
+  // 2. オファー表示 vs 実績のズレ (全期間)
   const g = d.offerGap || {};
   if (g.match_count > 0) {
-    html += '<div class="bq-section"><h3>オファー表示 vs 実績のズレ</h3>';
-    html += `<div class="bq-stat"><span class="label">突き合わせ件数</span><span class="value">${g.match_count}件</span></div>`;
-    html += `<div class="bq-stat"><span class="label">金額</span><span class="value">表示 ¥${g.avg_offer_reward} → 実績 ¥${g.avg_actual_reward}`;
-    html += ` <span style="color:${g.avg_reward_gap>=0?'var(--green)':'var(--red)'}">（${g.avg_reward_gap>=0?'+':''}${g.avg_reward_gap}円）</span></span></div>`;
-    html += `<div class="bq-stat"><span class="label">時間</span><span class="value">表示 ${g.avg_offer_dur}分 → 実績 ${g.avg_actual_dur}分`;
-    html += ` <span style="color:${g.avg_duration_gap<=0?'var(--green)':'var(--red)'}">（${g.avg_duration_gap>0?'+':''}${g.avg_duration_gap}分）</span></span></div>`;
+    html += '<div class="bq-section"><h3>オファー表示 vs 実績のズレ (全期間)</h3>';
+    html += `<div class="bq-stat"><span class="label">突き合わせ件数</span><span class="value">${fmt(g.match_count)}件</span></div>`;
+    const rGap = Number(g.avg_reward_gap);
+    html += `<div class="bq-stat"><span class="label">金額</span><span class="value">表示 ¥${fmt(g.avg_offer_reward)} → 実績 ¥${fmt(g.avg_actual_reward)}`;
+    html += ` <span style="color:${rGap>=0?'var(--green)':'var(--red)'}">（${rGap>=0?'+':''}${fmt(rGap)}円）</span></span></div>`;
+    const dGap = Number(g.avg_duration_gap);
+    html += `<div class="bq-stat"><span class="label">時間</span><span class="value">表示 ${fmt(g.avg_offer_dur)}分 → 実績 ${fmt(g.avg_actual_dur)}分`;
+    html += ` <span style="color:${dGap<=0?'var(--green)':'var(--red)'}">（${dGap>0?'+':''}${g.avg_duration_gap}分）</span></span></div>`;
+    const kGap = Number(g.avg_distance_gap);
     html += `<div class="bq-stat"><span class="label">距離</span><span class="value">表示 ${g.avg_offer_dist}km → 実績 ${g.avg_actual_dist}km`;
-    html += ` <span style="color:${g.avg_distance_gap<=0?'var(--green)':'var(--red)'}">（${g.avg_distance_gap>0?'+':''}${g.avg_distance_gap}km）</span></span></div>`;
+    html += ` <span style="color:${kGap<=0?'var(--green)':'var(--red)'}">（${kGap>0?'+':''}${g.avg_distance_gap}km）</span></span></div>`;
     html += '</div>';
   }
 
-  // 3. 直近7日間の判定まとめ
+  // 3. 直近7日間 KITTの判定結果
   const o = d.offerStats || {};
-  html += '<div class="bq-section"><h3>直近7日間のオファー</h3>';
-  html += `<div class="bq-stat"><span class="label">総オファー数</span><span class="value">${o.total || 0}件</span></div>`;
-  html += `<div class="bq-stat"><span class="label">受諾 / 拒否</span><span class="value"><span style="color:var(--green)">${o.accepted || 0}件</span> / <span style="color:var(--red)">${o.rejected || 0}件</span></span></div>`;
-  html += `<div class="bq-stat"><span class="label">承諾率</span><span class="value">${o.total > 0 ? Math.round(o.accepted / o.total * 100) : 0}%</span></div>`;
-  html += `<div class="bq-stat"><span class="label">平均報酬</span><span class="value">¥${o.avg_reward || 0}</span></div>`;
-  html += `<div class="bq-stat"><span class="label">平均距離 / 時間</span><span class="value">${o.avg_dist || 0}km / ${o.avg_dur || 0}分</span></div>`;
-  html += `<div class="bq-stat"><span class="label">全体の平均時給</span><span class="value">¥${o.avg_hourly || 0}/h</span></div>`;
-  html += `<div class="bq-stat"><span class="label">受諾した案件の平均時給</span><span class="value" style="color:var(--green)">¥${o.avg_hourly_accept || 0}/h</span></div>`;
-  html += `<div class="bq-stat"><span class="label">拒否した案件の平均時給</span><span class="value" style="color:var(--red)">¥${o.avg_hourly_reject || 0}/h</span></div>`;
-  html += `<div class="bq-stat"><span class="label">判定レスポンス</span><span class="value">${((o.avg_response_ms || 0) / 1000).toFixed(1)}秒</span></div>`;
+  html += '<div class="bq-section"><h3>直近7日間 KITTの判定結果</h3>';
+  html += '<div style="color:var(--text-dim);font-size:12px;margin-bottom:6px">※KITTが判定した数値。実際の受諾/拒否とは異なる場合あり</div>';
+  html += `<div class="bq-stat"><span class="label">総オファー数</span><span class="value">${fmt(o.total || 0)}件</span></div>`;
+  html += `<div class="bq-stat"><span class="label">受諾判定 / 拒否判定</span><span class="value"><span style="color:var(--green)">${fmt(o.accepted || 0)}件</span> / <span style="color:var(--red)">${fmt(o.rejected || 0)}件</span></span></div>`;
+  html += `<div class="bq-stat"><span class="label">受諾率</span><span class="value">${o.total > 0 ? Math.round(o.accepted / o.total * 100) : 0}%</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均報酬</span><span class="value">¥${fmt(o.avg_reward || 0)}</span></div>`;
+  html += `<div class="bq-stat"><span class="label">平均距離 / 時間</span><span class="value">${o.avg_dist || 0}km / ${fmt(o.avg_dur || 0)}分</span></div>`;
+  html += `<div class="bq-stat"><span class="label">全体の平均時給</span><span class="value">¥${fmt(o.avg_hourly || 0)}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">受諾判定した案件の平均時給</span><span class="value" style="color:var(--green)">¥${fmt(o.avg_hourly_accept || 0)}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">拒否判定した案件の平均時給</span><span class="value" style="color:var(--red)">¥${fmt(o.avg_hourly_reject || 0)}/h</span></div>`;
+  html += `<div class="bq-stat"><span class="label">KITT判定にかかった時間</span><span class="value">${((o.avg_response_ms || 0) / 1000).toFixed(1)}秒</span></div>`;
   html += '</div>';
 
   // 4. 時間帯別
@@ -1531,16 +1548,16 @@ function renderBqStats(d) {
     html += '<div class="bq-section"><h3>時間帯別 (7日間)</h3><table class="bq-table"><tr><th>時間</th><th>件数</th><th></th><th>平均時給</th></tr>';
     for (const h of d.hourlyStats) {
       const pct = maxCnt > 0 ? Math.round(h.cnt / maxCnt * 100) : 0;
-      html += `<tr><td>${h.hour_of_day}時</td><td class="num">${h.cnt}</td><td><div class="bq-bar" style="width:${pct}%"></div></td><td class="num">¥${h.avg_hourly}/h</td></tr>`;
+      html += `<tr><td>${h.hour_of_day}時</td><td class="num">${fmt(h.cnt)}</td><td><div class="bq-bar" style="width:${pct}%"></div></td><td class="num">¥${fmt(h.avg_hourly)}/h</td></tr>`;
     }
     html += '</table></div>';
   }
 
   // 5. 店舗ランキング
   if (d.storeRanking?.length > 0) {
-    html += '<div class="bq-section"><h3>よく来る店舗 (30日間)</h3><table class="bq-table"><tr><th>店舗</th><th>回数</th><th>平均¥</th><th>時給</th></tr>';
+    html += '<div class="bq-section"><h3>よく来る店舗 (30日間)</h3><table class="bq-table"><tr><th>店舗</th><th>回数</th><th>平均報酬</th><th>平均時給</th></tr>';
     for (const s of d.storeRanking) {
-      html += `<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.store_name)}</td><td class="num">${s.cnt}</td><td class="num">¥${s.avg_reward}</td><td class="num">¥${s.avg_hourly}/h</td></tr>`;
+      html += `<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.store_name)}</td><td class="num">${fmt(s.cnt)}</td><td class="num">¥${fmt(s.avg_reward)}</td><td class="num">¥${fmt(s.avg_hourly)}/h</td></tr>`;
     }
     html += '</table></div>';
   }
@@ -1549,7 +1566,7 @@ function renderBqStats(d) {
   if (d.contextStats?.length > 0) {
     html += '<div class="bq-section"><h3>何でもBOX 内訳</h3><table class="bq-table"><tr><th>種類</th><th>件数</th></tr>';
     for (const c of d.contextStats) {
-      html += `<tr><td>${typeNameJa[c.type] || c.type}</td><td class="num">${c.cnt}</td></tr>`;
+      html += `<tr><td>${typeNameJa[c.type] || c.type}</td><td class="num">${fmt(c.cnt)}</td></tr>`;
     }
     html += '</table></div>';
   }
@@ -1558,15 +1575,22 @@ function renderBqStats(d) {
   if (d.coefficients?.length > 0) {
     html += '<div class="bq-section"><h3>判定に使っている係数</h3><table class="bq-table"><tr><th>項目</th><th>値</th></tr>';
     for (const c of d.coefficients) {
-      const name = coeffNameJa[c.coefficient_name] || c.coefficient_name;
+      const info = coeffJa[c.coefficient_name] || { name: c.coefficient_name, unit: '' };
       const val = Number(c.coefficient_value);
-      const valStr = val >= 1 ? '¥' + Math.round(val).toLocaleString() : val.toFixed(2);
-      const isWeight = c.coefficient_name.startsWith('weight_');
-      const display = isWeight ? (val * 100).toFixed(0) + '%' : (c.coefficient_name === 'score_threshold' ? val.toFixed(2) : valStr);
-      html += `<tr><td>${name}</td><td class="num">${display}</td></tr>`;
+      let display;
+      if (info.unit === '%') display = (val * 100).toFixed(0) + '%';
+      else if (info.unit === '') display = val.toFixed(2);
+      else if (info.unit === 'km' || info.unit === 'km/h') display = val.toFixed(2) + info.unit;
+      else display = fmt(Math.round(val)) + info.unit;
+      html += `<tr><td>${info.name}</td><td class="num">${display}</td></tr>`;
     }
     html += '</table></div>';
   }
+
+  // 8. 外部リサーチ
+  html += '<div class="bq-section"><h3>外部情報収集</h3>';
+  html += '<div style="color:var(--text-dim);font-size:13px;padding:8px 0">external_researchテーブルに82件蓄積済み。<br>SNS・ネットからの自動リサーチは未実装。</div>';
+  html += '</div>';
 
   return html;
 }

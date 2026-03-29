@@ -460,24 +460,29 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. Offer vs actual delivery gap (オファー表示 vs 実績のズレ)
+      // 7. Offer vs actual delivery gap (全期間、オファーとリザルトの突き合わせ)
       bigquery.query({ query: `
+        WITH matched AS (
+          SELECT o.offer_reward, o.offer_duration, o.offer_distance, o.store_name, o.timestamp as offer_ts,
+            d.reward as actual_reward, d.duration as actual_duration, d.distance as actual_distance
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+          JOIN \`${PROJECT_ID}.${DATASET}.delivery_history\` d
+            ON LOWER(REPLACE(o.store_name,' ','')) = LOWER(REPLACE(d.store_name,' ',''))
+            AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 120
+          WHERE o.gemini_decision = 'accept' AND o.offer_reward > 0 AND d.reward > 0
+        )
         SELECT
-          ROUND(AVG(d.reward - o.offer_reward), 0) as avg_reward_gap,
-          ROUND(AVG(d.duration - o.offer_duration), 1) as avg_duration_gap,
-          ROUND(AVG(d.distance - o.offer_distance), 2) as avg_distance_gap,
-          ROUND(AVG(o.offer_reward), 0) as avg_offer_reward,
-          ROUND(AVG(d.reward), 0) as avg_actual_reward,
-          ROUND(AVG(o.offer_duration), 0) as avg_offer_dur,
-          ROUND(AVG(d.duration), 0) as avg_actual_dur,
-          ROUND(AVG(o.offer_distance), 2) as avg_offer_dist,
-          ROUND(AVG(d.distance), 2) as avg_actual_dist,
-          COUNT(*) as match_count
-        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
-        JOIN \`${PROJECT_ID}.${DATASET}.delivery_history\` d
-          ON o.store_name = d.store_name
-          AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, MINUTE)) < 120
-          AND o.gemini_decision = 'accept'
+          COUNT(*) as match_count,
+          ROUND(AVG(offer_reward), 0) as avg_offer_reward,
+          ROUND(AVG(actual_reward), 0) as avg_actual_reward,
+          ROUND(AVG(actual_reward - offer_reward), 0) as avg_reward_gap,
+          ROUND(AVG(offer_duration), 0) as avg_offer_dur,
+          ROUND(AVG(actual_duration), 0) as avg_actual_dur,
+          ROUND(AVG(actual_duration - offer_duration), 1) as avg_duration_gap,
+          ROUND(AVG(offer_distance), 2) as avg_offer_dist,
+          ROUND(AVG(actual_distance), 2) as avg_actual_dist,
+          ROUND(AVG(actual_distance - offer_distance), 2) as avg_distance_gap
+        FROM matched
       `}).then(r => r[0])
     ]);
     const offerGap = recentAccuracy[0] || {};
