@@ -347,6 +347,33 @@ functions.http('chargingEvent', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 3.5: /offerScreenshot - Attach screenshot to latest offer
+// ============================================================
+functions.http('offerScreenshot', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type, X-API-Key'); return res.status(204).send(''); }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!checkApiKey(req)) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    let body = req.body; if(body[""]&&typeof body[""]=="object") body=body[""];
+    const { image_base64 } = body;
+    if (!image_base64) return res.status(400).json({ error: 'No image' });
+    // Upload to GCS
+    const imageUrl = await uploadScreenshot(image_base64, 'offer');
+    if (!imageUrl) return res.status(500).json({ error: 'Upload failed' });
+    // Update most recent offer_log (within last 2 minutes)
+    await bigquery.query({
+      query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET image_url = @url WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 MINUTE) AND image_url IS NULL ORDER BY timestamp DESC LIMIT 1`,
+      params: { url: imageUrl }
+    });
+    res.status(200).json({ status: 'ok', image_url: imageUrl });
+  } catch (e) {
+    console.error('offerScreenshot error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // ENDPOINT 4: /dashboardFeed - Recent logs for KITT dashboard
 // ============================================================
 functions.http('dashboardFeed', async (req, res) => {
