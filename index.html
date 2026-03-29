@@ -208,7 +208,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <!-- Image Modal -->
 <div id="image-modal">
   <button id="image-modal-close" onclick="closeImageModal()">✕</button>
+  <div id="image-modal-counter" style="position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:12px;color:#aaa;font-family:'Orbitron',monospace"></div>
   <img id="image-modal-img" src="" alt="">
+  <div style="position:absolute;bottom:20px;display:flex;gap:16px">
+    <button onclick="imageModalNav(-1)" style="width:44px;height:44px;border-radius:50%;border:1px solid #555;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">◀</button>
+    <button onclick="imageModalNav(1)" style="width:44px;height:44px;border-radius:50%;border:1px solid #555;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">▶</button>
+  </div>
 </div>
 
 <!-- Log Bar -->
@@ -317,16 +322,18 @@ try {
 // ============================================================
 // Tab Navigation
 // ============================================================
+function switchTab(panel) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-panel="${panel}"]`)?.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(panel + '-panel')?.classList.add('active');
+  state.activePanel = panel;
+  if (panel === 'offer-log' || panel === 'nandemo-log') fetchDashboard();
+}
 document.querySelectorAll('.tab[data-panel]').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const panel = tab.dataset.panel;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(panel + '-panel').classList.add('active');
-    state.activePanel = panel;
-    if (panel === 'offer-log' || panel === 'nandemo-log') fetchDashboard();
-  });
+  const panel = tab.dataset.panel;
+  tab.addEventListener('click', () => switchTab(panel));
+  tab.addEventListener('touchend', (e) => { e.preventDefault(); switchTab(panel); });
 });
 
 // ============================================================
@@ -1313,16 +1320,41 @@ function renderNandemoList() {
   }).join('');
 }
 
+let imageModalUrls = [];
+let imageModalIndex = 0;
+let imageSwipeStartX = 0;
+
 function showImageModal(url) {
   if (!url) return;
+  // Collect all image URLs from current visible logs
+  const allUrls = [...nandemoLogs, ...offerLogs].filter(n => n.image_url).map(n => n.image_url);
+  imageModalUrls = [...new Set(allUrls)];
+  imageModalIndex = imageModalUrls.indexOf(url);
+  if (imageModalIndex < 0) { imageModalUrls = [url]; imageModalIndex = 0; }
   const modal = document.getElementById('image-modal');
   document.getElementById('image-modal-img').src = url;
+  document.getElementById('image-modal-counter').textContent = (imageModalIndex + 1) + '/' + imageModalUrls.length;
   modal.classList.add('show');
 }
 function closeImageModal() {
   document.getElementById('image-modal').classList.remove('show');
   document.getElementById('image-modal-img').src = '';
 }
+function imageModalNav(dir) {
+  imageModalIndex = Math.max(0, Math.min(imageModalUrls.length - 1, imageModalIndex + dir));
+  document.getElementById('image-modal-img').src = imageModalUrls[imageModalIndex];
+  document.getElementById('image-modal-counter').textContent = (imageModalIndex + 1) + '/' + imageModalUrls.length;
+}
+// Swipe on modal
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('image-modal');
+  modal.addEventListener('touchstart', e => { imageSwipeStartX = e.touches[0].clientX; }, {passive: true});
+  modal.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - imageSwipeStartX;
+    if (Math.abs(dx) > 50) { imageModalNav(dx < 0 ? 1 : -1); }
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) closeImageModal(); });
+});
 
 function formatSummary(s, type) {
   const h = escHtml(s);
