@@ -616,8 +616,8 @@ function parseOcrText(text) {
     for (let i = goukeiIdx - 1; i >= Math.max(0, goukeiIdx - 5); i--) {
       const trimmed = rewardLines[i].trim();
       if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      if (/^\+/.test(trimmed)) continue;
-      const m = trimmed.match(/[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
+      // +·156 (追加オファー) も有効
+      const m = trimmed.match(/\+?\s*[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
         if (val >= 100 && val <= 9999) { result.reward = val; break; }
@@ -630,8 +630,8 @@ function parseOcrText(text) {
     for (const rl of rewardLines) {
       const trimmed = rl.trim();
       if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      if (/^\+/.test(trimmed)) continue;
-      const m = trimmed.match(/[·•]\s*([0-9,]{3,})/);
+      // +·156 (追加オファー) も有効
+      const m = trimmed.match(/\+?\s*[·•]\s*([0-9,]{3,})/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
         if (val >= 100 && val <= 9999) { result.reward = val; break; }
@@ -644,7 +644,7 @@ function parseOcrText(text) {
     for (const rl of rewardLines) {
       const trimmed = rl.trim();
       if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      if (/^\+/.test(trimmed)) continue;
+      // +·156 (追加オファー) も有効
       const m = trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
