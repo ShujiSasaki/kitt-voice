@@ -1732,7 +1732,7 @@ function renderBqStats(d) {
   if (d.quests?.length > 0) {
     const today = new Date();
     const todayStr = (today.getMonth()+1) + '/' + today.getDate();
-    const todayNum = today.getMonth() * 31 + today.getDate(); // 簡易日付比較
+    const todayNum = (today.getMonth()+1) * 31 + today.getDate(); // 簡易日付比較 (getMonth()は0ベース)
     const activeQuests = d.quests.filter(q => {
       const s = q.summary || '';
       // ピーク: 日付を抽出して今日以降か判定
