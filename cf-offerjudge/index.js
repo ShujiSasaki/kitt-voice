@@ -649,6 +649,43 @@ functions.http('systemHealth', async (req, res) => {
     const ah = abnormalHourly[0]?.cnt || 0;
     if (ah > 0) issues.push({ severity: 'medium', type: 'abnormal_hourly', count: ah, msg: `異常時給(10万超)が${ah}件` });
 
+    // Check 9: データ整合性クロスチェック (actual_payout件数がBQタブの表示と一致するか)
+    try {
+      const [crossCheck] = await bigquery.query({ query: `
+        SELECT
+          (SELECT COUNT(*) FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE actual_payout IS NOT NULL) as bq_matched,
+          (SELECT COUNT(*) FROM \`${PROJECT_ID}.${DATASET}.delivery_history\` WHERE reward > 0) as deliveries_with_reward,
+          (SELECT COUNT(*) FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE actual_payout IS NOT NULL AND offer_duration > 0 AND offer_reward > 0) as bq_matched_valid
+      `});
+      const cc = crossCheck[0];
+      if (cc.deliveries_with_reward > 0 && cc.bq_matched < cc.deliveries_with_reward * 0.5) {
+        issues.push({ severity: 'high', type: 'match_gap', msg: `delivery ${cc.deliveries_with_reward}件中 ${cc.bq_matched}件しかoffer_logsに紐付いてない` });
+      }
+      // BQタブのズレ分析が返すべき件数との整合性
+      if (cc.bq_matched > 0 && cc.bq_matched_valid < cc.bq_matched * 0.8) {
+        issues.push({ severity: 'medium', type: 'invalid_matched', msg: `紐付済${cc.bq_matched}件中 有効(reward>0,duration>0)は${cc.bq_matched_valid}件のみ` });
+      }
+    } catch(e) {}
+
+    // Check 10: PDCA結果の妥当性 (重みの合計が1.0に近いか、閾値が異常でないか)
+    try {
+      const c = await getCoefficients();
+      const weightSum = (c.weight_hourly_rate||0) + (c.weight_reward_per_km||0) + (c.weight_distance||0) + (c.weight_store_reputation||0) + (c.weight_market||0) + (c.weight_quest_adjusted||0) + (c.weight_opportunity||0);
+      if (Math.abs(weightSum - 1.0) > 0.05) {
+        issues.push({ severity: 'high', type: 'weight_sum_off', msg: `重みの合計が${weightSum.toFixed(3)}（1.0であるべき）` });
+        // Auto-fix: 正規化
+        const keys = ['weight_hourly_rate','weight_reward_per_km','weight_distance','weight_store_reputation','weight_market','weight_quest_adjusted','weight_opportunity'];
+        const fixedWeights = {};
+        for (const k of keys) fixedWeights[k] = Math.round(((c[k] || 0) / weightSum) * 1000) / 1000;
+        await updateCoefficients(fixedWeights);
+        cache.coefficients = { data: null, expiry: 0 };
+        fixes.push({ type: 'normalize_weights', msg: `重みを正規化 (${weightSum.toFixed(3)}→1.000)` });
+      }
+      if (c.score_threshold > 1.5 || c.score_threshold < 0.3) {
+        issues.push({ severity: 'high', type: 'threshold_extreme', msg: `閾値が${c.score_threshold}（異常値）` });
+      }
+    } catch(e) {}
+
     // Save report to RTDB
     const report = {
       timestamp: Date.now(),
@@ -826,7 +863,7 @@ functions.http('bqStats', async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
   try {
-    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, offerGapRaw, storeWaitRaw, storeMasterRaw] = await Promise.all([
+    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, offerGapRaw, storeWaitRaw, storeMasterRaw, questsRaw] = await Promise.all([
       // 1. Table row counts
       bigquery.query({ query: `
         SELECT 'offer_logs' as t, COUNT(*) as cnt, CAST(MIN(timestamp) AS STRING) as oldest, CAST(MAX(timestamp) AS STRING) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
@@ -921,10 +958,18 @@ functions.http('bqStats', async (req, res) => {
         ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0]),
       // 9. Store master (名寄せ一覧)
-      bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0])
+      bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0]),
+      // 10. クエスト情報 (時系列)
+      bigquery.query({ query: `
+        SELECT timestamp, type, summary
+        FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+        WHERE type IN ('quest', 'quest_result')
+          AND summary NOT LIKE 'UberEats%' AND summary NOT LIKE 'テスト%' AND LENGTH(summary) > 10
+        ORDER BY timestamp DESC LIMIT 30
+      `}).then(r => r[0])
     ]);
     const offerGap = (offerGapRaw || [])[0] || {};
-    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap, storeWait: storeWaitRaw || [], storeMaster: storeMasterRaw || [] });
+    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap, storeWait: storeWaitRaw || [], storeMaster: storeMasterRaw || [], quests: questsRaw || [] });
   } catch (error) {
     console.error('bqStats error:', error);
     res.status(500).json({ error: error.message });
