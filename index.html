@@ -1728,7 +1728,24 @@ function renderBqStats(d) {
     html += '</table></div>';
   }
 
-  // 7.5 店舗マスター一覧 (名寄せ結果)
+  // 7.5 クエスト情報 (時系列)
+  if (d.quests?.length > 0) {
+    html += '<div class="bq-section"><h3>認知しているクエスト (時系列)</h3>';
+    html += '<table class="bq-table"><tr><th>日時</th><th>種別</th><th>内容</th></tr>';
+    let lastDate = '';
+    for (const q of d.quests) {
+      const t = new Date(q.timestamp?.value || q.timestamp);
+      const dateStr = (t.getMonth()+1) + '/' + t.getDate();
+      const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      const typeLabel = q.type === 'quest_result' ? '<span style="color:var(--green)">達成</span>' : '<span style="color:var(--amber)">条件</span>';
+      const dateHeader = dateStr !== lastDate ? `<tr><td colspan="3" style="color:var(--text-dim);font-size:11px;padding:6px 0 2px;border:none">${dateStr}</td></tr>` : '';
+      lastDate = dateStr;
+      html += `${dateHeader}<tr><td class="num" style="font-size:12px">${timeStr}</td><td>${typeLabel}</td><td>${escHtml(q.summary)}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
+  // 7.6 店舗マスター一覧 (名寄せ結果)
   if (d.storeMaster?.length > 0) {
     html += '<div class="bq-section"><h3>店舗マスター (名寄せ済み)</h3>';
     html += '<div style="color:var(--text-dim);font-size:11px;margin-bottom:6px">同じ店の表記揺れを統合。全' + d.storeMaster.length + '店舗</div>';
