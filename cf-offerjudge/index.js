@@ -1141,10 +1141,10 @@ function parseOcrText(text) {
 
   // Strategy 1: 合計行の上5行以内で中点パターン(·XXX)を探す = 最も信頼度が高い
   if (goukeiIdx > 0) {
-    for (let i = goukeiIdx - 1; i >= Math.max(0, goukeiIdx - 5); i--) {
+    for (let i = goukeiIdx - 1; i >= Math.max(0, goukeiIdx - 3); i--) {
       const trimmed = rewardLines[i].trim();
       if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      // +·156 (追加オファー) も有効
+      if (/^0[·•\d]/.test(trimmed)) continue; // 0始まり=地図番号
       const m = trimmed.match(/\+?\s*[·•]\s*([0-9,]{3,})/) || trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
@@ -1158,7 +1158,7 @@ function parseOcrText(text) {
     for (const rl of rewardLines) {
       const trimmed = rl.trim();
       if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      // +·156 (追加オファー) も有効
+      if (/^0[·•\d]/.test(trimmed)) continue; // 0始まり=地図番号
       const m = trimmed.match(/\+?\s*[·•]\s*([0-9,]{3,})/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
