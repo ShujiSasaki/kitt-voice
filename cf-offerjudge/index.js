@@ -978,42 +978,58 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
         WHERE actual_payout IS NOT NULL AND offer_reward > 0 AND offer_duration > 0
       `}).then(r => r[0]),
-      // 8. 店舗別待機時間 (acceptオファー → 直後の充電ON/OFFペア = ピック待機)
+      // 8. 店舗別待機時間
+      // 充電OFF=バイク停車(到着) → 充電ON=バイク発進(出発)
+      // 受諾SS(何でもBOX) → 次の充電OFF(店到着) → 次の充電ON(店出発) = ピック待機時間
       bigquery.query({ query: `
-        WITH accepted_offers AS (
-          SELECT timestamp as offer_ts,
-            REGEXP_REPLACE(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King|LOTTERIA|ZETTERIA|Gansoramen).*$", '')), r'\\s+', ''), r'[　【】「」()]', '') as store_norm
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE gemini_decision = 'accept' AND store_name != '' AND LENGTH(store_name) > 2
-            AND REGEXP_CONTAINS(store_name, r'[\\p{Han}\\p{Hiragana}\\p{Katakana}]')
+        WITH accepted_entries AS (
+          SELECT timestamp as accepted_ts,
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(
+                TRIM(REGEXP_REPLACE(
+                  CASE WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"store_name":\\s*"')
+                    THEN REGEXP_EXTRACT(summary, r'"store_name":\\s*"([^"]+)"')
+                    ELSE REGEXP_EXTRACT(summary, r'^(.+?)\\s+\\S+\\s+\\d+件')
+                  END,
+                  r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King).*$", '')),
+                r'[\\s　【】「」()]+', ''),
+              r'[/].+$', '') as store_norm
+          FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+          WHERE (type = 'accepted' OR (type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"type":\\s*"accepted"')))
+            AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
         ),
-        charging_on_off AS (
-          SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging,
+        charging_seq AS (
+          SELECT
+            PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts,
+            wireless_charging,
             LEAD(PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc)) OVER (ORDER BY timestamp_utc) as next_ts,
             LEAD(wireless_charging) OVER (ORDER BY timestamp_utc) as next_state
           FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
           WHERE timestamp_utc IS NOT NULL
         ),
-        -- 充電ON→OFF ペア (1〜25分)
-        stop_pairs AS (
-          SELECT ts as arrive_ts, next_ts as leave_ts,
+        -- 充電OFF→ON ペア = バイク停車→発進 (店舗到着→出発)
+        stop_at_store AS (
+          SELECT ts as arrive_ts, next_ts as depart_ts,
             TIMESTAMP_DIFF(next_ts, ts, SECOND)/60.0 as wait_min
-          FROM charging_on_off
-          WHERE wireless_charging = true AND next_state = false
+          FROM charging_seq
+          WHERE wireless_charging = false AND next_state = true
             AND TIMESTAMP_DIFF(next_ts, ts, MINUTE) BETWEEN 1 AND 25
         ),
-        -- acceptオファーの直後(20分以内)の最初の停車を紐付け
+        -- 受諾SS後の最初の停車(=最初のピック先到着)を紐付け
         matched AS (
-          SELECT a.store_norm, p.wait_min,
-            ROW_NUMBER() OVER (PARTITION BY a.offer_ts ORDER BY p.arrive_ts) as rn
-          FROM accepted_offers a
-          JOIN stop_pairs p ON p.arrive_ts > a.offer_ts
-            AND TIMESTAMP_DIFF(p.arrive_ts, a.offer_ts, MINUTE) < 20
+          SELECT a.store_norm, s.wait_min, a.accepted_ts,
+            ROW_NUMBER() OVER (PARTITION BY a.accepted_ts ORDER BY s.arrive_ts) as rn
+          FROM accepted_entries a
+          JOIN stop_at_store s ON s.arrive_ts > a.accepted_ts
+            AND TIMESTAMP_DIFF(s.arrive_ts, a.accepted_ts, MINUTE) < 20
+          WHERE LENGTH(a.store_norm) >= 2
         )
         SELECT store_norm as store_name, COUNT(*) as cnt,
           ROUND(AVG(wait_min), 1) as avg_wait_min,
           ROUND(MAX(wait_min), 1) as max_wait_min
-        FROM matched WHERE rn = 1 AND LENGTH(store_norm) >= 3
+        FROM matched WHERE rn = 1
+          AND REGEXP_CONTAINS(store_norm, r'[\\p{Han}\\p{Hiragana}\\p{Katakana}]')
+          AND NOT REGEXP_CONTAINS(store_norm, r'稼働|ガイド|テスト')
         GROUP BY store_norm HAVING cnt >= 2
         ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0]),
