@@ -1516,6 +1516,8 @@ function renderWeather(w) {
   return html;
 }
 
+const fmt = (n) => Number(n).toLocaleString();
+
 function renderPdca(pdca) {
   if (!pdca) return '';
   let html = '<div class="bq-section"><h3>PDCA自動学習</h3>';
@@ -1592,7 +1594,6 @@ function renderBqStats(d) {
     rain_penalty_far:       { name:'強雨ペナルティ(遠距離)', unit:'%' },
     temp_extreme_boost:     { name:'猛暑/極寒ブースト', unit:'%' }
   };
-  const fmt = (n) => Number(n).toLocaleString();
   let html = '';
 
   // 1. データ蓄積状況
