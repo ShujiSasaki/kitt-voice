@@ -551,14 +551,13 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-            // 7. オファー vs 実績のズレ (store_master正規化 + GPS + 時間)
+            // 7. オファー vs 実績のズレ (スペース除去正規化 + GPS + 時間)
       bigquery.query({ query: `
         WITH offers AS (
-          SELECT o.log_id, o.timestamp, o.offer_reward, o.offer_duration, o.offer_distance, o.lat, o.lng,
-            COALESCE(m.store_id, REGEXP_REPLACE(o.store_name, r'\\s+', '')) as store_norm
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
-          LEFT JOIN \`${PROJECT_ID}.${DATASET}.store_master\` m ON o.store_name = m.canonical_name
-          WHERE o.offer_reward > 0 AND o.offer_duration >= 5 AND o.store_name != '' AND LENGTH(o.store_name) > 2
+          SELECT log_id, timestamp, offer_reward, offer_duration, offer_distance, lat, lng,
+            REGEXP_REPLACE(REGEXP_REPLACE(store_name, r'\\s+', ''), r'[　]', '') as store_norm
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE offer_reward > 0 AND offer_duration >= 5 AND store_name != '' AND LENGTH(store_name) > 2
         ),
         results AS (
           SELECT delivery_id, timestamp, reward, duration, distance, lat, lng,
@@ -616,18 +615,20 @@ functions.http('bqStats', async (req, res) => {
             AND TIMESTAMP_DIFF(next_ts, ts, MINUTE) BETWEEN 1 AND 25
         ),
         with_store AS (
-          SELECT p.wait_min, p.arrive_ts, REGEXP_EXTRACT(o.store_name, r'^([^\\s]+)') as store_short,
+          SELECT p.wait_min, p.arrive_ts,
+            REGEXP_REPLACE(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(o.store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King|LOTTERIA|ZETTERIA|Gansoramen).*$", '')), r'\\s+', ''), r'[　【】「」()]', '') as store_norm,
             ROW_NUMBER() OVER (PARTITION BY p.arrive_ts ORDER BY ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE))) as rn
           FROM pairs p
           JOIN \`${PROJECT_ID}.${DATASET}.offer_logs\` o
             ON ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE)) < 30
-            AND o.store_name != '' AND LENGTH(o.store_name) > 1
+            AND o.store_name != '' AND LENGTH(o.store_name) > 2
+            AND REGEXP_CONTAINS(o.store_name, r'[\p{Han}\p{Hiragana}\p{Katakana}]')
         )
-        SELECT store_short as store_name, COUNT(*) as cnt,
+        SELECT store_norm as store_name, COUNT(*) as cnt,
           ROUND(AVG(wait_min), 1) as avg_wait_min,
           ROUND(MAX(wait_min), 1) as max_wait_min
-        FROM with_store WHERE rn = 1
-        GROUP BY store_short HAVING cnt >= 2
+        FROM with_store WHERE rn = 1 AND LENGTH(store_norm) >= 3
+        GROUP BY store_norm HAVING cnt >= 2
         ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0]),
       // 9. Store master (名寄せ一覧)
