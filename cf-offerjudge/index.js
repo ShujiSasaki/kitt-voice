@@ -871,52 +871,21 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-            // 7. オファー vs 実績のズレ (スペース除去正規化 + GPS + 時間)
+            // 7. オファー vs 実績のズレ (actual_*フィールドから直接計算)
       bigquery.query({ query: `
-        WITH offers AS (
-          SELECT log_id, timestamp, offer_reward, offer_duration, offer_distance, lat, lng,
-            REGEXP_REPLACE(REGEXP_REPLACE(store_name, r'\\s+', ''), r'[　]', '') as store_norm
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE offer_reward > 0 AND offer_duration >= 5 AND store_name != '' AND LENGTH(store_name) > 2
-        ),
-        results AS (
-          SELECT delivery_id, timestamp, reward, duration, distance, lat, lng,
-            REGEXP_REPLACE(REGEXP_REPLACE(store_name, r'\\s+', ''), r'[　]', '') as store_norm
-          FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
-          WHERE reward > 0 AND store_name != ''
-        ),
-        matched AS (
-          SELECT r.delivery_id, r.reward, r.duration, r.distance,
-            o.offer_reward, o.offer_duration, o.offer_distance,
-            ROW_NUMBER() OVER (PARTITION BY r.delivery_id ORDER BY
-              -- 優先度: 1.正規化店名一致 2.GPS近傍(500m以内) 3.時間近傍
-              CASE WHEN o.store_norm = r.store_norm THEN 0
-                   WHEN o.lat > 0 AND r.lat > 0 AND ABS(o.lat - r.lat) < 0.005 AND ABS(o.lng - r.lng) < 0.005 THEN 1
-                   ELSE 2 END,
-              ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE))
-            ) as rn
-          FROM results r
-          JOIN offers o ON ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 180
-            AND (
-              o.store_norm = r.store_norm
-              OR STARTS_WITH(o.store_norm, LEFT(r.store_norm, 4))
-              OR STARTS_WITH(r.store_norm, LEFT(o.store_norm, 4))
-              OR (o.lat > 0 AND r.lat > 0 AND ABS(o.lat - r.lat) < 0.005 AND ABS(o.lng - r.lng) < 0.005)
-              OR ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 45
-            )
-        )
         SELECT
           COUNT(*) as match_count,
           ROUND(AVG(offer_reward), 0) as avg_offer_reward,
-          ROUND(AVG(reward), 0) as avg_actual_reward,
-          ROUND(AVG(reward - offer_reward), 0) as avg_reward_gap,
+          ROUND(AVG(actual_payout), 0) as avg_actual_reward,
+          ROUND(AVG(actual_payout - offer_reward), 0) as avg_reward_gap,
           ROUND(AVG(offer_duration), 0) as avg_offer_dur,
-          ROUND(AVG(duration), 0) as avg_actual_dur,
-          ROUND(AVG(duration - offer_duration), 1) as avg_duration_gap,
+          ROUND(AVG(actual_duration_minutes), 0) as avg_actual_dur,
+          ROUND(AVG(actual_duration_minutes - offer_duration), 1) as avg_duration_gap,
           ROUND(AVG(offer_distance), 2) as avg_offer_dist,
-          ROUND(AVG(distance), 2) as avg_actual_dist,
-          ROUND(AVG(distance - offer_distance), 2) as avg_distance_gap
-        FROM matched WHERE rn = 1
+          ROUND(AVG(actual_distance_km), 2) as avg_actual_dist,
+          ROUND(AVG(actual_distance_km - offer_distance), 2) as avg_distance_gap
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        WHERE actual_payout IS NOT NULL AND offer_reward > 0 AND offer_duration > 0
       `}).then(r => r[0]),
       // 8. 店舗別待機時間ランキング (充電ON→次のOFFをLEAD()でペアリング)
       bigquery.query({ query: `
