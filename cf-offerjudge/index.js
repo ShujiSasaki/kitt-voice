@@ -527,18 +527,20 @@ functions.http('bqStats', async (req, res) => {
       `}).then(r => r[0]),
       // 4. Context logs by type
       bigquery.query({ query: `SELECT type, COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.context_logs\` GROUP BY type ORDER BY cnt DESC` }).then(r => r[0]),
-      // 5. Store ranking (正規化店名で集約)
+      // 5. Store ranking (store_masterで正規化)
       bigquery.query({ query: `
-        SELECT REGEXP_REPLACE(REGEXP_REPLACE(
-          TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Mos Burger|Gusto|KFC).*$", '')),
-          r'\\s+', ''), r'[　]', '') as store_name,
-        COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
-        COUNTIF(gemini_decision='accept') as accepts
-        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-        WHERE store_name != '' AND LENGTH(store_name) > 2
-          AND NOT REGEXP_CONTAINS(store_name, r'^[0-9:iX•\\s]+$')
-          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-        GROUP BY 1 HAVING cnt >= 2 ORDER BY cnt DESC LIMIT 20
+        WITH norm AS (
+          SELECT o.*, COALESCE(m.store_id, REGEXP_REPLACE(REGEXP_REPLACE(o.store_name, r'\\s+', ''), r'[　]', '')) as sid
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+          LEFT JOIN \`${PROJECT_ID}.${DATASET}.store_master\` m ON o.store_name = m.canonical_name
+          WHERE o.store_name != '' AND LENGTH(o.store_name) > 2
+            AND o.timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+            AND NOT REGEXP_CONTAINS(o.store_name, r'^[0-9:iX•\\s]+$')
+        )
+        SELECT sid as store_name, COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward,
+          ROUND(AVG(CASE WHEN offer_duration > 0 THEN estimated_hourly_rate END),0) as avg_hourly,
+          COUNTIF(gemini_decision='accept') as accepts
+        FROM norm GROUP BY sid HAVING cnt >= 2 ORDER BY cnt DESC LIMIT 20
       `}).then(r => r[0]),
       // 6. Hourly breakdown (last 7 days)
       bigquery.query({ query: `
@@ -547,15 +549,14 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. オファー vs 実績のズレ (正規化店名 + 時間近傍 + GPS近傍)
+            // 7. オファー vs 実績のズレ (store_master正規化 + GPS + 時間)
       bigquery.query({ query: `
         WITH offers AS (
-          SELECT log_id, timestamp, offer_reward, offer_duration, offer_distance, lat, lng,
-            REGEXP_REPLACE(REGEXP_REPLACE(
-              TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya).*$", '')),
-              r'\\s+', ''), r'[　]', '') as store_norm
-          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE offer_reward > 0 AND store_name != '' AND LENGTH(store_name) > 2
+          SELECT o.log_id, o.timestamp, o.offer_reward, o.offer_duration, o.offer_distance, o.lat, o.lng,
+            COALESCE(m.store_id, REGEXP_REPLACE(o.store_name, r'\\s+', '')) as store_norm
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+          LEFT JOIN \`${PROJECT_ID}.${DATASET}.store_master\` m ON o.store_name = m.canonical_name
+          WHERE o.offer_reward > 0 AND o.offer_duration >= 5 AND o.store_name != '' AND LENGTH(o.store_name) > 2
         ),
         results AS (
           SELECT delivery_id, timestamp, reward, duration, distance, lat, lng,
