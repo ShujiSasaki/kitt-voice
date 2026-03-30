@@ -542,6 +542,74 @@ functions.http('externalResearch', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 4.35: /pdcaCycle - 日次PDCA自動最適化 (Cloud Scheduler 4:30AM)
+// ============================================================
+functions.http('pdcaCycle', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    const results = {};
+
+    // Step 1: 係数再計算（実績データ優先）
+    await recalculateCoefficients();
+    results.coefficients = 'updated';
+
+    // Step 2: 重み自動最適化
+    results.optimization = await optimizeWeights();
+
+    // Step 3: store_master再構築
+    try {
+      await bigquery.query({ query: `
+        CREATE OR REPLACE TABLE \`${PROJECT_ID}.${DATASET}.store_master\` AS
+        WITH all_names AS (
+          SELECT store_name, COUNT(*) as cnt
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE store_name != '' AND LENGTH(store_name) > 2
+          GROUP BY store_name
+        ),
+        normalized AS (
+          SELECT store_name, cnt,
+            REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(store_name,
+              r"\\s*(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King|Gansoramen|NIKUNOANDES|SRILANKA|KOREAN DINING.*|VIETNAMESE.*|Bikkuri donkey|ganso hakata|Pizza Hut.*|SUBWAY.*|Karatora|kabeya|CoCo Ichibanya|Curry House.*)\\s*$", ''),
+              r'\\s*LOTTERIA.*$', ''), r'\\s*ZETTERIA\\s*', ' '), r'[【】「」（）()]+', '') as name_clean
+          FROM all_names
+        ),
+        cleaned AS (
+          SELECT store_name, cnt, TRIM(REGEXP_REPLACE(REGEXP_REPLACE(name_clean, r'[　]+', ''), r'\\s{2,}', ' ')) as norm_key
+          FROM normalized
+        ),
+        filtered AS (
+          SELECT * FROM cleaned WHERE LENGTH(norm_key) >= 3
+            AND NOT REGEXP_CONTAINS(norm_key, r'^[0-9:.,\\s]+$')
+            AND REGEXP_CONTAINS(norm_key, r'[\\p{Han}\\p{Hiragana}\\p{Katakana}]')
+        ),
+        ranked AS (
+          SELECT norm_key, store_name, cnt,
+            ROW_NUMBER() OVER (PARTITION BY norm_key ORDER BY cnt DESC) as rn,
+            SUM(cnt) OVER (PARTITION BY norm_key) as total_cnt
+          FROM filtered
+        )
+        SELECT norm_key as store_id, store_name as canonical_name, total_cnt
+        FROM ranked WHERE rn = 1 ORDER BY total_cnt DESC
+      `});
+      results.store_master = 'rebuilt';
+    } catch(e) { results.store_master = 'error: ' + e.message; }
+
+    // Step 4: PDCA結果をRTDBに保存
+    const rtdbUrl = FIREBASE_DB_URL + '/pdca.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    await fetch(rtdbUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ last_cycle: { timestamp: Date.now(), results } })
+    });
+
+    console.log('PDCA cycle completed:', JSON.stringify(results));
+    res.status(200).json({ status: 'ok', results });
+  } catch (e) {
+    console.error('pdcaCycle error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // ENDPOINT 4.4: /weatherCheck - 定期天気チェック (Cloud Scheduler)
 // ============================================================
 functions.http('weatherCheck', async (req, res) => {
@@ -1499,25 +1567,39 @@ async function syncDeliveryResult(logId, data) {
   return result;
 }
 
+// ============================================================
+// PDCA Engine: 係数再計算 + 重み自動最適化
+// ============================================================
+
+// 係数再計算: 実績データ(actual_*)優先、なければ推定値(offer_*)にフォールバック
 async function recalculateCoefficients() {
   try {
     const query = `
       WITH stats AS (
         SELECT
-          ROUND(AVG(offer_reward), 2) as avg_reward,
-          ROUND(AVG(offer_distance), 2) as avg_distance,
-          ROUND(AVG(offer_duration), 2) as avg_duration,
-          ROUND(AVG(CASE WHEN offer_distance > 0 THEN offer_reward / offer_distance END), 2) as avg_reward_per_km,
-          ROUND(AVG(CASE WHEN offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_reward_per_hour,
-          ROUND(AVG(CASE WHEN offer_duration > 0 AND offer_distance > 0 THEN (offer_distance / offer_duration) * 60 END), 2) as avg_speed_kmh,
-          ROUND(AVG(CASE WHEN offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as base_hourly_wage,
-          ROUND(AVG(CASE WHEN hour_of_day >= 11 AND hour_of_day < 14 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_lunch,
-          ROUND(AVG(CASE WHEN hour_of_day >= 17 AND hour_of_day < 21 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_dinner,
-          ROUND(AVG(CASE WHEN (hour_of_day >= 22 OR hour_of_day < 7) AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_late_night,
-          ROUND(AVG(CASE WHEN hour_of_day >= 7 AND hour_of_day < 11 AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_morning,
-          ROUND(AVG(CASE WHEN day_of_week IN ('Sat','Sun') AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_weekend,
-          ROUND(AVG(CASE WHEN day_of_week NOT IN ('Sat','Sun') AND offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 2) as avg_hourly_wage_weekday,
-          COUNT(*) as total_deliveries
+          ROUND(AVG(COALESCE(actual_payout, offer_reward)), 2) as avg_reward,
+          ROUND(AVG(COALESCE(actual_distance_km, offer_distance)), 2) as avg_distance,
+          ROUND(AVG(COALESCE(actual_duration_minutes, offer_duration)), 2) as avg_duration,
+          ROUND(AVG(CASE WHEN COALESCE(actual_distance_km, offer_distance) > 0
+            THEN COALESCE(actual_payout, offer_reward) / COALESCE(actual_distance_km, offer_distance) END), 2) as avg_reward_per_km,
+          ROUND(AVG(CASE WHEN COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as base_hourly_wage,
+          ROUND(AVG(CASE WHEN COALESCE(actual_duration_minutes, offer_duration) > 0 AND COALESCE(actual_distance_km, offer_distance) > 0
+            THEN (COALESCE(actual_distance_km, offer_distance) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_speed_kmh,
+          ROUND(AVG(CASE WHEN hour_of_day >= 11 AND hour_of_day < 14 AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_lunch,
+          ROUND(AVG(CASE WHEN hour_of_day >= 17 AND hour_of_day < 21 AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_dinner,
+          ROUND(AVG(CASE WHEN (hour_of_day >= 22 OR hour_of_day < 7) AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_late_night,
+          ROUND(AVG(CASE WHEN hour_of_day >= 7 AND hour_of_day < 11 AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_morning,
+          ROUND(AVG(CASE WHEN day_of_week IN ('Sat','Sun') AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_weekend,
+          ROUND(AVG(CASE WHEN day_of_week NOT IN ('Sat','Sun') AND COALESCE(actual_duration_minutes, offer_duration) > 0
+            THEN (COALESCE(actual_payout, offer_reward) / COALESCE(actual_duration_minutes, offer_duration)) * 60 END), 2) as avg_hourly_wage_weekday,
+          COUNT(*) as total_offers,
+          COUNTIF(actual_payout IS NOT NULL) as actual_data_count
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs_clean\`
         WHERE offer_reward > 0 AND offer_distance > 0 AND offer_duration > 0
           AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
@@ -1528,26 +1610,140 @@ async function recalculateCoefficients() {
     if (!rows || !rows[0] || !rows[0].base_hourly_wage) return;
     const s = rows[0];
     const updates = {};
-    if (s.avg_reward) updates.avg_reward = s.avg_reward;
-    if (s.avg_distance) updates.avg_distance = s.avg_distance;
-    if (s.avg_duration) updates.avg_duration = s.avg_duration;
-    if (s.avg_reward_per_km) updates.avg_reward_per_km = s.avg_reward_per_km;
-    if (s.avg_reward_per_hour) updates.avg_reward_per_hour = s.avg_reward_per_hour;
-    if (s.avg_speed_kmh) updates.avg_speed_kmh = s.avg_speed_kmh;
-    if (s.base_hourly_wage) updates.base_hourly_wage = s.base_hourly_wage;
-    if (s.avg_hourly_wage_lunch) updates.avg_hourly_wage_lunch = s.avg_hourly_wage_lunch;
-    if (s.avg_hourly_wage_dinner) updates.avg_hourly_wage_dinner = s.avg_hourly_wage_dinner;
-    if (s.avg_hourly_wage_late_night) updates.avg_hourly_wage_late_night = s.avg_hourly_wage_late_night;
-    if (s.avg_hourly_wage_morning) updates.avg_hourly_wage_morning = s.avg_hourly_wage_morning;
-    if (s.avg_hourly_wage_weekend) updates.avg_hourly_wage_weekend = s.avg_hourly_wage_weekend;
-    if (s.avg_hourly_wage_weekday) updates.avg_hourly_wage_weekday = s.avg_hourly_wage_weekday;
-    if (s.total_deliveries) updates.total_deliveries = s.total_deliveries;
+    for (const [k, v] of Object.entries(s)) { if (v !== null && v !== undefined) updates[k] = v; }
+    updates.last_recalculated = Date.now();
     await updateCoefficients(updates);
-    // Clear coefficient cache so next offerJudge uses fresh values
     cache.coefficients = { data: null, expiry: 0 };
-    console.log('Coefficients recalculated:', Object.keys(updates).length, 'values updated');
+    console.log('Coefficients recalculated:', Object.keys(updates).length, 'values. Actual data:', s.actual_data_count, '/', s.total_offers);
   } catch (e) {
     console.warn('recalculateCoefficients error:', e.message);
+  }
+}
+
+// 重み自動最適化: 実績データから最適な重み配分を探索
+async function optimizeWeights() {
+  try {
+    // Step 1: 実績付きオファーを取得（actual_payoutがある＝リザルトが送られた案件）
+    const [offers] = await bigquery.query({ query: `
+      SELECT offer_reward, offer_distance, offer_duration, estimated_hourly_rate,
+        actual_payout, actual_duration_minutes, actual_distance_km,
+        gemini_decision, hour_of_day, day_of_week, weather_condition,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.reward_per_km') AS FLOAT64) as s_rpk,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.hourly_rate') AS FLOAT64) as s_hr,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.distance') AS FLOAT64) as s_dist,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.store_reputation') AS FLOAT64) as s_store,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.market') AS FLOAT64) as s_market,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.quest_adjusted') AS FLOAT64) as s_quest,
+        SAFE_CAST(JSON_VALUE(decision_reason_detail, '$.scores.opportunity') AS FLOAT64) as s_opp,
+        CASE WHEN actual_duration_minutes > 0 THEN (actual_payout / actual_duration_minutes) * 60 ELSE NULL END as actual_hourly
+      FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE offer_reward > 0 AND offer_duration >= 5
+        AND decision_reason_detail IS NOT NULL
+        AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+      ORDER BY timestamp DESC LIMIT 500
+    `});
+
+    if (offers.length < 20) {
+      console.log('optimizeWeights: insufficient data (' + offers.length + ' offers). Need 20+.');
+      return { optimized: false, reason: 'insufficient_data', count: offers.length };
+    }
+
+    // Step 2: 実績時給がある案件で、各サブスコアとの相関を計算
+    const withActual = offers.filter(o => o.actual_hourly > 0 && o.s_hr !== null);
+    const scoreKeys = ['s_rpk', 's_hr', 's_dist', 's_store', 's_market', 's_quest', 's_opp'];
+    const weightKeys = ['weight_reward_per_km', 'weight_hourly_rate', 'weight_distance', 'weight_store_reputation', 'weight_market', 'weight_quest_adjusted', 'weight_opportunity'];
+
+    if (withActual.length < 10) {
+      console.log('optimizeWeights: insufficient actual data (' + withActual.length + '). Need 10+.');
+      return { optimized: false, reason: 'insufficient_actual', count: withActual.length };
+    }
+
+    // Step 3: 各サブスコアと実績時給の相関を計算
+    const correlations = {};
+    for (const key of scoreKeys) {
+      const pairs = withActual.filter(o => o[key] !== null).map(o => [o[key], o.actual_hourly]);
+      if (pairs.length < 5) { correlations[key] = 0; continue; }
+      const n = pairs.length;
+      const sumX = pairs.reduce((a, p) => a + p[0], 0);
+      const sumY = pairs.reduce((a, p) => a + p[1], 0);
+      const sumXY = pairs.reduce((a, p) => a + p[0] * p[1], 0);
+      const sumX2 = pairs.reduce((a, p) => a + p[0] * p[0], 0);
+      const sumY2 = pairs.reduce((a, p) => a + p[1] * p[1], 0);
+      const denom = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+      correlations[key] = denom > 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+    }
+
+    // Step 4: 相関の強さに基づいて重みを再配分（正の相関が強い項目に重みを寄せる）
+    const absCorr = scoreKeys.map(k => Math.max(0, correlations[k])); // 負の相関は0にクリップ
+    const corrSum = absCorr.reduce((a, b) => a + b, 0);
+    if (corrSum <= 0) {
+      console.log('optimizeWeights: no positive correlations found');
+      return { optimized: false, reason: 'no_positive_correlation' };
+    }
+
+    // 現在の重みを取得
+    const currentCoeffs = await getCoefficients();
+    const currentWeights = weightKeys.map(k => currentCoeffs[k] || 0);
+
+    // 新しい重み = 相関ベース70% + 現在の重み30% (急激な変化を防ぐ)
+    const newWeights = {};
+    const LEARNING_RATE = 0.3; // 30%ずつ更新（保守的）
+    for (let i = 0; i < weightKeys.length; i++) {
+      const corrWeight = absCorr[i] / corrSum; // 相関ベースの重み（合計1.0）
+      const current = currentWeights[i];
+      const updated = current * (1 - LEARNING_RATE) + corrWeight * LEARNING_RATE;
+      newWeights[weightKeys[i]] = Math.round(updated * 1000) / 1000; // 小数3桁
+    }
+
+    // 合計1.0に正規化
+    const weightSum = Object.values(newWeights).reduce((a, b) => a + b, 0);
+    for (const k of weightKeys) newWeights[k] = Math.round((newWeights[k] / weightSum) * 1000) / 1000;
+
+    // Step 5: 閾値の最適化（実績時給が平均以上になるスコアの境界値を探す）
+    const avgActualHourly = withActual.reduce((a, o) => a + o.actual_hourly, 0) / withActual.length;
+    // 各オファーのスコアを新しい重みで再計算
+    const scored = withActual.map(o => {
+      const scores = [o.s_rpk, o.s_hr, o.s_dist, o.s_store, o.s_market, o.s_quest, o.s_opp];
+      const newScore = scores.reduce((sum, s, i) => sum + (s || 1.0) * (Object.values(newWeights)[i] || 0), 0);
+      return { score: newScore, hourly: o.actual_hourly };
+    }).sort((a, b) => a.score - b.score);
+
+    // 閾値を0.5〜1.2の範囲で0.05刻みで探索。閾値以上のオファーの平均時給が最大になる点を見つける
+    let bestThreshold = 0.85, bestAvgHourly = 0;
+    for (let t = 0.5; t <= 1.2; t += 0.05) {
+      const above = scored.filter(s => s.score >= t);
+      if (above.length < 3) continue; // 最低3件は受ける
+      const avgH = above.reduce((a, s) => a + s.hourly, 0) / above.length;
+      if (avgH > bestAvgHourly) { bestAvgHourly = avgH; bestThreshold = Math.round(t * 100) / 100; }
+    }
+    newWeights.score_threshold = bestThreshold;
+
+    // Step 6: BQに保存
+    await updateCoefficients(newWeights);
+    cache.coefficients = { data: null, expiry: 0 };
+
+    // 最適化ログをRTDBに保存
+    const optimizationLog = {
+      timestamp: Date.now(),
+      data_count: offers.length,
+      actual_count: withActual.length,
+      correlations,
+      old_weights: Object.fromEntries(weightKeys.map((k, i) => [k, currentWeights[i]])),
+      new_weights: newWeights,
+      avg_actual_hourly: Math.round(avgActualHourly),
+      optimal_threshold: bestThreshold,
+      learning_rate: LEARNING_RATE
+    };
+    const rtdbUrl = FIREBASE_DB_URL + '/pdca.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    fetch(rtdbUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ last_optimization: optimizationLog })
+    }).catch(() => {});
+
+    console.log('Weights optimized:', JSON.stringify(newWeights), 'threshold:', bestThreshold, 'avg_hourly:', Math.round(avgActualHourly));
+    return { optimized: true, weights: newWeights, threshold: bestThreshold, data_count: withActual.length, avg_hourly: Math.round(avgActualHourly) };
+  } catch (e) {
+    console.error('optimizeWeights error:', e);
+    return { optimized: false, reason: e.message };
   }
 }
 
