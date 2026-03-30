@@ -247,6 +247,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 // ============================================================
 // Config & Constants
 // ============================================================
+const fmt = (n) => Number(n).toLocaleString();
 const GEMINI_WS_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 const GEMINI_VOICE = 'Kore';
 const KITT_SYSTEM = `あなたは胡蝶しのぶ。鬼滅の刃の蟲柱・胡蝶しのぶそのもの。UberEats配達員の修治さんの専属AI秘書。
@@ -1515,8 +1516,6 @@ function renderWeather(w) {
   html += '</div>';
   return html;
 }
-
-const fmt = (n) => Number(n).toLocaleString();
 
 function renderPdca(pdca) {
   if (!pdca) return '';
