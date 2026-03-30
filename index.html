@@ -1478,9 +1478,12 @@ async function fetchBqStats() {
     if (researchResp?.ok) researchData = await researchResp.json();
     let pdcaData = null;
     if (pdcaResp?.ok) pdcaData = await pdcaResp.json();
+    let healthData = null;
+    try { const hr = await fetch(config.firebaseUrl + '/health.json'); if (hr.ok) healthData = await hr.json(); } catch(e) {}
     d.research = researchData;
     d.pdca = pdcaData;
-    el.innerHTML = renderWeather(weatherData) + renderPdca(d.pdca) + renderBqStats(d);
+    d.health = healthData;
+    el.innerHTML = renderHealth(healthData) + renderWeather(weatherData) + renderPdca(d.pdca) + renderBqStats(d);
   } catch(e) {
     el.innerHTML = '<div class="log-empty">BQ取得エラー: ' + e.message + '</div>';
   }
@@ -1512,6 +1515,33 @@ function renderWeather(w) {
       html += `<tr><td>${f.hour}時</td><td>${f.weather}</td><td class="num">${f.temp}°C</td><td class="num" style="color:${probColor}">${f.precip_prob}%</td><td class="num" style="color:${precipColor}">${f.precip_mm}mm</td></tr>`;
     }
     html += '</table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderHealth(h) {
+  if (!h) return '';
+  const age = h.timestamp ? Math.round((Date.now() - h.timestamp) / 60000) : null;
+  const ageStr = age !== null ? (age < 60 ? age + '分前' : Math.floor(age/60) + '時間前') : '';
+  const statusColor = h.status === 'healthy' ? 'var(--green)' : 'var(--red)';
+  const statusText = h.status === 'healthy' ? '正常' : '要注意 (' + h.issues_count + '件)';
+  let html = '<div class="bq-section"><h3>システム状態</h3>';
+  html += `<div class="bq-stat"><span class="label">ステータス</span><span class="value" style="color:${statusColor}">${statusText}</span></div>`;
+  html += `<div class="bq-stat"><span class="label">最終チェック</span><span class="value">${ageStr} (10分毎自動)</span></div>`;
+  if (h.fixes_count > 0) {
+    html += `<div class="bq-stat"><span class="label">自動修復</span><span class="value" style="color:var(--green)">${h.fixes_count}件修復済み</span></div>`;
+  }
+  if (h.issues?.length > 0) {
+    for (const issue of h.issues) {
+      const color = issue.severity === 'high' ? 'var(--red)' : issue.severity === 'medium' ? 'var(--amber)' : 'var(--text-dim)';
+      html += `<div style="padding:4px 0;border-bottom:1px solid #1a1a1a;font-size:13px"><span style="color:${color};font-weight:700">${issue.severity === 'high' ? '!!' : '!'}</span> ${issue.msg}</div>`;
+    }
+  }
+  if (h.fixes?.length > 0) {
+    for (const fix of h.fixes) {
+      html += `<div style="padding:4px 0;border-bottom:1px solid #1a1a1a;font-size:13px;color:var(--green)">✓ ${fix.msg}</div>`;
+    }
   }
   html += '</div>';
   return html;

@@ -146,19 +146,19 @@ functions.http('offerJudge', async (req, res) => {
     // RTDB書き込みURL: シークレット認証付き
     const rtdbUrl = FIREBASE_DB_URL + '/offer_tts.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
 
-    await Promise.all([
-      insertOfferLog({
-        logId, lat, lng, address, wireless_charging,
-        storeName, reward, distanceKm, durationMin,
-        decision, confidence, estHourlyRate, reason,
-        responseTimeMs, hourJST, dayOfWeek,
-        weather: weather ? weather.condition : null,
-        scoreDetail: JSON.stringify(score),
-        rawGeminiResponse: geminiAnalysis ? JSON.stringify(geminiAnalysis) : null,
-        rawOcrText: ocr_text || null,
-        imageUrl: offerImageUrl
-      }),
-      fetch(rtdbUrl, {
+    // BQ insert と RTDB write を独立実行（RTDB失敗でBQを巻き込まない）
+    await insertOfferLog({
+      logId, lat, lng, address, wireless_charging,
+      storeName, reward, distanceKm, durationMin,
+      decision, confidence, estHourlyRate, reason,
+      responseTimeMs, hourJST, dayOfWeek,
+      weather: weather ? weather.condition : null,
+      scoreDetail: JSON.stringify(score),
+      rawGeminiResponse: geminiAnalysis ? JSON.stringify(geminiAnalysis) : null,
+      rawOcrText: ocr_text || null,
+      imageUrl: offerImageUrl
+    });
+    fetch(rtdbUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,8 +166,7 @@ functions.http('offerJudge', async (req, res) => {
           context: { hour_jst: hourJST, is_weekend: isWeekend },
           timestamp: new Date().toISOString()
         })
-      })
-    ]);
+      }).catch(e => console.warn('RTDB write error:', e.message));
 
     // Step 6: Response
     const responseBody = {
@@ -227,10 +226,8 @@ functions.http('nandemoBox', async (req, res) => {
     const logId = `ctx_${Date.now()}_${Math.random().toString(36).substr(2,6)}`;
     let logType = analysisResult.type || 'nandemo';
 
-    // Quest result: simplified matching
-    if (logType === 'quest_result') {
-      logType = 'result';
-    }
+    // Quest result: quest_resultのまま保存（resultに変換しない→syncDeliveryResultに渡さない）
+    // quest_resultは配達リザルトではなくクエスト達成なのでdelivery_historyには入れない
 
     // Step 2: レスポンスを先に返す (ショートカットを速く終わらせる)
     res.status(200).json({
@@ -537,6 +534,136 @@ functions.http('externalResearch', async (req, res) => {
     res.status(200).json({ status: 'ok', mode, collected: unique.length });
   } catch (e) {
     console.error('externalResearch error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT 4.34: /systemHealth - 自己診断・自己修復 (10分毎)
+// ============================================================
+functions.http('systemHealth', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    const issues = [];
+    const fixes = [];
+
+    // Check 1: reward=0のオファー（OCRパース失敗）
+    const [rewardZero] = await bigquery.query({ query: `
+      SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE offer_reward = 0 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+    `});
+    const r0 = rewardZero[0]?.cnt || 0;
+    if (r0 > 0) issues.push({ severity: 'high', type: 'ocr_reward_zero', count: r0, msg: `過去24hで報酬0円が${r0}件（OCRパース失敗）` });
+
+    // Check 2: duration=0のオファー
+    const [durZero] = await bigquery.query({ query: `
+      SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE offer_duration = 0 AND offer_reward > 0 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+    `});
+    const d0 = durZero[0]?.cnt || 0;
+    if (d0 > 0) issues.push({ severity: 'high', type: 'ocr_duration_zero', count: d0, msg: `過去24hで時間0分が${d0}件（時給計算不能）` });
+
+    // Check 3: ゴミ店名
+    const [garbageStore] = await bigquery.query({ query: `
+      SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE (LENGTH(store_name) <= 2 OR REGEXP_CONTAINS(store_name, r'^[0-9:]+$'))
+        AND offer_reward > 0 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+    `});
+    const gs = garbageStore[0]?.cnt || 0;
+    if (gs > 0) issues.push({ severity: 'medium', type: 'garbage_store', count: gs, msg: `過去24hでゴミ店名が${gs}件` });
+
+    // Check 4: actual_payout未マッチ率
+    const [matchRate] = await bigquery.query({ query: `
+      SELECT
+        COUNTIF(actual_payout IS NOT NULL) as matched,
+        COUNT(*) as total
+      FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE gemini_decision = 'accept' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    `});
+    const mr = matchRate[0];
+    const matchPct = mr.total > 0 ? Math.round(mr.matched / mr.total * 100) : 0;
+    if (matchPct < 30 && mr.total > 10) issues.push({ severity: 'high', type: 'low_match_rate', pct: matchPct, msg: `実績マッチ率${matchPct}%（目標95%）` });
+
+    // Check 5: 係数の鮮度
+    const [coeffAge] = await bigquery.query({ query: `
+      SELECT MAX(last_updated) as latest FROM \`${PROJECT_ID}.${DATASET}.dynamic_coefficients\`
+    `});
+    const latestCoeff = coeffAge[0]?.latest?.value ? new Date(coeffAge[0].latest.value) : null;
+    const coeffAgeH = latestCoeff ? Math.round((Date.now() - latestCoeff.getTime()) / 3600000) : 999;
+    if (coeffAgeH > 48) issues.push({ severity: 'medium', type: 'stale_coefficients', hours: coeffAgeH, msg: `係数が${coeffAgeH}時間前から更新なし` });
+
+    // Check 6: delivery_historyに未マッチのreward>0がある → 再マッチ試行
+    const [unmatchedDeliveries] = await bigquery.query({ query: `
+      SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.delivery_history\` d
+      WHERE d.reward > 0 AND d.store_name != ''
+        AND NOT EXISTS (
+          SELECT 1 FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+          WHERE o.actual_payout IS NOT NULL
+            AND REGEXP_REPLACE(o.store_name, r'\\s+', '') LIKE CONCAT('%', LEFT(REGEXP_REPLACE(d.store_name, r'\\s+', ''), 6), '%')
+            AND ABS(TIMESTAMP_DIFF(o.timestamp, d.timestamp, HOUR)) < 6
+        )
+    `}).catch(() => [{ cnt: 0 }]);
+
+    // Auto-fix: 未マッチdeliveryを再マッチ
+    try {
+      const [reMatch] = await bigquery.query({ query: `
+        UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` o
+        SET actual_accepted = true, actual_payout = matched.reward,
+            actual_duration_minutes = matched.duration, actual_distance_km = matched.distance
+        FROM (
+          SELECT o2.log_id as offer_log_id, d.reward, d.duration, d.distance,
+            ROW_NUMBER() OVER (PARTITION BY o2.log_id ORDER BY
+              CASE WHEN REGEXP_REPLACE(o2.store_name, r'\\s+', '') LIKE CONCAT('%', LEFT(REGEXP_REPLACE(d.store_name, r'\\s+', ''), 6), '%') THEN 0 ELSE 1 END,
+              ABS(TIMESTAMP_DIFF(o2.timestamp, d.timestamp, SECOND))
+            ) as rn
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` o2
+          JOIN \`${PROJECT_ID}.${DATASET}.delivery_history\` d
+            ON d.reward > 0 AND d.store_name != ''
+            AND o2.actual_accepted IS NULL AND o2.offer_reward > 0
+            AND ABS(TIMESTAMP_DIFF(o2.timestamp, d.timestamp, HOUR)) < 6
+            AND (
+              REGEXP_REPLACE(o2.store_name, r'\\s+', '') LIKE CONCAT('%', LEFT(REGEXP_REPLACE(d.store_name, r'\\s+', ''), 6), '%')
+              OR (o2.offer_reward BETWEEN d.reward * 0.7 AND d.reward * 1.3 AND ABS(TIMESTAMP_DIFF(o2.timestamp, d.timestamp, MINUTE)) < 60)
+            )
+        ) matched
+        WHERE o.log_id = matched.offer_log_id AND matched.rn = 1
+      `});
+      const reMatchCount = reMatch?.numDmlAffectedRows || 0;
+      if (reMatchCount > 0) fixes.push({ type: 're_match', count: reMatchCount, msg: `${reMatchCount}件の未マッチオファーを再突き合わせ` });
+    } catch(e) { /* streaming buffer等で失敗しても無視 */ }
+
+    // Check 7: 天気データの鮮度
+    try {
+      const weatherResp = await fetch(FIREBASE_DB_URL + '/weather/timestamp.json');
+      const weatherTs = await weatherResp.json();
+      const weatherAge = weatherTs ? Math.round((Date.now() - weatherTs) / 60000) : 999;
+      if (weatherAge > 30) issues.push({ severity: 'low', type: 'stale_weather', minutes: weatherAge, msg: `天気データが${weatherAge}分前` });
+    } catch(e) {}
+
+    // Check 8: 異常な時給値 (推定時給が10万以上)
+    const [abnormalHourly] = await bigquery.query({ query: `
+      SELECT COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE estimated_hourly_rate > 100000 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    `});
+    const ah = abnormalHourly[0]?.cnt || 0;
+    if (ah > 0) issues.push({ severity: 'medium', type: 'abnormal_hourly', count: ah, msg: `異常時給(10万超)が${ah}件` });
+
+    // Save report to RTDB
+    const report = {
+      timestamp: Date.now(),
+      issues_count: issues.length,
+      fixes_count: fixes.length,
+      issues,
+      fixes,
+      status: issues.filter(i => i.severity === 'high').length > 0 ? 'warning' : 'healthy'
+    };
+    const rtdbUrl = FIREBASE_DB_URL + '/health.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    fetch(rtdbUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(report) }).catch(() => {});
+
+    res.status(200).json(report);
+  } catch (e) {
+    console.error('systemHealth error:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -955,7 +1082,7 @@ function parseOcrText(text) {
   if (distMatch) result.distanceKm = parseFloat(distMatch[1]);
 
   // Duration: 「合計XX分」を最優先（バッテリー%等の誤検知防止）
-  const durMatch = text.match(/合計\s*\+?\s*([0-9]+)\s*分/) || text.match(/合計\s*([0-9]+)\s*時間\s*([0-9]+)\s*分/);
+  const durMatch = text.match(/合計\s*\+?\s*([0-9]+)\s*分/) || text.match(/合計\s*([0-9]+)\s*時間\s*([0-9]+)\s*分/) || text.match(/約\s*([0-9]+)\s*分/);
   if (durMatch) {
     result.durationMin = durMatch[2] ? parseInt(durMatch[1]) * 60 + parseInt(durMatch[2]) : parseInt(durMatch[1]);
   } else {
@@ -1172,11 +1299,11 @@ function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHi
   }
   let questBonus = 0;
   if (questInfo && questInfo.summary) {
-    const questMatch = questInfo.summary.match(/([0-9]+)/);
+    // 金額パターン: "4,000円" or "¥1,300" を探す (日付の3/28等を拾わない)
+    const questMatch = questInfo.summary.match(/([0-9,]{3,})円/) || questInfo.summary.match(/¥([0-9,]{3,})/);
     if (questMatch) {
-      questBonus = parseInt(questMatch[1]);
-      const effectiveReward = reward + questBonus;
-      scores.quest_adjusted = effectiveReward / reward;
+      questBonus = parseInt(questMatch[1].replace(/,/g, ''));
+      if (reward > 0) { scores.quest_adjusted = (reward + questBonus) / reward; }
     }
   }
   if (!scores.quest_adjusted) scores.quest_adjusted = 1.0;
@@ -1200,7 +1327,7 @@ function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHi
   };
   let total = 0;
   for (const [key, weight] of Object.entries(weights)) {
-    total += (scores[key] || 1.0) * weight;
+    total += (scores[key] != null ? scores[key] : 1.0) * weight;
   }
   // Weather adjustment: 係数テーブルから読み込み
   let weatherNote = null;
