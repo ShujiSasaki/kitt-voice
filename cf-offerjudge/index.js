@@ -256,6 +256,31 @@ functions.http('nandemoBox', async (req, res) => {
         } catch(e) { console.warn('merge check error:', e.message); }
       }
 
+      // 同一案件の追加スクショ判定: 直前エントリとsummaryの主要部分が一致したら画像追記
+      if (!merged && imageUrl && logType !== 'accepted') {
+        try {
+          const [recentEntries] = await bigquery.query({
+            query: `SELECT log_id, summary, image_url FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = @type AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE) ORDER BY timestamp DESC LIMIT 1`,
+            params: { type: logType }
+          });
+          if (recentEntries.length > 0) {
+            const prev = recentEntries[0];
+            const prevKey = (prev.summary || '').replace(/[0-9\/()（）\s]/g, '').substring(0, 15);
+            const newKey = (analysisResult.summary || '').replace(/[0-9\/()（）\s]/g, '').substring(0, 15);
+            if (prevKey === newKey && prevKey.length > 3) {
+              // 同一案件 → 画像URLを追記
+              const existingUrls = prev.image_url || '';
+              const newUrls = existingUrls ? existingUrls + ',' + imageUrl : imageUrl;
+              await bigquery.query({
+                query: `UPDATE \`${PROJECT_ID}.${DATASET}.context_logs\` SET image_url = @urls WHERE log_id = @logId`,
+                params: { urls: newUrls, logId: prev.log_id }
+              });
+              merged = true;
+            }
+          }
+        } catch(e) { /* streaming buffer等は無視 */ }
+      }
+
       const bgTasks = [];
       if (!merged) {
         bgTasks.push(bigquery.dataset(DATASET).table('context_logs').insert([{
