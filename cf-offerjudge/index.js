@@ -527,12 +527,18 @@ functions.http('bqStats', async (req, res) => {
       `}).then(r => r[0]),
       // 4. Context logs by type
       bigquery.query({ query: `SELECT type, COUNT(*) as cnt FROM \`${PROJECT_ID}.${DATASET}.context_logs\` GROUP BY type ORDER BY cnt DESC` }).then(r => r[0]),
-      // 5. Store ranking (top 10 by frequency)
+      // 5. Store ranking (正規化店名で集約)
       bigquery.query({ query: `
-        SELECT store_name, COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
+        SELECT REGEXP_REPLACE(REGEXP_REPLACE(
+          TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Mos Burger|Gusto|KFC).*$", '')),
+          r'\\s+', ''), r'[　]', '') as store_name,
+        COUNT(*) as cnt, ROUND(AVG(offer_reward),0) as avg_reward, ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
         COUNTIF(gemini_decision='accept') as accepts
-        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE store_name != '' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-        GROUP BY store_name ORDER BY cnt DESC LIMIT 15
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        WHERE store_name != '' AND LENGTH(store_name) > 2
+          AND NOT REGEXP_CONTAINS(store_name, r'^[0-9:iX•\\s]+$')
+          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        GROUP BY 1 HAVING cnt >= 2 ORDER BY cnt DESC LIMIT 20
       `}).then(r => r[0]),
       // 6. Hourly breakdown (last 7 days)
       bigquery.query({ query: `
@@ -541,17 +547,19 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
         GROUP BY hour_of_day ORDER BY hour_of_day
       `}).then(r => r[0]),
-      // 7. オファー vs 実績のズレ (店名先頭一致 + 時間近傍でマッチ)
+      // 7. オファー vs 実績のズレ (正規化店名 + 時間近傍 + GPS近傍)
       bigquery.query({ query: `
         WITH offers AS (
-          SELECT log_id, timestamp, store_name, offer_reward, offer_duration, offer_distance,
-            REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+          SELECT log_id, timestamp, offer_reward, offer_duration, offer_distance, lat, lng,
+            REGEXP_REPLACE(REGEXP_REPLACE(
+              TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya).*$", '')),
+              r'\\s+', ''), r'[　]', '') as store_norm
           FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          WHERE offer_reward > 0 AND store_name != '' AND LENGTH(store_name) > 1
+          WHERE offer_reward > 0 AND store_name != '' AND LENGTH(store_name) > 2
         ),
         results AS (
-          SELECT delivery_id, timestamp, store_name, reward, duration, distance,
-            REGEXP_EXTRACT(store_name, r'^([^\\s]+)') as store_short
+          SELECT delivery_id, timestamp, reward, duration, distance, lat, lng,
+            REGEXP_REPLACE(REGEXP_REPLACE(store_name, r'\\s+', ''), r'[　]', '') as store_norm
           FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
           WHERE reward > 0 AND store_name != ''
         ),
@@ -559,12 +567,21 @@ functions.http('bqStats', async (req, res) => {
           SELECT r.delivery_id, r.reward, r.duration, r.distance,
             o.offer_reward, o.offer_duration, o.offer_distance,
             ROW_NUMBER() OVER (PARTITION BY r.delivery_id ORDER BY
-              CASE WHEN o.store_short = r.store_short THEN 0 ELSE 1 END,
+              -- 優先度: 1.正規化店名一致 2.GPS近傍(500m以内) 3.時間近傍
+              CASE WHEN o.store_norm = r.store_norm THEN 0
+                   WHEN o.lat > 0 AND r.lat > 0 AND ABS(o.lat - r.lat) < 0.005 AND ABS(o.lng - r.lng) < 0.005 THEN 1
+                   ELSE 2 END,
               ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE))
             ) as rn
           FROM results r
           JOIN offers o ON ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 180
-            AND (o.store_short = r.store_short OR ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 40)
+            AND (
+              o.store_norm = r.store_norm
+              OR STARTS_WITH(o.store_norm, LEFT(r.store_norm, 4))
+              OR STARTS_WITH(r.store_norm, LEFT(o.store_norm, 4))
+              OR (o.lat > 0 AND r.lat > 0 AND ABS(o.lat - r.lat) < 0.005 AND ABS(o.lng - r.lng) < 0.005)
+              OR ABS(TIMESTAMP_DIFF(o.timestamp, r.timestamp, MINUTE)) < 45
+            )
         )
         SELECT
           COUNT(*) as match_count,
@@ -748,14 +765,37 @@ function parseOcrText(text) {
     if (fallback) result.durationMin = parseInt(fallback[1]);
   }
 
-  // Store name: first line that's not numbers/distance/reward
-  const skipPatterns = /^[0-9,.\s¥￥]+$|km|キロ|分|min|配達|ピック|ドロップ|合計|距離|時間|予想|到着|注文/i;
+  // Store name: 「合計XX分」行の直後の行が最有力。バリデーション付き。
+  const storeSkip = /^[0-9:,.\s¥￥·•+\-=—–×%]+$|^[a-zA-Z]$|^\d{1,2}:\d{2}|^配達|^ピック|^ドロップ|^合計|^距離|^時間|^予想|^到着|^注文|^承諾|^限定|^申込|^Uber|^現金|^クレジット|^稼働|^サイカ|^技術サービス|^\+?[·•]/;
+  const storeValid = (s) => s && s.length >= 2 && !storeSkip.test(s) && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(s);
   const lines = text.split(/\\n|\n/).filter(l => l.trim());
-  for(let i=0;i<lines.length;i++){if(/合計/.test(lines[i])&&i+1<lines.length){result.storeName=lines[i+1].trim();break;}} if(!result.storeName) for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed && trimmed.length > 1 && !skipPatterns.test(trimmed)) {
-      result.storeName = trimmed;
-      break;
+
+  // Strategy 1: 合計行の直後
+  for (let i = 0; i < lines.length; i++) {
+    if (/合計/.test(lines[i]) && i + 1 < lines.length) {
+      const candidate = lines[i + 1].trim();
+      if (storeValid(candidate)) { result.storeName = candidate; break; }
+      // 次の行もチェック
+      if (i + 2 < lines.length) {
+        const candidate2 = lines[i + 2].trim();
+        if (storeValid(candidate2)) { result.storeName = candidate2; break; }
+      }
+    }
+  }
+  // Strategy 2: 「店」「屋」「亭」「堂」等を含む行
+  if (!result.storeName) {
+    for (const line of lines) {
+      const t = line.trim();
+      if (storeValid(t) && /[店屋亭堂丸庵房軒家]|マクドナルド|すき家|吉野家|松屋|ガスト|スタバ|ドミノ|モス|ケンタ|CoCo/.test(t)) {
+        result.storeName = t; break;
+      }
+    }
+  }
+  // Strategy 3: 日本語3文字以上の最初の行
+  if (!result.storeName) {
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.length >= 3 && storeValid(t)) { result.storeName = t; break; }
     }
   }
 
