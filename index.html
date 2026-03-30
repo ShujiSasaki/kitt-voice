@@ -1379,14 +1379,11 @@ let imageSwipeStartX = 0;
 
 function showImageModal(url) {
   if (!url) return;
-  // Collect all image URLs from current visible logs
-  const allUrls = [...nandemoLogs, ...offerLogs].filter(n => n.image_url).map(n => n.image_url);
-  imageModalUrls = [...new Set(allUrls)];
-  imageModalIndex = imageModalUrls.indexOf(url);
-  if (imageModalIndex < 0) { imageModalUrls = [url]; imageModalIndex = 0; }
+  imageModalUrls = [url];
+  imageModalIndex = 0;
   const modal = document.getElementById('image-modal');
   document.getElementById('image-modal-img').src = url;
-  document.getElementById('image-modal-counter').textContent = (imageModalIndex + 1) + '/' + imageModalUrls.length;
+  document.getElementById('image-modal-counter').textContent = '';
   modal.classList.add('show');
 }
 function closeImageModal() {
