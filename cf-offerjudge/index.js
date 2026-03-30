@@ -959,32 +959,36 @@ functions.http('bqStats', async (req, res) => {
       `}).then(r => r[0]),
       // 9. Store master (名寄せ一覧)
       bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0]),
-      // 10. クエスト情報 (有効なもののみ)
+      // 10. クエスト情報 (有効なもののみ、開始時間順)
       bigquery.query({ query: `
         WITH valid_quests AS (
           SELECT summary, timestamp,
             CASE
-              WHEN REGEXP_CONTAINS(summary, r'ピーク.*\\d{1,2}/\\d{1,2}') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\\d{1,2}/\\d{1,2}.*?\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})'))
+              WHEN REGEXP_CONTAINS(summary, r'(ピーク|クエスト).*\\d{1,2}/\\d{1,2}.*\\d{1,2}:\\d{2}-') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\\d{1,2}/\\d{1,2}.*?\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})'))
               WHEN REGEXP_CONTAINS(summary, r'週前半') THEN 'weekly_first'
               WHEN REGEXP_CONTAINS(summary, r'週後半') THEN 'weekly_second'
               WHEN REGEXP_CONTAINS(summary, r'連続') THEN 'consecutive'
               ELSE NULL
-            END as quest_key
+            END as quest_key,
+            -- ソート用: 日付と時間帯を数値化
+            SAFE_CAST(REGEXP_EXTRACT(summary, r'(\\d{1,2})/\\d{1,2}') AS INT64) * 100 + SAFE_CAST(REGEXP_EXTRACT(summary, r'\\d{1,2}/(\\d{1,2})') AS INT64) as sort_date,
+            SAFE_CAST(REGEXP_EXTRACT(summary, r'(\\d{1,2}):\\d{2}-') AS INT64) as sort_hour
           FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
           WHERE type = 'quest'
-            AND (REGEXP_CONTAINS(summary, r'^ピーク\\s+\\d') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半') OR REGEXP_CONTAINS(summary, r'^連続'))
+            AND (REGEXP_CONTAINS(summary, r'^ピーク\\s+\\d') OR REGEXP_CONTAINS(summary, r'^クエスト\\s+\\d{1,2}/') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半')
+                 OR (REGEXP_CONTAINS(summary, r'^連続') AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)))
             AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
         ),
         deduped AS (
-          SELECT summary, timestamp, quest_key,
+          SELECT summary, quest_key, sort_date, sort_hour,
             ROW_NUMBER() OVER (PARTITION BY quest_key ORDER BY timestamp DESC) as rn
           FROM valid_quests
           WHERE quest_key IS NOT NULL
         )
-        SELECT summary FROM deduped WHERE rn = 1
+        SELECT summary, sort_date, sort_hour FROM deduped WHERE rn = 1
         ORDER BY
           CASE WHEN quest_key LIKE 'weekly%' THEN 0 WHEN quest_key = 'consecutive' THEN 1 ELSE 2 END,
-          summary ASC
+          sort_date ASC, sort_hour ASC
       `}).then(r => r[0])
     ]);
     const offerGap = (offerGapRaw || [])[0] || {};
