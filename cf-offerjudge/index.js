@@ -1029,9 +1029,11 @@ functions.http('bqStats', async (req, res) => {
           ROUND(MAX(wait_min), 1) as max_wait_min
         FROM matched WHERE rn = 1
           AND REGEXP_CONTAINS(store_norm, r'[\\p{Han}\\p{Hiragana}\\p{Katakana}]')
-          AND NOT REGEXP_CONTAINS(store_norm, r'稼働|ガイド|テスト')
-        GROUP BY store_norm HAVING cnt >= 2
-        ORDER BY avg_wait_min DESC LIMIT 15
+          AND LENGTH(store_norm) >= 4
+          AND NOT REGEXP_CONTAINS(store_norm, r'稼働|ガイド|テスト|複数店舗')
+          AND NOT REGEXP_CONTAINS(store_norm, r'^.{2,4}\\.$')
+        GROUP BY store_norm
+        ORDER BY avg_wait_min DESC LIMIT 20
       `}).then(r => r[0]),
       // 9. Store master (名寄せ一覧)
       bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0]),
