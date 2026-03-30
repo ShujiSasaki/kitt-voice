@@ -959,29 +959,32 @@ functions.http('bqStats', async (req, res) => {
       `}).then(r => r[0]),
       // 9. Store master (名寄せ一覧)
       bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0]),
-      // 10. クエスト情報 (未終了のみ、開始時間順)
+      // 10. クエスト情報 (有効なもののみ)
       bigquery.query({ query: `
-        WITH latest AS (
-          SELECT summary, type, timestamp,
-            ROW_NUMBER() OVER (PARTITION BY
-              CASE
-                WHEN REGEXP_CONTAINS(summary, r'ピーク') THEN REGEXP_EXTRACT(summary, r'(\d{1,2}/\d{1,2}.*?\d{1,2}:\d{2}-\d{1,2}:\d{2})')
-                WHEN REGEXP_CONTAINS(summary, r'週前半|週後半') THEN REGEXP_EXTRACT(summary, r'(\d{1,2}/\d{1,2}.*?-.*?\d{1,2}/\d{1,2})')
-                WHEN REGEXP_CONTAINS(summary, r'連続') THEN '連続'
-                ELSE summary
-              END
-              ORDER BY timestamp DESC
-            ) as rn
+        WITH valid_quests AS (
+          SELECT summary, timestamp,
+            CASE
+              WHEN REGEXP_CONTAINS(summary, r'ピーク.*\d{1,2}/\d{1,2}') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\d{1,2}/\d{1,2}.*?\d{1,2}:\d{2}-\d{1,2}:\d{2})'))
+              WHEN REGEXP_CONTAINS(summary, r'週前半') THEN 'weekly_first'
+              WHEN REGEXP_CONTAINS(summary, r'週後半') THEN 'weekly_second'
+              WHEN REGEXP_CONTAINS(summary, r'連続') THEN 'consecutive'
+              ELSE NULL
+            END as quest_key
           FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
-          WHERE type IN ('quest', 'quest_result')
-            AND summary NOT LIKE 'UberEats%' AND summary NOT LIKE 'テスト%'
-            AND summary NOT LIKE 'クエスト達成%' AND summary NOT LIKE 'クエスト完了%'
-            AND LENGTH(summary) > 10
+          WHERE type = 'quest'
+            AND (REGEXP_CONTAINS(summary, r'^ピーク\s+\d') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半') OR REGEXP_CONTAINS(summary, r'^連続'))
             AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+        ),
+        deduped AS (
+          SELECT summary, timestamp, quest_key,
+            ROW_NUMBER() OVER (PARTITION BY quest_key ORDER BY timestamp DESC) as rn
+          FROM valid_quests
+          WHERE quest_key IS NOT NULL
         )
-        SELECT timestamp, type, summary FROM latest WHERE rn = 1
-        ORDER BY summary ASC
-        LIMIT 20
+        SELECT summary FROM deduped WHERE rn = 1
+        ORDER BY
+          CASE WHEN quest_key LIKE 'weekly%' THEN 0 WHEN quest_key = 'consecutive' THEN 1 ELSE 2 END,
+          summary ASC
       `}).then(r => r[0])
     ]);
     const offerGap = (offerGapRaw || [])[0] || {};
