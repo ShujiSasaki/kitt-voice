@@ -256,19 +256,47 @@ functions.http('nandemoBox', async (req, res) => {
         } catch(e) { console.warn('merge check error:', e.message); }
       }
 
-      // 同一案件の追加スクショ判定: 直前エントリとsummaryの主要部分が一致したら画像追記
-      if (!merged && imageUrl && logType !== 'accepted') {
+      // 同一案件の追加スクショ判定: 直前エントリと画像内容が同じ案件か判断して画像追記
+      if (!merged && imageUrl) {
         try {
           const [recentEntries] = await bigquery.query({
-            query: `SELECT log_id, summary, image_url FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE type = @type AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE) ORDER BY timestamp DESC LIMIT 1`,
-            params: { type: logType }
+            query: `SELECT log_id, type, summary, structured_data, image_url FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE) ORDER BY timestamp DESC LIMIT 1`,
+            params: {}
           });
           if (recentEntries.length > 0) {
             const prev = recentEntries[0];
-            const prevKey = (prev.summary || '').replace(/[0-9\/()（）\s]/g, '').substring(0, 15);
-            const newKey = (analysisResult.summary || '').replace(/[0-9\/()（）\s]/g, '').substring(0, 15);
-            if (prevKey === newKey && prevKey.length > 3) {
-              // 同一案件 → 画像URLを追記
+            let isSame = false;
+            const curData = analysisResult.structured_data || {};
+            let prevData = {};
+            try { prevData = typeof prev.structured_data === 'string' ? JSON.parse(prev.structured_data) : (prev.structured_data || {}); } catch(e) {}
+
+            // 判定1: result/order_detail → 店名一致
+            if ((logType === 'result' || logType === 'order_detail') && prev.type === logType) {
+              const curStore = (curData.store_name || '').replace(/\s/g, '');
+              const prevStore = (prevData.store_name || '').replace(/\s/g, '');
+              if (curStore && prevStore && curStore.substring(0, 6) === prevStore.substring(0, 6)) isSame = true;
+            }
+            // 判定2: quest → quest_type + quest_period一致
+            if (logType === 'quest' && prev.type === 'quest') {
+              if (curData.quest_type && curData.quest_type === prevData.quest_type) {
+                if (curData.quest_period && curData.quest_period === prevData.quest_period) isSame = true;
+                if (!curData.quest_period && !prevData.quest_period) isSame = true; // 雨クエスト等period無し同士
+              }
+            }
+            // 判定3: accepted → 店名一致
+            if (logType === 'accepted' && prev.type === 'accepted') {
+              const curStore = (curData.store_name || '').replace(/\s/g, '');
+              const prevStore = (prevData.store_name || '').replace(/\s/g, '');
+              if (curStore && prevStore && curStore.substring(0, 6) === prevStore.substring(0, 6)) isSame = true;
+            }
+            // 判定4: nandemo同士 → summary先頭10文字一致
+            if (logType === 'nandemo' && prev.type === 'nandemo') {
+              const curKey = (analysisResult.summary || '').substring(0, 10);
+              const prevKey = (prev.summary || '').substring(0, 10);
+              if (curKey === prevKey && curKey.length > 3) isSame = true;
+            }
+
+            if (isSame) {
               const existingUrls = prev.image_url || '';
               const newUrls = existingUrls ? existingUrls + ',' + imageUrl : imageUrl;
               await bigquery.query({
