@@ -1290,7 +1290,7 @@ function renderDashboard() {
       const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
       const tagClass = o.decision === 'accept' ? 'accept' : 'reject';
       const tagText = o.decision === 'accept' ? 'OK' : 'SKIP';
-      const imgAttr = o.image_url ? ` onclick="showImageModal('${o.image_url.replace(/'/g,"\\'")}')" style="cursor:pointer"` : '';
+      const imgAttr = o.image_url ? ` onclick="showImageModal('${o.image_url.replace(/'/g,"\\'")}','${o.time}')" style="cursor:pointer"` : '';
       return `<div class="log-entry"${imgAttr}>
         <div class="log-time">${timeStr}</div>
         <div class="log-body">
@@ -1361,7 +1361,7 @@ function renderNandemoList() {
     const syncInfo = n.sync ? (n.sync.delivery_inserted ? ' → 履歴保存' : '') + (n.sync.offer_matched ? ' → オファー紐付' : '') : '';
     let dateHeader = '';
     if (dateStr !== lastDate) { lastDate = dateStr; dateHeader = `<div style="padding:6px 4px 2px;font-size:11px;color:var(--text-dim);font-family:'Orbitron',monospace;letter-spacing:1px;border-top:1px solid var(--border);margin-top:4px">${dateStr}</div>`; }
-    const imgAttr = n.image_url ? ` onclick="showImageModal('${n.image_url.replace(/'/g,"\\'")}')"` : '';
+    const imgAttr = n.image_url ? ` onclick="showImageModal('${n.image_url.replace(/'/g,"\\'")}','${n.time}')"` : '';
     return `${dateHeader}<div class="log-entry"${imgAttr}>
       <div class="log-time">${timeStr}</div>
       <div class="log-body">
@@ -1377,13 +1377,26 @@ let imageModalUrls = [];
 let imageModalIndex = 0;
 let imageSwipeStartX = 0;
 
-function showImageModal(url) {
+function showImageModal(url, entryTime, entryType) {
   if (!url) return;
-  imageModalUrls = [url];
-  imageModalIndex = 0;
+  // 同じ案件の画像をグループ化: 同じtype + 60秒以内の画像
+  const allEntries = [...nandemoLogs, ...offerLogs];
+  const entryTs = entryTime ? new Date(entryTime).getTime() : 0;
+  if (entryTs > 0) {
+    const nearby = allEntries.filter(e => {
+      if (!e.image_url) return false;
+      const ts = new Date(e.time).getTime();
+      return Math.abs(ts - entryTs) < 60000; // 60秒以内
+    }).map(e => e.image_url);
+    imageModalUrls = nearby.length > 0 ? [...new Set(nearby)] : [url];
+  } else {
+    imageModalUrls = [url];
+  }
+  imageModalIndex = imageModalUrls.indexOf(url);
+  if (imageModalIndex < 0) imageModalIndex = 0;
   const modal = document.getElementById('image-modal');
-  document.getElementById('image-modal-img').src = url;
-  document.getElementById('image-modal-counter').textContent = '';
+  document.getElementById('image-modal-img').src = imageModalUrls[imageModalIndex];
+  document.getElementById('image-modal-counter').textContent = imageModalUrls.length > 1 ? (imageModalIndex + 1) + '/' + imageModalUrls.length : '';
   modal.classList.add('show');
 }
 function closeImageModal() {
@@ -1391,6 +1404,7 @@ function closeImageModal() {
   document.getElementById('image-modal-img').src = '';
 }
 function imageModalNav(dir) {
+  if (imageModalUrls.length <= 1) return;
   imageModalIndex = Math.max(0, Math.min(imageModalUrls.length - 1, imageModalIndex + dir));
   document.getElementById('image-modal-img').src = imageModalUrls[imageModalIndex];
   document.getElementById('image-modal-counter').textContent = (imageModalIndex + 1) + '/' + imageModalUrls.length;
