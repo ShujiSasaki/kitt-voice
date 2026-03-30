@@ -1735,19 +1735,17 @@ function renderBqStats(d) {
     const todayNum = (today.getMonth()+1) * 31 + today.getDate(); // 簡易日付比較 (getMonth()は0ベース)
     const activeQuests = d.quests.filter(q => {
       const s = q.summary || '';
-      // ピーク: 日付を抽出して今日以降か判定
-      const dateMatch = s.match(/(\d{1,2})\/(\d{1,2})/);
-      if (dateMatch) {
-        const qMonth = parseInt(dateMatch[1]);
-        const qDay = parseInt(dateMatch[2]);
-        const qNum = qMonth * 31 + qDay;
-        return qNum >= todayNum;
-      }
-      // 週前半/週後半: 終了日を抽出
+      // 週前半/週後半: 終了日で判定（先にチェック）
       const rangeMatch = s.match(/(\d{1,2})\/(\d{1,2})\(.\)-(\d{1,2})\/(\d{1,2})/);
       if (rangeMatch) {
         const endNum = parseInt(rangeMatch[3]) * 31 + parseInt(rangeMatch[4]);
         return endNum >= todayNum;
+      }
+      // ピーク: 日付を抽出して今日以降か判定
+      const dateMatch = s.match(/(\d{1,2})\/(\d{1,2})/);
+      if (dateMatch) {
+        const qNum = parseInt(dateMatch[1]) * 31 + parseInt(dateMatch[2]);
+        return qNum >= todayNum;
       }
       return true; // 連続等は常に表示
     });
