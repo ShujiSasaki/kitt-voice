@@ -1639,6 +1639,17 @@ function renderBqStats(d) {
     html += '</table></div>';
   }
 
+  // 7.5 店舗マスター一覧 (名寄せ結果)
+  if (d.storeMaster?.length > 0) {
+    html += '<div class="bq-section"><h3>店舗マスター (名寄せ済み)</h3>';
+    html += '<div style="color:var(--text-dim);font-size:11px;margin-bottom:6px">同じ店の表記揺れを統合。全' + d.storeMaster.length + '店舗</div>';
+    html += '<table class="bq-table"><tr><th>正規化名</th><th>回数</th></tr>';
+    for (const s of d.storeMaster) {
+      html += `<tr><td>${escHtml(s.store_id)}</td><td class="num">${fmt(s.total_cnt)}</td></tr>`;
+    }
+    html += '</table></div>';
+  }
+
   // 8. 外部リサーチ
   html += '<div class="bq-section"><h3>外部情報収集</h3>';
   html += '<div style="font-size:13px;padding:8px 0">';
