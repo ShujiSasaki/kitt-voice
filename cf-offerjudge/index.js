@@ -961,7 +961,19 @@ functions.http('bqStats', async (req, res) => {
       bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0]),
       // 10. クエスト情報 (有効なもののみ、開始時間順)
       bigquery.query({ query: `
-        WITH valid_quests AS (
+        WITH raw_quests AS (
+          -- type=questはそのまま、type=nandemoでJSON内にquest情報があるものはsummaryを抽出
+          SELECT
+            CASE WHEN type = 'quest' THEN summary
+                 WHEN type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"type":\\s*"quest"')
+                   THEN REGEXP_EXTRACT(summary, r'"summary":\\s*"([^"]+)"')
+                 ELSE NULL END as summary,
+            timestamp
+          FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+          WHERE (type = 'quest' OR (type = 'nandemo' AND REGEXP_CONTAINS(summary, r'"type":\\s*"quest"')))
+            AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+        ),
+        valid_quests AS (
           SELECT summary, timestamp,
             CASE
               WHEN REGEXP_CONTAINS(summary, r'(ピーク|クエスト).*\\d{1,2}/\\d{1,2}.*\\d{1,2}:\\d{2}-') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\\d{1,2}/\\d{1,2}.*?\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})'))
@@ -970,14 +982,12 @@ functions.http('bqStats', async (req, res) => {
               WHEN REGEXP_CONTAINS(summary, r'連続') THEN 'consecutive'
               ELSE NULL
             END as quest_key,
-            -- ソート用: 日付と時間帯を数値化
             SAFE_CAST(REGEXP_EXTRACT(summary, r'(\\d{1,2})/\\d{1,2}') AS INT64) * 100 + SAFE_CAST(REGEXP_EXTRACT(summary, r'\\d{1,2}/(\\d{1,2})') AS INT64) as sort_date,
             SAFE_CAST(REGEXP_EXTRACT(summary, r'(\\d{1,2}):\\d{2}-') AS INT64) as sort_hour
-          FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
-          WHERE type = 'quest'
+          FROM raw_quests
+          WHERE summary IS NOT NULL
             AND (REGEXP_CONTAINS(summary, r'^ピーク\\s+\\d') OR REGEXP_CONTAINS(summary, r'^クエスト\\s+\\d{1,2}/') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半')
                  OR (REGEXP_CONTAINS(summary, r'^連続') AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)))
-            AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
         ),
         deduped AS (
           SELECT summary, quest_key, sort_date, sort_hour,
