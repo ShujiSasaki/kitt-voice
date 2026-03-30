@@ -435,12 +435,12 @@ functions.http('weatherCheck', async (req, res) => {
     // 今後6時間の降水予報を抽出
     const hourly = data.hourly || {};
     const forecast = [];
-    const nowMs = now.getTime();
     for (let i = 0; i < (hourly.time || []).length; i++) {
-      const h = new Date(hourly.time[i]);
-      const diffH = (h.getTime() - nowMs) / 3600000;
-      const fHour = h.getHours();
-      if (diffH >= -1 && diffH < 6) {
+      // Open-Meteo returns local time (JST) as "2026-03-30T13:00"
+      const fHour = parseInt((hourly.time[i] || '').split('T')[1]);
+      if (isNaN(fHour)) continue;
+      // 現在JST時刻から6時間先まで
+      if (fHour >= jstHour && fHour < jstHour + 6) {
         forecast.push({
           hour: fHour,
           temp: hourly.temperature_2m?.[i],
@@ -1009,29 +1009,29 @@ function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHi
   for (const [key, weight] of Object.entries(weights)) {
     total += (scores[key] || 1.0) * weight;
   }
-  // Weather adjustment: 雨はオファー単価↑ + 配達員↓ = 受けるべき
-  // 降水量に応じてスコアをブースト。遠距離+大雨のみペナルティ
+  // Weather adjustment: 係数テーブルから読み込み
   let weatherNote = null;
   if (weather) {
     const precip = weather.precipitation || 0;
     const isRaining = weather.isRaining || precip > 0;
+    const rainLight = 1 + (c.rain_boost_light || 0.10);
+    const rainHeavy = 1 + (c.rain_boost_heavy || 0.15);
+    const rainFarPenalty = 1 + (c.rain_penalty_far || -0.05);
+    const tempBoost = 1 + (c.temp_extreme_boost || 0.05);
     if (isRaining) {
       if (precip >= 5) {
-        // 強い雨: 近距離なら大幅ブースト、遠距離はリスク
         if (distanceKm <= (c.avg_distance || 3.21) * 1.2) {
-          total *= 1.15; weatherNote = 'heavy_rain_bonus';
+          total *= rainHeavy; weatherNote = 'heavy_rain_bonus';
         } else {
-          total *= 0.95; weatherNote = 'heavy_rain_far_penalty';
+          total *= rainFarPenalty; weatherNote = 'heavy_rain_far_penalty';
         }
       } else if (precip >= 1 || isRaining) {
-        // 小〜中雨: ブースト (配達員が減って需要増)
-        total *= 1.10; weatherNote = 'rain_bonus';
+        total *= rainLight; weatherNote = 'rain_bonus';
       }
     }
-    // 気温が極端に高い/低い場合もブースト (配達員減)
     const temp = weather.temperature || 0;
-    if (temp >= 33) { total *= 1.05; weatherNote = (weatherNote || '') + '_hot'; }
-    else if (temp <= 5) { total *= 1.05; weatherNote = (weatherNote || '') + '_cold'; }
+    if (temp >= 33) { total *= tempBoost; weatherNote = (weatherNote || '') + '_hot'; }
+    else if (temp <= 5) { total *= tempBoost; weatherNote = (weatherNote || '') + '_cold'; }
   }
   const threshold = c.score_threshold || 0.85;
   return { total, threshold, scores, weights, questBonus, timeSlotAvg, weatherNote };

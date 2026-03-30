@@ -1531,7 +1531,11 @@ function renderBqStats(d) {
     weight_distance:        { name:'重み: 距離', unit:'%' },
     weight_store_reputation:{ name:'重み: 店舗評価', unit:'%' },
     weight_opportunity:     { name:'重み: 機会コスト', unit:'%' },
-    weight_quest_adjusted:  { name:'重み: クエスト', unit:'%' }
+    weight_quest_adjusted:  { name:'重み: クエスト', unit:'%' },
+    rain_boost_light:       { name:'小雨ブースト', unit:'%' },
+    rain_boost_heavy:       { name:'強雨ブースト(近距離)', unit:'%' },
+    rain_penalty_far:       { name:'強雨ペナルティ(遠距離)', unit:'%' },
+    temp_extreme_boost:     { name:'猛暑/極寒ブースト', unit:'%' }
   };
   const fmt = (n) => Number(n).toLocaleString();
   let html = '';
