@@ -1730,13 +1730,34 @@ function renderBqStats(d) {
 
   // 7.5 認知しているクエスト (未終了・開始時間順)
   if (d.quests?.length > 0) {
-    html += '<div class="bq-section"><h3>認知しているクエスト</h3>';
-    html += '<div style="color:var(--text-dim);font-size:11px;margin-bottom:6px">未終了のみ表示。開始時間順。</div>';
-    for (const q of d.quests) {
-      const summary = escHtml(q.summary);
-      html += `<div style="padding:6px 2px;border-bottom:1px solid #1a1a1a;font-size:14px">${summary}</div>`;
+    const today = new Date();
+    const todayStr = (today.getMonth()+1) + '/' + today.getDate();
+    const todayNum = today.getMonth() * 31 + today.getDate(); // 簡易日付比較
+    const activeQuests = d.quests.filter(q => {
+      const s = q.summary || '';
+      // ピーク: 日付を抽出して今日以降か判定
+      const dateMatch = s.match(/(\d{1,2})\/(\d{1,2})/);
+      if (dateMatch) {
+        const qMonth = parseInt(dateMatch[1]);
+        const qDay = parseInt(dateMatch[2]);
+        const qNum = qMonth * 31 + qDay;
+        return qNum >= todayNum;
+      }
+      // 週前半/週後半: 終了日を抽出
+      const rangeMatch = s.match(/(\d{1,2})\/(\d{1,2})\(.\)-(\d{1,2})\/(\d{1,2})/);
+      if (rangeMatch) {
+        const endNum = parseInt(rangeMatch[3]) * 31 + parseInt(rangeMatch[4]);
+        return endNum >= todayNum;
+      }
+      return true; // 連続等は常に表示
+    });
+    if (activeQuests.length > 0) {
+      html += '<div class="bq-section"><h3>認知しているクエスト</h3>';
+      for (const q of activeQuests) {
+        html += `<div style="padding:6px 2px;border-bottom:1px solid #1a1a1a;font-size:14px">${escHtml(q.summary)}</div>`;
+      }
+      html += '</div>';
     }
-    html += '</div>';
   }
 
   // 7.6 店舗マスター一覧 (名寄せ結果)

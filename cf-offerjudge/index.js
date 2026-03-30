@@ -964,7 +964,7 @@ functions.http('bqStats', async (req, res) => {
         WITH valid_quests AS (
           SELECT summary, timestamp,
             CASE
-              WHEN REGEXP_CONTAINS(summary, r'ピーク.*\d{1,2}/\d{1,2}') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\d{1,2}/\d{1,2}.*?\d{1,2}:\d{2}-\d{1,2}:\d{2})'))
+              WHEN REGEXP_CONTAINS(summary, r'ピーク.*\\d{1,2}/\\d{1,2}') THEN CONCAT('peak_', REGEXP_EXTRACT(summary, r'(\\d{1,2}/\\d{1,2}.*?\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})'))
               WHEN REGEXP_CONTAINS(summary, r'週前半') THEN 'weekly_first'
               WHEN REGEXP_CONTAINS(summary, r'週後半') THEN 'weekly_second'
               WHEN REGEXP_CONTAINS(summary, r'連続') THEN 'consecutive'
@@ -972,7 +972,7 @@ functions.http('bqStats', async (req, res) => {
             END as quest_key
           FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
           WHERE type = 'quest'
-            AND (REGEXP_CONTAINS(summary, r'^ピーク\s+\d') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半') OR REGEXP_CONTAINS(summary, r'^連続'))
+            AND (REGEXP_CONTAINS(summary, r'^ピーク\\s+\\d') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半') OR REGEXP_CONTAINS(summary, r'^連続'))
             AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
         ),
         deduped AS (
