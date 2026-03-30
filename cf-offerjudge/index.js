@@ -1506,22 +1506,30 @@ async function syncDeliveryResult(logId, data) {
       result.delivery_inserted = true;
     }
 
-    // 2. Match with offer_logs: same day + store name partial match
-    if (storeName && storeName.length > 2) {
-      // Extract first meaningful part of store name (before space/bracket)
-      const storeKey = storeName.split(/[\s（(]/)[0].substring(0, 10);
+    // 2. Match with offer_logs: 正規化店名 + 時間近傍 + 報酬近傍
+    {
+      // 店名の正規化キー(スペース除去、英語ブランド除去)
+      const storeNorm = storeName.replace(/\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burger King|Burrger King|LOTTERIA|ZETTERIA|Gansoramen).*$/i, '').replace(/[\s　【】「」()（）]+/g, '');
+      const storeKey = storeNorm.substring(0, 8);
       const matchQuery = `
         UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\`
         SET actual_accepted = true,
             actual_payout = @reward,
             actual_duration_minutes = @duration,
             actual_distance_km = @distance
-        WHERE actual_accepted IS NULL
-          AND store_name != ''
-          AND LOWER(store_name) LIKE CONCAT('%', LOWER(@storeKey), '%')
-          AND ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, HOUR)) < 24
-        ORDER BY ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, SECOND))
-        LIMIT 1
+        WHERE log_id = (
+          SELECT log_id FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE actual_accepted IS NULL AND store_name != '' AND offer_reward > 0
+            AND ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, HOUR)) < 6
+            AND (
+              REGEXP_REPLACE(REGEXP_REPLACE(store_name, r'\\s+', ''), r'[　]', '') LIKE CONCAT('%', @storeKey, '%')
+              OR (offer_reward BETWEEN @reward * 0.7 AND @reward * 1.3 AND ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, MINUTE)) < 90)
+            )
+          ORDER BY
+            CASE WHEN REGEXP_REPLACE(store_name, r'\\s+', '') LIKE CONCAT('%', @storeKey, '%') THEN 0 ELSE 1 END,
+            ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, SECOND))
+          LIMIT 1
+        )
       `;
       try {
         await bigquery.query({
@@ -1532,29 +1540,8 @@ async function syncDeliveryResult(logId, data) {
           }
         });
         result.offer_matched = true;
-      } catch (e) {
-        // UPDATE with ORDER BY/LIMIT not supported in standard SQL, use DML subquery
-        const matchQuery2 = `
-          UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\`
-          SET actual_accepted = true, actual_payout = @reward,
-              actual_duration_minutes = @duration, actual_distance_km = @distance
-          WHERE log_id = (
-            SELECT log_id FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
-            WHERE actual_accepted IS NULL AND store_name != ''
-              AND LOWER(store_name) LIKE CONCAT('%', LOWER(@storeKey), '%')
-              AND ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, HOUR)) < 24
-            ORDER BY ABS(TIMESTAMP_DIFF(timestamp, @deliveryTs, SECOND))
-            LIMIT 1
-          )
-        `;
-        await bigquery.query({
-          query: matchQuery2,
-          params: {
-            reward, duration: duration * 1.0, distance,
-            storeKey, deliveryTs: BigQuery.timestamp(deliveryTimestamp)
-          }
-        });
-        result.offer_matched = true;
+      } catch(matchErr) {
+        console.warn('offer match error:', matchErr.message);
       }
     }
     // 3. Auto-recalculate coefficients from accumulated data
