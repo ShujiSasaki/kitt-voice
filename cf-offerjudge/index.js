@@ -978,36 +978,42 @@ functions.http('bqStats', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
         WHERE actual_payout IS NOT NULL AND offer_reward > 0 AND offer_duration > 0
       `}).then(r => r[0]),
-      // 8. 店舗別待機時間ランキング (充電ON→次のOFFをLEAD()でペアリング)
+      // 8. 店舗別待機時間 (acceptオファー → 直後の充電ON/OFFペア = ピック待機)
       bigquery.query({ query: `
-        WITH charging_seq AS (
+        WITH accepted_offers AS (
+          SELECT timestamp as offer_ts,
+            REGEXP_REPLACE(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King|LOTTERIA|ZETTERIA|Gansoramen).*$", '')), r'\\s+', ''), r'[　【】「」()]', '') as store_norm
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE gemini_decision = 'accept' AND store_name != '' AND LENGTH(store_name) > 2
+            AND REGEXP_CONTAINS(store_name, r'[\\p{Han}\\p{Hiragana}\\p{Katakana}]')
+        ),
+        charging_on_off AS (
           SELECT PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc) as ts, wireless_charging,
             LEAD(PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', timestamp_utc)) OVER (ORDER BY timestamp_utc) as next_ts,
-            LEAD(wireless_charging) OVER (ORDER BY timestamp_utc) as next_charging
+            LEAD(wireless_charging) OVER (ORDER BY timestamp_utc) as next_state
           FROM \`${PROJECT_ID}.${DATASET}.charging_logs\`
           WHERE timestamp_utc IS NOT NULL
         ),
-        pairs AS (
+        -- 充電ON→OFF ペア (1〜25分)
+        stop_pairs AS (
           SELECT ts as arrive_ts, next_ts as leave_ts,
             TIMESTAMP_DIFF(next_ts, ts, SECOND)/60.0 as wait_min
-          FROM charging_seq
-          WHERE wireless_charging = true AND next_charging = false
+          FROM charging_on_off
+          WHERE wireless_charging = true AND next_state = false
             AND TIMESTAMP_DIFF(next_ts, ts, MINUTE) BETWEEN 1 AND 25
         ),
-        with_store AS (
-          SELECT p.wait_min, p.arrive_ts,
-            REGEXP_REPLACE(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(o.store_name, r"\\s+(McDonald's|Sukiya|Matsuya|Yoshinoya|Burrger King|Burger King|LOTTERIA|ZETTERIA|Gansoramen).*$", '')), r'\\s+', ''), r'[　【】「」()]', '') as store_norm,
-            ROW_NUMBER() OVER (PARTITION BY p.arrive_ts ORDER BY ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE))) as rn
-          FROM pairs p
-          JOIN \`${PROJECT_ID}.${DATASET}.offer_logs\` o
-            ON ABS(TIMESTAMP_DIFF(o.timestamp, p.arrive_ts, MINUTE)) < 30
-            AND o.store_name != '' AND LENGTH(o.store_name) > 2
-            AND REGEXP_CONTAINS(o.store_name, r'[\p{Han}\p{Hiragana}\p{Katakana}]')
+        -- acceptオファーの直後(20分以内)の最初の停車を紐付け
+        matched AS (
+          SELECT a.store_norm, p.wait_min,
+            ROW_NUMBER() OVER (PARTITION BY a.offer_ts ORDER BY p.arrive_ts) as rn
+          FROM accepted_offers a
+          JOIN stop_pairs p ON p.arrive_ts > a.offer_ts
+            AND TIMESTAMP_DIFF(p.arrive_ts, a.offer_ts, MINUTE) < 20
         )
         SELECT store_norm as store_name, COUNT(*) as cnt,
           ROUND(AVG(wait_min), 1) as avg_wait_min,
           ROUND(MAX(wait_min), 1) as max_wait_min
-        FROM with_store WHERE rn = 1 AND LENGTH(store_norm) >= 3
+        FROM matched WHERE rn = 1 AND LENGTH(store_norm) >= 3
         GROUP BY store_norm HAVING cnt >= 2
         ORDER BY avg_wait_min DESC LIMIT 15
       `}).then(r => r[0]),
