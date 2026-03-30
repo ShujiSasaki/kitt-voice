@@ -435,10 +435,12 @@ functions.http('weatherCheck', async (req, res) => {
     // 今後6時間の降水予報を抽出
     const hourly = data.hourly || {};
     const forecast = [];
+    const nowMs = now.getTime();
     for (let i = 0; i < (hourly.time || []).length; i++) {
       const h = new Date(hourly.time[i]);
+      const diffH = (h.getTime() - nowMs) / 3600000;
       const fHour = h.getHours();
-      if (fHour >= jstHour && fHour < jstHour + 6) {
+      if (diffH >= -1 && diffH < 6) {
         forecast.push({
           hour: fHour,
           temp: hourly.temperature_2m?.[i],
@@ -1006,17 +1008,29 @@ function calculateScore({ reward, distanceKm, durationMin, coefficients, storeHi
   for (const [key, weight] of Object.entries(weights)) {
     total += (scores[key] || 1.0) * weight;
   }
-  // Weather adjustment: rain reduces distance penalty (fewer riders = less competition)
-  // but long distance in rain is riskier
+  // Weather adjustment: 雨はオファー単価↑ + 配達員↓ = 受けるべき
+  // 降水量に応じてスコアをブースト。遠距離+大雨のみペナルティ
   let weatherNote = null;
-  if (weather && weather.isRaining) {
-    if (distanceKm <= (c.avg_distance || 3.21)) {
-      total *= 1.05; // Short distance + rain = good deal (rain bonus, fewer riders)
-      weatherNote = 'rain_bonus';
-    } else if (distanceKm > (c.avg_distance || 3.21) * 1.5) {
-      total *= 0.95; // Long distance + rain = risky
-      weatherNote = 'rain_penalty';
+  if (weather) {
+    const precip = weather.precipitation || 0;
+    const isRaining = weather.isRaining || precip > 0;
+    if (isRaining) {
+      if (precip >= 5) {
+        // 強い雨: 近距離なら大幅ブースト、遠距離はリスク
+        if (distanceKm <= (c.avg_distance || 3.21) * 1.2) {
+          total *= 1.15; weatherNote = 'heavy_rain_bonus';
+        } else {
+          total *= 0.95; weatherNote = 'heavy_rain_far_penalty';
+        }
+      } else if (precip >= 1 || isRaining) {
+        // 小〜中雨: ブースト (配達員が減って需要増)
+        total *= 1.10; weatherNote = 'rain_bonus';
+      }
     }
+    // 気温が極端に高い/低い場合もブースト (配達員減)
+    const temp = weather.temperature || 0;
+    if (temp >= 33) { total *= 1.05; weatherNote = (weatherNote || '') + '_hot'; }
+    else if (temp <= 5) { total *= 1.05; weatherNote = (weatherNote || '') + '_cold'; }
   }
   const threshold = c.score_threshold || 0.85;
   return { total, threshold, scores, weights, questBonus, timeSlotAvg, weatherNote };
@@ -1068,7 +1082,10 @@ function buildTtsText(decision, confidence, score, reward, distanceKm, durationM
     if (score.scores.reward_per_km > 1.3) highlights.push('近くて高単価');
     if (score.scores.store_reputation > 1.1) highlights.push('優良店');
     if (score.questBonus > 0) highlights.push(`クエスト加算${score.questBonus}円`);
-    if (score.weatherNote === 'rain_bonus') highlights.push('雨で近場、狙い目');
+    if (score.weatherNote?.includes('rain_bonus')) highlights.push('雨で需要増、狙い目');
+    if (score.weatherNote?.includes('heavy_rain_bonus')) highlights.push('強雨ブースト');
+    if (score.weatherNote?.includes('hot')) highlights.push('猛暑ブースト');
+    if (score.weatherNote?.includes('cold')) highlights.push('寒さブースト');
 
     const highlightText = highlights.length > 0 ? highlights.join('、') : '総合スコア良好';
 
