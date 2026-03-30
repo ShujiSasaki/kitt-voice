@@ -504,7 +504,7 @@ functions.http('bqStats', async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
   try {
-    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, offerGapRaw, storeWaitRaw] = await Promise.all([
+    const [tables, coefficients, offerStats, contextStats, storeRanking, hourlyStats, offerGapRaw, storeWaitRaw, storeMasterRaw] = await Promise.all([
       // 1. Table row counts
       bigquery.query({ query: `
         SELECT 'offer_logs' as t, COUNT(*) as cnt, CAST(MIN(timestamp) AS STRING) as oldest, CAST(MAX(timestamp) AS STRING) as newest FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
@@ -627,10 +627,12 @@ functions.http('bqStats', async (req, res) => {
         FROM with_store WHERE rn = 1
         GROUP BY store_short HAVING cnt >= 2
         ORDER BY avg_wait_min DESC LIMIT 15
-      `}).then(r => r[0])
+      `}).then(r => r[0]),
+      // 9. Store master (名寄せ一覧)
+      bigquery.query({ query: `SELECT store_id, total_cnt FROM \`${PROJECT_ID}.${DATASET}.store_master\` ORDER BY total_cnt DESC LIMIT 50` }).then(r => r[0])
     ]);
     const offerGap = (offerGapRaw || [])[0] || {};
-    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap, storeWait: storeWaitRaw || [] });
+    res.status(200).json({ tables, coefficients, offerStats: offerStats[0] || {}, contextStats, storeRanking, hourlyStats, offerGap, storeWait: storeWaitRaw || [], storeMaster: storeMasterRaw || [] });
   } catch (error) {
     console.error('bqStats error:', error);
     res.status(500).json({ error: error.message });
