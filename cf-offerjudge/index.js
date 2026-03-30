@@ -980,6 +980,8 @@ functions.http('bqStats', async (req, res) => {
               WHEN REGEXP_CONTAINS(summary, r'週前半') THEN 'weekly_first'
               WHEN REGEXP_CONTAINS(summary, r'週後半') THEN 'weekly_second'
               WHEN REGEXP_CONTAINS(summary, r'連続') THEN 'consecutive'
+              WHEN REGEXP_CONTAINS(summary, r'^雨') THEN 'rain'
+              WHEN REGEXP_CONTAINS(summary, r'^乗車ボーナス') THEN 'ride_bonus'
               ELSE NULL
             END as quest_key,
             SAFE_CAST(REGEXP_EXTRACT(summary, r'(\\d{1,2})/\\d{1,2}') AS INT64) * 100 + SAFE_CAST(REGEXP_EXTRACT(summary, r'\\d{1,2}/(\\d{1,2})') AS INT64) as sort_date,
@@ -987,6 +989,7 @@ functions.http('bqStats', async (req, res) => {
           FROM raw_quests
           WHERE summary IS NOT NULL
             AND (REGEXP_CONTAINS(summary, r'^ピーク\\s+\\d') OR REGEXP_CONTAINS(summary, r'^クエスト\\s+\\d{1,2}/') OR REGEXP_CONTAINS(summary, r'^週前半') OR REGEXP_CONTAINS(summary, r'^週後半')
+                 OR REGEXP_CONTAINS(summary, r'^雨\\s') OR REGEXP_CONTAINS(summary, r'^乗車ボーナス')
                  OR (REGEXP_CONTAINS(summary, r'^連続') AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)))
         ),
         deduped AS (
