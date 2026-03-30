@@ -1462,15 +1462,19 @@ async function fetchBqStats() {
   bqStatsLastFetch = now;
   const el = document.getElementById('bq-content');
   try {
-    // BQ stats + weather を並列取得
-    const [bqResp, weatherResp] = await Promise.all([
+    // BQ stats + weather + research を並列取得
+    const [bqResp, weatherResp, researchResp] = await Promise.all([
       fetch(BQ_STATS_URL),
-      fetch(config.firebaseUrl + '/weather.json').catch(() => null)
+      fetch(config.firebaseUrl + '/weather.json').catch(() => null),
+      fetch(config.firebaseUrl + '/research.json').catch(() => null)
     ]);
     if (!bqResp.ok) throw new Error('HTTP ' + bqResp.status);
     const d = await bqResp.json();
     let weatherData = null;
     if (weatherResp?.ok) weatherData = await weatherResp.json();
+    let researchData = null;
+    if (researchResp?.ok) researchData = await researchResp.json();
+    d.research = researchData;
     el.innerHTML = renderWeather(weatherData) + renderBqStats(d);
   } catch(e) {
     el.innerHTML = '<div class="log-empty">BQ取得エラー: ' + e.message + '</div>';
@@ -1654,11 +1658,26 @@ function renderBqStats(d) {
     html += '</table></div>';
   }
 
-  // 8. 外部リサーチ
+  // 8. 外部リサーチ (RTDB + BQ)
   html += '<div class="bq-section"><h3>外部情報収集</h3>';
-  html += '<div style="font-size:13px;padding:8px 0">';
-  html += '<div style="color:var(--text-dim);margin-bottom:6px">82件蓄積 (3/14〜3/24に1回だけ手動収集)<br>ソース: ニュースサイト検索 "UberEats fukuoka"</div>';
-  html += '<div style="color:var(--amber)">自動収集は未着手。CLAUDE.mdの機能スコープに記載あり。<br>定期実行の仕組み(Cloud Scheduler等)が必要。</div>';
+  html += '<div style="font-size:13px;padding:4px 0">';
+  html += '<div class="bq-stat"><span class="label">自動収集</span><span class="value" style="color:var(--green)">稼働中</span></div>';
+  html += '<div class="bq-stat"><span class="label">リアルタイム</span><span class="value">10分毎 (ニュース・交通・コミュニティ)</span></div>';
+  html += '<div class="bq-stat"><span class="label">日次リサーチ</span><span class="value">4:04AM (全国デリバリー・イベント・法規制)</span></div>';
+  html += '<div class="bq-stat"><span class="label">天気</span><span class="value">10分毎</span></div>';
+  if (d.research) {
+    const r = d.research;
+    const age = r.last_updated ? Math.round((Date.now() - r.last_updated) / 60000) : null;
+    const ageStr = age !== null ? (age < 60 ? age + '分前' : Math.floor(age/60) + '時間前') : '不明';
+    html += `<div class="bq-stat"><span class="label">最終取得</span><span class="value">${ageStr} (${r.latest_count || 0}件)</span></div>`;
+    if (r.latest_titles?.length > 0) {
+      html += '<div style="margin-top:6px;font-size:12px;color:var(--text-dim)">';
+      for (const t of r.latest_titles) {
+        html += '<div style="padding:2px 0;border-bottom:1px solid #1a1a1a">' + escHtml(t) + '</div>';
+      }
+      html += '</div>';
+    }
+  }
   html += '</div></div>';
 
   return html;

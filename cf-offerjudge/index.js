@@ -417,6 +417,131 @@ functions.http('dashboardFeed', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINT 4.3: /externalResearch - 外部情報自動収集
+// ============================================================
+functions.http('externalResearch', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') { res.set('Access-Control-Allow-Headers', 'Content-Type'); return res.status(204).send(''); }
+  try {
+    const mode = req.query.mode || req.body?.mode || 'realtime'; // 'realtime' (10分) or 'daily'
+    const results = [];
+
+    if (mode === 'realtime') {
+      // 1. X/Twitter風: Google News RSSでデリバリー関連ニュース検索
+      const socialKws = ['Uber+福岡+配達', '出前館+福岡', 'UberEats+福岡', 'フードデリバリー+福岡'];
+      for (const kw of socialKws) {
+        try {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          // Simple XML parse for <item><title>...</title><link>...</link><pubDate>...</pubDate></item>
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 3)) {
+            results.push({ source: 'GoogleNews', title: item[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        } catch(e) { console.warn('RSS error:', kw, e.message); }
+      }
+
+      // 2. 交通情報: JARTIC的な情報 or Google検索
+      try {
+        const trafficKws = ['福岡+交通規制+今日', '福岡+渋滞+リアルタイム'];
+        for (const kw of trafficKws) {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 2)) {
+            results.push({ source: 'Traffic', title: item[1].replace(/&amp;/g,'&'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        }
+      } catch(e) { console.warn('Traffic error:', e.message); }
+
+      // 3. 5ch/Reddit風: 配達員コミュニティ情報
+      try {
+        const communityKws = ['UberEats+配達員+2026', 'フードデリバリー+配達+稼ぎ'];
+        for (const kw of communityKws) {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 2)) {
+            results.push({ source: 'Community', title: item[1].replace(/&amp;/g,'&'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        }
+      } catch(e) {}
+
+    } else if (mode === 'daily') {
+      // 日次: 幅広い情報収集
+      const dailyKws = [
+        'UberEats+日本+最新+2026', '出前館+配達員+2026', 'フードデリバリー+料金改定',
+        'Wolt+日本+2026', 'menu+配達+2026', 'ロケットナウ+配達',
+        '福岡+イベント+今週', '福岡+マラソン+交通規制', '福岡+祭り+2026',
+        'UberEats+インセンティブ+変更', 'フードデリバリー+法律+規制',
+        '配達員+事故+保険', 'ギグワーカー+日本+制度'
+      ];
+      for (const kw of dailyKws) {
+        try {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 5)) {
+            results.push({ source: 'DailyResearch', title: item[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        } catch(e) {}
+      }
+    }
+
+    // Deduplicate by title
+    const seen = new Set();
+    const unique = results.filter(r => {
+      const key = r.title.substring(0, 50);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // BQに保存 (重複チェック: 同じタイトルがあればスキップ)
+    if (unique.length > 0) {
+      const rows = unique.map(r => ({
+        id: `ext_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+        timestamp: BigQuery.timestamp(new Date()),
+        source: r.source,
+        title: r.title.substring(0, 500),
+        url: r.url || '',
+        description: '',
+        published_at: r.published_at || '',
+        search_query: r.search_query
+      }));
+      try {
+        await bigquery.dataset(DATASET).table('external_research').insert(rows);
+      } catch(e) {
+        // Ignore duplicate errors
+        if (!e.message?.includes('duplicate')) console.warn('BQ insert warning:', e.message?.substring(0, 200));
+      }
+    }
+
+    // RTDB にサマリー保存 (KITTが参照)
+    const rtdbUrl = FIREBASE_DB_URL + '/research.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    await fetch(rtdbUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        last_updated: Date.now(),
+        mode,
+        latest_count: unique.length,
+        latest_titles: unique.slice(0, 5).map(r => r.title.substring(0, 80))
+      })
+    });
+
+    res.status(200).json({ status: 'ok', mode, collected: unique.length });
+  } catch (e) {
+    console.error('externalResearch error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // ENDPOINT 4.4: /weatherCheck - 定期天気チェック (Cloud Scheduler)
 // ============================================================
 functions.http('weatherCheck', async (req, res) => {
