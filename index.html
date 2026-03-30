@@ -1462,11 +1462,12 @@ async function fetchBqStats() {
   bqStatsLastFetch = now;
   const el = document.getElementById('bq-content');
   try {
-    // BQ stats + weather + research を並列取得
-    const [bqResp, weatherResp, researchResp] = await Promise.all([
+    // BQ stats + weather + research + pdca を並列取得
+    const [bqResp, weatherResp, researchResp, pdcaResp] = await Promise.all([
       fetch(BQ_STATS_URL),
       fetch(config.firebaseUrl + '/weather.json').catch(() => null),
-      fetch(config.firebaseUrl + '/research.json').catch(() => null)
+      fetch(config.firebaseUrl + '/research.json').catch(() => null),
+      fetch(config.firebaseUrl + '/pdca.json').catch(() => null)
     ]);
     if (!bqResp.ok) throw new Error('HTTP ' + bqResp.status);
     const d = await bqResp.json();
@@ -1474,8 +1475,11 @@ async function fetchBqStats() {
     if (weatherResp?.ok) weatherData = await weatherResp.json();
     let researchData = null;
     if (researchResp?.ok) researchData = await researchResp.json();
+    let pdcaData = null;
+    if (pdcaResp?.ok) pdcaData = await pdcaResp.json();
     d.research = researchData;
-    el.innerHTML = renderWeather(weatherData) + renderBqStats(d);
+    d.pdca = pdcaData;
+    el.innerHTML = renderWeather(weatherData) + renderPdca(d.pdca) + renderBqStats(d);
   } catch(e) {
     el.innerHTML = '<div class="log-empty">BQ取得エラー: ' + e.message + '</div>';
   }
@@ -1507,6 +1511,53 @@ function renderWeather(w) {
       html += `<tr><td>${f.hour}時</td><td>${f.weather}</td><td class="num">${f.temp}°C</td><td class="num" style="color:${probColor}">${f.precip_prob}%</td><td class="num" style="color:${precipColor}">${f.precip_mm}mm</td></tr>`;
     }
     html += '</table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderPdca(pdca) {
+  if (!pdca) return '';
+  let html = '<div class="bq-section"><h3>PDCA自動学習</h3>';
+  const opt = pdca.last_optimization;
+  const cycle = pdca.last_cycle;
+  if (cycle?.timestamp) {
+    const age = Math.round((Date.now() - cycle.timestamp) / 3600000);
+    html += `<div class="bq-stat"><span class="label">最終PDCA実行</span><span class="value">${age < 24 ? age + '時間前' : Math.floor(age/24) + '日前'}</span></div>`;
+  }
+  if (opt) {
+    html += `<div class="bq-stat"><span class="label">学習データ数</span><span class="value">${fmt(opt.data_count || 0)}件 (実績付き)</span></div>`;
+    html += `<div class="bq-stat"><span class="label">実績平均時給</span><span class="value">¥${fmt(opt.avg_actual_hourly || 0)}/h</span></div>`;
+    html += `<div class="bq-stat"><span class="label">最適閾値</span><span class="value">${opt.optimal_threshold}</span></div>`;
+    html += `<div class="bq-stat"><span class="label">学習率</span><span class="value">${(opt.learning_rate * 100)}% (保守的更新)</span></div>`;
+    // 重み変更の表示
+    if (opt.new_weights && opt.old_weights) {
+      const wNameJa = { weight_reward_per_km:'km単価', weight_hourly_rate:'時給', weight_distance:'距離', weight_store_reputation:'店舗', weight_market:'市場', weight_quest_adjusted:'クエスト', weight_opportunity:'機会コスト' };
+      html += '<div style="margin-top:8px;font-size:12px;color:var(--text-dim)">重み変更:</div>';
+      html += '<table class="bq-table"><tr><th>項目</th><th>変更前</th><th>変更後</th><th>変化</th></tr>';
+      for (const [k, v] of Object.entries(opt.new_weights)) {
+        if (k === 'score_threshold') continue;
+        const old = opt.old_weights[k] || 0;
+        const diff = v - old;
+        const color = Math.abs(diff) < 0.01 ? 'var(--text-dim)' : diff > 0 ? 'var(--green)' : 'var(--red)';
+        html += `<tr><td>${wNameJa[k] || k}</td><td class="num">${(old*100).toFixed(1)}%</td><td class="num">${(v*100).toFixed(1)}%</td><td class="num" style="color:${color}">${diff > 0 ? '+' : ''}${(diff*100).toFixed(1)}%</td></tr>`;
+      }
+      html += '</table>';
+    }
+    // 相関の表示
+    if (opt.correlations) {
+      const cNameJa = { s_rpk:'km単価', s_hr:'時給', s_dist:'距離', s_store:'店舗', s_market:'市場', s_quest:'クエスト', s_opp:'機会コスト' };
+      html += '<div style="margin-top:8px;font-size:12px;color:var(--text-dim)">実績時給との相関:</div>';
+      html += '<table class="bq-table"><tr><th>項目</th><th>相関</th><th></th></tr>';
+      for (const [k, v] of Object.entries(opt.correlations)) {
+        const barW = Math.abs(v) * 100;
+        const color = v > 0.3 ? 'var(--green)' : v > 0 ? 'var(--amber)' : 'var(--red)';
+        html += `<tr><td>${cNameJa[k] || k}</td><td class="num" style="color:${color}">${v.toFixed(2)}</td><td><div style="width:${barW}%;height:12px;background:${color};border-radius:2px"></div></td></tr>`;
+      }
+      html += '</table>';
+    }
+  } else {
+    html += '<div style="color:var(--text-dim);font-size:13px;padding:4px 0">毎朝4:30に自動実行。データが溜まるほど精度向上。</div>';
   }
   html += '</div>';
   return html;
