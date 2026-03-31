@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KITT Next - Pixel 10 Pro 完全自動化設計書</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#e8e8e8;padding:16px;line-height:1.6;font-size:14px}
+h1{color:#e03030;font-size:20px;text-align:center;margin:16px 0;letter-spacing:2px;border-bottom:2px solid #e03030;padding-bottom:8px}
+h2{color:#e03030;font-size:16px;margin:24px 0 8px;padding:6px 0;border-bottom:1px solid #333}
+h3{color:#ff9500;font-size:14px;margin:16px 0 6px}
+p{margin:6px 0}
+pre{background:#141414;border:1px solid #333;border-radius:8px;padding:12px;overflow-x:auto;font-size:12px;line-height:1.5;white-space:pre;font-family:monospace;margin:8px 0}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}
+th{background:#1a1a1a;color:#ff9500;text-align:left;padding:6px 8px;border:1px solid #333}
+td{padding:6px 8px;border:1px solid #222}
+.red{color:#e03030;font-weight:700}
+.green{color:#30d060;font-weight:700}
+.amber{color:#ff9500;font-weight:700}
+.dim{color:#888}
+.box{background:#141414;border:1px solid #333;border-radius:8px;padding:12px;margin:12px 0}
+.center{text-align:center}
+.big{font-size:22px;font-weight:700}
+.highlight{background:rgba(224,48,48,.1);border-left:3px solid #e03030;padding:8px 12px;margin:8px 0;border-radius:0 6px 6px 0}
+</style>
+</head>
+<body>
+
+<h1>KITT Next<br>Pixel 10 Pro 完全自動化設計書</h1>
+<p class="center dim">2026年3月31日 作成</p>
+
+<!-- 1. 全体像 -->
+<h2>1. 全体像</h2>
+<pre>
+┌──────────────────────────────────────────┐
+│           Pixel 10 Pro (1台で全部)         │
+│                                          │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐    │
+│  │ Uber │ │出前館│ │ menu │ │ RN  │    │
+│  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘    │
+│     └────────┼────────┼────────┘         │
+│              ▼                           │
+│  ┌──────────────────────────────────┐    │
+│  │         KITT アプリ (常駐)        │    │
+│  │                                  │    │
+│  │ 通知検知 → AI判定 → 自動受諾/拒否 │    │
+│  │                                  │    │
+│  │ 音声会話  データ蓄積  稼働ON/OFF  │    │
+│  └──────────────┬───────────────────┘    │
+│                 │                        │
+│  ┌────┐  ┌─────┴─────┐  ┌──────┐        │
+│  │ﾋﾟﾝﾏｲｸ│  │ BigQuery │  │AirPods│        │
+│  │入力 │  │データ蓄積 │  │ 出力 │        │
+│  └────┘  └───────────┘  └──────┘        │
+└──────────────────────────────────────────┘
+</pre>
+
+<!-- 2. Before/After -->
+<h2>2. 何が変わるか</h2>
+<h3>Before (今: iPhone + 手動)</h3>
+<div class="box">
+オファー通知 → <span class="red">Shujiが画面見る</span> → <span class="red">タップ</span> → 待つ → 通知見る → <span class="red">受諾/拒否タップ</span><br>
+<span class="dim">合計 5-8秒 + 手動操作 + Uber1社のみ</span>
+</div>
+
+<h3>After (Pixel 10 Pro + KITT全自動)</h3>
+<div class="box">
+4社のオファー通知 → <span class="green">KITTが自動検知</span> → <span class="green">AIが判断</span> → <span class="green">自動で受諾/拒否</span><br>
+<span class="dim">合計 10-15秒 + 操作ゼロ + 4社から最高時給を選択</span>
+</div>
+
+<div class="highlight">
+<span class="big">Shujiがやること: バイクに乗って走るだけ</span><br>
+<span class="big">KITTがやること: 全部</span>
+</div>
+
+<!-- 3. KITTの中身 -->
+<h2>3. KITTアプリの機能</h2>
+<table>
+<tr><th>機能</th><th>やること</th></tr>
+<tr><td class="amber">通知監視</td><td>4社の通知を自動キャッチ。テキスト直接取得(OCR不要=精度99.9%)</td></tr>
+<tr><td class="amber">AI判定</td><td>Gemini APIにオファー+蓄積データを送って受諾/拒否を判断</td></tr>
+<tr><td class="amber">自動操作</td><td>受諾/拒否ボタン自動タップ。1社受諾→他3社を自動OFF</td></tr>
+<tr><td class="amber">音声会話</td><td>ピンマイク入力+AirPods出力でKITTと常時会話</td></tr>
+<tr><td class="amber">データ蓄積</td><td>全情報をBigQueryに自動保存。データが増える=AIが賢くなる</td></tr>
+<tr><td class="amber">自動収集</td><td>天気(10分毎)、SNS/ニュース(10分毎)、日次リサーチ(4:04AM)</td></tr>
+<tr><td class="amber">PDCA</td><td>毎朝4:30にAIが自動で判断基準を最適化</td></tr>
+</table>
+
+<h3>AIの判断材料 (自動収集)</h3>
+<table>
+<tr><td>オファー情報</td><td>報酬・距離・時間・店舗名</td></tr>
+<tr><td>過去の実績</td><td>500件+の配達履歴・店舗待機時間</td></tr>
+<tr><td>クエスト</td><td>4社のクエスト進捗・達成タイミング</td></tr>
+<tr><td>天気</td><td>気温・降水量・予報 → 雨ブースト判定</td></tr>
+<tr><td>時間帯</td><td>曜日×時間帯の平均時給</td></tr>
+<tr><td>店舗評価</td><td>待機時間・過去の実績ズレ</td></tr>
+<tr><td>エリア</td><td>ドロップ先の次オファー期待値</td></tr>
+<tr><td>外部情報</td><td>他配達員のSNS・交通規制・イベント</td></tr>
+</table>
+
+<!-- 4. PDCA -->
+<h2>4. データで自動成長するサイクル</h2>
+<pre>
+    Plan          Do           Check         Act
+   AI判定  ───→  配達   ───→ 実績分析 ───→ 自動改善
+     │                         │              │
+  蓄積データ               推定vs実績       判断基準を
+  から最適な               のズレ分析       自動で更新
+  判断を出す                               (毎朝4:30)
+     ▲                                       │
+     └────────────────────────────────────────┘
+               毎日自動で回る
+           データが溜まるほど精度向上
+</pre>
+
+<!-- 5. 機材 -->
+<h2>5. 必要な機材・コスト</h2>
+<table>
+<tr><th>項目</th><th>詳細</th><th>コスト</th></tr>
+<tr><td><strong>Pixel 10 Pro</strong></td><td>KITT本体。全アプリ+常駐</td><td class="red">約15万 (分割可)</td></tr>
+<tr><td><strong>ピンマイク</strong></td><td>ヘルメット内。走行中の音声会話</td><td>約1.5万</td></tr>
+<tr><td>AirPods Pro 2</td><td>音声出力 (所持済)</td><td>0円</td></tr>
+<tr><td>BigQuery</td><td>データ蓄積 (Google無料枠)</td><td>月¥0</td></tr>
+<tr><td>Gemini API</td><td>AI判定+音声会話</td><td>月¥500-3,000</td></tr>
+<tr><td>Cloud Functions等</td><td>サーバー処理 (無料枠)</td><td>月¥0</td></tr>
+<tr><th>初期費用合計</th><th></th><th class="red">約16.5万</th></tr>
+<tr><th>月額合計</th><th></th><th>¥500-3,000</th></tr>
+</table>
+
+<!-- 6. スケジュール -->
+<h2>6. 開発スケジュール</h2>
+<table>
+<tr><th style="width:70px">期間</th><th>やること</th></tr>
+<tr><td class="amber">Week 1</td><td><strong>購入+セットアップ</strong><br>Pixel購入、4社アプリ設定、開発環境構築、各社通知テキスト調査</td></tr>
+<tr><td class="amber">Week 2</td><td><strong>基本機能</strong><br>通知検知(4社)、テキストパース、Gemini API判定連携</td></tr>
+<tr><td class="amber">Week 3</td><td><strong>自動操作+テスト</strong><br>受諾/拒否自動タップ、稼働ON/OFF切替、Uber単体でテスト1日</td></tr>
+<tr><td class="amber">Week 4</td><td><strong>4社統合+音声</strong><br>4社横断比較、他社自動OFF、KITT音声会話、ピンマイクテスト</td></tr>
+<tr><td class="amber">Week 5</td><td><strong>データ+PDCA</strong><br>BQ連携移植、天気/リサーチ自動収集、PDCA自動最適化、ダッシュボード</td></tr>
+<tr><td class="green">Week 6</td><td><strong>実戦投入</strong><br>本番稼働(まず2社)、AI精度監視、安定したら4社フル稼働</td></tr>
+<tr><td class="green">Week 7+</td><td><strong>運用+成長</strong><br>データ蓄積→AI自動改善→月次で収益確認</td></tr>
+</table>
+
+<!-- 7. 期待効果 -->
+<h2>7. 期待効果</h2>
+<table>
+<tr><th></th><th>現状</th><th>KITT全自動化後</th></tr>
+<tr><td>対応アプリ</td><td>Uber 1社</td><td class="green">4社同時</td></tr>
+<tr><td>操作</td><td>毎回手動タップ</td><td class="green">完全自動(ゼロタッチ)</td></tr>
+<tr><td>判定精度</td><td>85-90% (OCR依存)</td><td class="green">99.9% (テキスト直接)</td></tr>
+<tr><td>疲労による判断ブレ</td><td>あり</td><td class="green">なし(24時間一定)</td></tr>
+<tr><td>運転への集中</td><td>スマホ操作で低下</td><td class="green">運転に100%集中</td></tr>
+</table>
+
+<h3>収益シミュレーション (月500件)</h3>
+<table>
+<tr><th>シナリオ</th><th>月収</th><th>実効時給</th><th>現状比</th></tr>
+<tr><td>現状 (Uber単独・手動)</td><td>¥358,000</td><td>¥1,721/h</td><td>-</td></tr>
+<tr><td>保守的 (+15%)</td><td>¥411,500</td><td>¥1,978/h</td><td class="green">+¥53,500</td></tr>
+<tr><td><strong>標準 (+25%)</strong></td><td><strong>¥447,500</strong></td><td><strong>¥2,151/h</strong></td><td class="green"><strong>+¥89,500</strong></td></tr>
+<tr><td>楽観的 (+35%)</td><td>¥483,500</td><td>¥2,325/h</td><td class="green">+¥125,500</td></tr>
+</table>
+
+<div class="highlight">
+<strong>投資回収: 約3ヶ月</strong> (保守的シナリオでも)
+</div>
+
+<!-- 8. リスク -->
+<h2>8. リスクと対策</h2>
+<table>
+<tr><th>リスク</th><th>対策</th></tr>
+<tr><td>各社にバレる</td><td>ランダム遅延+自然な受諾率+スクショ不使用</td></tr>
+<tr><td>アプリ更新でUI変更</td><td>UI要素を再マッピング (1-2時間の修正)</td></tr>
+<tr><td>Gemini API障害</td><td>ローカル係数でフォールバック判定</td></tr>
+<tr><td>Pixel故障</td><td>iPhoneの今のシステムに一時戻し</td></tr>
+<tr><td>夏の熱暴走</td><td>TSMC 3nm+ベイパーチャンバー+ルーフシールド</td></tr>
+<tr><td>AIが悪い判断を続ける</td><td>手動モードに切替+PDCA日次改善</td></tr>
+</table>
+
+<br>
+<p class="center dim">--- KITT Next 設計書 終わり ---</p>
+
+</body>
+</html>
