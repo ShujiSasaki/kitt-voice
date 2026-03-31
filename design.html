@@ -129,18 +129,35 @@ td{padding:6px 8px;border:1px solid #222}
 <tr><th>月額合計</th><th></th><th>¥500-3,000</th></tr>
 </table>
 
-<!-- 6. スケジュール -->
-<h2>6. 開発スケジュール</h2>
+<!-- 6. 開発工数 -->
+<h2>6. 開発工数と流れ</h2>
+
+<div class="highlight">
+開発はClaudeが実行。Shujiは承認タップと実機テストのみ。<br>
+<strong>Claude作業: 約20-30時間 / Shuji作業: 約5-8時間</strong>
+</div>
+
 <table>
-<tr><th style="width:70px">期間</th><th>やること</th></tr>
-<tr><td class="amber">Week 1</td><td><strong>購入+セットアップ</strong><br>Pixel購入、4社アプリ設定、開発環境構築、各社通知テキスト調査</td></tr>
-<tr><td class="amber">Week 2</td><td><strong>基本機能</strong><br>通知検知(4社)、テキストパース、Gemini API判定連携</td></tr>
-<tr><td class="amber">Week 3</td><td><strong>自動操作+テスト</strong><br>受諾/拒否自動タップ、稼働ON/OFF切替、Uber単体でテスト1日</td></tr>
-<tr><td class="amber">Week 4</td><td><strong>4社統合+音声</strong><br>4社横断比較、他社自動OFF、KITT音声会話、ピンマイクテスト</td></tr>
-<tr><td class="amber">Week 5</td><td><strong>データ+PDCA</strong><br>BQ連携移植、天気/リサーチ自動収集、PDCA自動最適化、ダッシュボード</td></tr>
-<tr><td class="green">Week 6</td><td><strong>実戦投入</strong><br>本番稼働(まず2社)、AI精度監視、安定したら4社フル稼働</td></tr>
-<tr><td class="green">Week 7+</td><td><strong>運用+成長</strong><br>データ蓄積→AI自動改善→月次で収益確認</td></tr>
+<tr><th>ステップ</th><th>内容</th><th>Claude</th><th>Shuji</th></tr>
+<tr><td class="amber">1. セットアップ</td><td>Pixel購入、4社アプリ設定、開発環境構築</td><td>1h</td><td class="red">2h</td></tr>
+<tr><td class="amber">2. 通知検知</td><td>4社の通知を自動キャッチ+テキスト解析</td><td>3h</td><td>0.5h<br><span class="dim">動作確認</span></td></tr>
+<tr><td class="amber">3. AI判定</td><td>Gemini API連携。オファー→受諾/拒否判断</td><td>2h</td><td>0.5h<br><span class="dim">判定結果確認</span></td></tr>
+<tr><td class="amber">4. 自動操作</td><td>受諾/拒否ボタン自動タップ+稼働ON/OFF</td><td>4h</td><td>1h<br><span class="dim">実機テスト</span></td></tr>
+<tr><td class="amber">5. 4社統合</td><td>横断比較+1社受諾→他社OFF自動切替</td><td>3h</td><td>0.5h<br><span class="dim">動作確認</span></td></tr>
+<tr><td class="amber">6. 音声会話</td><td>Gemini Live Audio+ピンマイク連携</td><td>3h</td><td>0.5h<br><span class="dim">走行テスト</span></td></tr>
+<tr><td class="amber">7. データ移植</td><td>BQ連携+天気+リサーチ+PDCA(今の仕組み移植)</td><td>4h</td><td>0h</td></tr>
+<tr><td class="amber">8. ダッシュボード</td><td>BQタブ等をWebViewで表示</td><td>2h</td><td>0.5h<br><span class="dim">表示確認</span></td></tr>
+<tr><td class="green">9. テスト稼働</td><td>Uber単体→2社→4社と段階的に本番テスト</td><td>2h<br><span class="dim">バグ修正</span></td><td class="red">2-3h<br><span class="dim">実稼働テスト</span></td></tr>
+<tr><th>合計</th><th></th><th class="amber">約24h</th><th class="amber">約5-8h</th></tr>
 </table>
+
+<h3>進め方</h3>
+<div class="box">
+<strong>1セッション = 1ステップ</strong>が目安。<br><br>
+Claudeが作る → Shujiが承認タップ → 実機で確認 → 次へ<br><br>
+<strong>最短3-4日で実戦投入可能</strong>(Shujiが毎日1-2セッション回せる場合)<br>
+<strong>通常1-2週間</strong>(稼働の合間にテストする場合)
+</div>
 
 <!-- 7. 期待効果 -->
 <h2>7. 期待効果</h2>
