@@ -813,7 +813,74 @@ functions.http('pdcaCycle', async (req, res) => {
       results.store_master = 'rebuilt';
     } catch(e) { results.store_master = 'error: ' + e.message; }
 
-    // Step 4: PDCA結果をRTDBに保存
+    // Step 4: AI突き合わせ (Geminiで未マッチデータを紐付け)
+    try {
+      // 未マッチのoffer_logs(actual_payout IS NULL, accept判定)を取得
+      const [unmatchedOffers] = await bigquery.query({ query: `
+        SELECT log_id, timestamp, store_name, offer_reward, offer_distance, offer_duration
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        WHERE gemini_decision = 'accept' AND actual_payout IS NULL AND offer_reward > 0
+          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+        ORDER BY timestamp DESC LIMIT 15
+      `});
+      const [deliveries] = await bigquery.query({ query: `
+        SELECT delivery_id, timestamp, store_name, reward, duration, distance
+        FROM \`${PROJECT_ID}.${DATASET}.delivery_history\`
+        WHERE reward > 0 AND store_name != '' AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+        ORDER BY timestamp DESC LIMIT 30
+      `});
+
+      if (unmatchedOffers.length > 0 && deliveries.length > 0) {
+        const matchPrompt = `フードデリバリーのオファーとリザルトを突き合わせて。店名の表記揺れ(スペース有無、英語部分)は同一店舗として扱う。時間が6h以内で店名か報酬が近ければマッチ。
+
+オファー:
+${unmatchedOffers.map(o => `${o.log_id}|${new Date(o.timestamp.value).toISOString().substring(5,16)}|${o.store_name}|¥${o.offer_reward}`).join('\n')}
+
+リザルト:
+${deliveries.map(d => `${d.delivery_id}|${new Date(d.timestamp.value).toISOString().substring(5,16)}|${d.store_name}|¥${d.reward}|${d.duration}分|${d.distance}km`).join('\n')}
+
+JSON出力: {"matches":[{"offer_id":"xxx","delivery_id":"xxx","reward":数値,"duration":数値,"distance":数値,"confidence":"high"}]}`;
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiResp = await fetch(geminiUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: matchPrompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 4000, thinkingConfig: { thinkingBudget: 0 } } })
+        });
+        const geminiData = await geminiResp.json();
+        const matchText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        console.log('AI match full response:', JSON.stringify(geminiData).substring(0, 800));
+        console.log('AI match raw:', matchText.substring(0, 500));
+        let matchResult;
+        try {
+          // JSONブロックを抽出（```json...```やテキスト中のJSON）
+          const cleaned = matchText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const jsonMatch = cleaned.match(/\{[\s\S]*"matches"[\s\S]*\}/);
+          matchResult = jsonMatch ? JSON.parse(jsonMatch[0]) : { matches: [] };
+        } catch(e) { matchResult = { matches: [] }; console.warn('AI match parse error:', e.message); }
+
+        // マッチ結果をBQに反映
+        let aiMatchCount = 0;
+        for (const m of (matchResult.matches || [])) {
+          if (!m.offer_id || !m.delivery_id) continue;
+          try {
+            await bigquery.query({
+              query: `UPDATE \`${PROJECT_ID}.${DATASET}.offer_logs\` SET actual_accepted = true, actual_payout = @reward, actual_duration_minutes = @duration, actual_distance_km = @distance WHERE log_id = @offerId AND actual_payout IS NULL`,
+              params: { reward: m.reward || 0, duration: (m.duration || 0) * 1.0, distance: m.distance || 0, offerId: m.offer_id }
+            });
+            aiMatchCount++;
+          } catch(e) { /* streaming buffer等 */ }
+        }
+        results.ai_matching = { unmatched: unmatchedOffers.length, deliveries: deliveries.length, ai_matched: aiMatchCount };
+        console.log('AI matching:', aiMatchCount, 'new matches from', unmatchedOffers.length, 'unmatched offers');
+      } else {
+        results.ai_matching = { unmatched: unmatchedOffers.length, deliveries: deliveries.length, ai_matched: 0, reason: 'no_data' };
+      }
+    } catch(e) {
+      results.ai_matching = { error: e.message };
+      console.warn('AI matching error:', e.message);
+    }
+
+    // Step 5: PDCA結果をRTDBに保存
     const rtdbUrl = FIREBASE_DB_URL + '/pdca.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
     await fetch(rtdbUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ last_cycle: { timestamp: Date.now(), results } })
