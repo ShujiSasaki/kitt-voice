@@ -460,6 +460,22 @@ functions.http('dashboardFeed', async (req, res) => {
         FROM \`${PROJECT_ID}.${DATASET}.context_logs\` WHERE timestamp > @since ORDER BY timestamp DESC LIMIT 300`,
       params: { since }
     });
+    // offer_logsのimage_urlがNULLの場合、RTDBのoffer_imagesから補完
+    try {
+      const imgResp = await fetch(FIREBASE_DB_URL + '/offer_images.json');
+      if (imgResp.ok) {
+        const imgData = await imgResp.json();
+        if (imgData) {
+          const imgEntries = Object.values(imgData).sort((a, b) => b.t - a.t);
+          for (const o of offerRows) {
+            if (o.image_url) continue;
+            const ot = new Date(o.timestamp?.value || o.timestamp).getTime();
+            const match = imgEntries.find(img => Math.abs(img.t - ot) < 180000);
+            if (match) o.image_url = match.url;
+          }
+        }
+      }
+    } catch(e) {}
     res.status(200).json({ offers: offerRows, nandemo: nandemoRows });
   } catch (error) {
     console.error('dashboardFeed error:', error);
