@@ -1341,22 +1341,33 @@ function parseOcrText(text) {
     }
   }
 
-  // Strategy 3: Last resort - ¥パターン (地図数字の誤検知リスクあり)
+  // Strategy 3: ロケットナウ形式 - 「XXX円」(¥なし、数字+円)
   if (!result.reward) {
     for (const rl of rewardLines) {
       const trimmed = rl.trim();
-      if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
-      // +·156 (追加オファー) も有効
-      const m = trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
+      const m = trimmed.match(/^([0-9,]{3,})円$/);
       if (m) {
         const val = parseInt(m[1].replace(/,/g, ''));
-        if (val >= 100 && val <= 3000) { result.reward = val; break; } // ¥パターンは3000円以下のみ
+        if (val >= 100 && val <= 9999) { result.reward = val; break; }
       }
     }
   }
 
-  // Distance: 「合計XX分（Y.Ykm）」を最優先
-  const distMatch = text.match(/合計.*?([0-9]+\.?[0-9]*)\s*km/i) || text.match(/([0-9]+\.?[0-9]*)\s*(?:km|キロ)/i);
+  // Strategy 4: Last resort - ¥パターン (地図数字の誤検知リスクあり)
+  if (!result.reward) {
+    for (const rl of rewardLines) {
+      const trimmed = rl.trim();
+      if (/[¥￥·•]\s*\d{1,2}\s*配達/.test(trimmed)) continue;
+      const m = trimmed.match(/[¥￥]\s*([0-9,]{3,})/);
+      if (m) {
+        const val = parseInt(m[1].replace(/,/g, ''));
+        if (val >= 100 && val <= 3000) { result.reward = val; break; }
+      }
+    }
+  }
+
+  // Distance: 「合計XX分（Y.Ykm）」を最優先、次にロケットナウ「配達距離X.Xkm」
+  const distMatch = text.match(/合計.*?([0-9]+\.?[0-9]*)\s*km/i) || text.match(/配達距離\s*([0-9]+\.?[0-9]*)\s*km/i) || text.match(/([0-9]+\.?[0-9]*)\s*(?:km|キロ)/i);
   if (distMatch) result.distanceKm = parseFloat(distMatch[1]);
 
   // Duration: 「合計XX分」を最優先（バッテリー%等の誤検知防止）
@@ -1370,7 +1381,7 @@ function parseOcrText(text) {
   }
 
   // Store name: 「合計XX分」行の直後の行が最有力。バリデーション付き。
-  const storeSkip = /^[0-9:,.\s¥￥·•+\-=—–×%]+$|^[a-zA-Z]$|^\d{1,2}:\d{2}|^配達|^ピック|^ドロップ|^合計|^距離|^時間|^予想|^到着|^注文|^承諾|^限定|^申込|^Uber|^現金|^クレジット|^稼働|^サイカ|^技術サービス|^\+?[·•]/;
+  const storeSkip = /^[0-9:,.\s¥￥·•+\-=—–×%]+$|^[a-zA-Z]$|^\d{1,2}:\d{2}|^配達|^ピック|^ドロップ|^合計|^距離|^時間|^予想|^到着|^注文|^承諾|^限定|^申込|^Uber|^uber|^現金|^クレジット|^稼働|^サイカ|^技術サービス|^\+?[·•]|^即時|^調理|^受取|^進行|^追加料金|^マルチ|^指名|^現在|^Google|^あと\d/;
   const storeValid = (s) => s && s.length >= 2 && !storeSkip.test(s) && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(s);
   const lines = text.split(/\\n|\n/).filter(l => l.trim());
 
