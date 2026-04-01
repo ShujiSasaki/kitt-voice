@@ -1945,6 +1945,21 @@ async function recalculateCoefficients() {
     const updates = {};
     for (const [k, v] of Object.entries(s)) { if (v !== null && v !== undefined) updates[k] = v; }
     updates.last_recalculated = Date.now();
+
+    // 次オファー待機時間を実データから計算
+    try {
+      const [intervalRows] = await bigquery.query({ query: `
+        WITH intervals AS (
+          SELECT TIMESTAMP_DIFF(timestamp, LAG(timestamp) OVER (ORDER BY timestamp), SECOND) as sec
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE offer_reward > 0 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+        )
+        SELECT ROUND(AVG(sec), 0) as avg_sec, ROUND(APPROX_QUANTILES(sec, 100)[OFFSET(50)], 0) as median_sec
+        FROM intervals WHERE sec BETWEEN 5 AND 1800
+      `});
+      if (intervalRows[0]?.median_sec) updates.next_offer_interval_sec = intervalRows[0].median_sec;
+    } catch(e) {}
+
     await updateCoefficients(updates);
     cache.coefficients = { data: null, expiry: 0 };
     console.log('Coefficients recalculated:', Object.keys(updates).length, 'values. Actual data:', s.actual_data_count, '/', s.total_offers);
