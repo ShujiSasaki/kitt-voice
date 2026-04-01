@@ -1381,19 +1381,30 @@ function parseOcrText(text) {
   }
 
   // Store name: 「合計XX分」行の直後の行が最有力。バリデーション付き。
-  const storeSkip = /^[0-9:,.\s¥￥·•+\-=—–×%]+$|^[a-zA-Z]$|^\d{1,2}:\d{2}|^配達|^ピック|^ドロップ|^合計|^距離|^時間|^予想|^到着|^注文|^承諾|^限定|^申込|^Uber|^uber|^現金|^クレジット|^稼働|^サイカ|^技術サービス|^\+?[·•]|^即時|^調理|^受取|^進行|^追加料金|^マルチ|^指名|^現在|^Google|^あと\d/;
+  const storeSkip = /^[0-9:,.\s¥￥·•+\-=—–×%]+$|^[a-zA-Z]{1,2}$|^\d{1,2}:\d{2}|^配達|^ピック|^ドロップ|^合計|^距離|^時間|^予想|^到着|^注文|^承諾|^限定|^申込|^Uber|^uber|^現金|^クレジット|^稼働|^サイカ|^技術サービス|^\+?[·•]|^即時|^調理|^受取|^進行|^追加料金|^マルチ|^指名|^現在|^Google|^AGoogue|^あと\d|^詳細|^Y\s|^博多|^天神|^地下鉄|^昭和通|^筑肥|^高宮|^白金|^西鉄|^県道|^国体道路/;
   const storeValid = (s) => s && s.length >= 2 && !storeSkip.test(s) && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(s);
   const lines = text.split(/\\n|\n/).filter(l => l.trim());
 
-  // Strategy 1: 合計行の直後
-  for (let i = 0; i < lines.length; i++) {
-    if (/合計/.test(lines[i]) && i + 1 < lines.length) {
-      const candidate = lines[i + 1].trim();
-      if (storeValid(candidate)) { result.storeName = candidate; break; }
-      // 次の行もチェック
-      if (i + 2 < lines.length) {
-        const candidate2 = lines[i + 2].trim();
-        if (storeValid(candidate2)) { result.storeName = candidate2; break; }
+  // Strategy 0: ロケットナウ形式 - 「XXX円」の上の行が店名
+  const rewardLineIdx = lines.findIndex(l => /^[0-9,]{3,}円$/.test(l.trim()));
+  if (rewardLineIdx > 0) {
+    // 報酬行の上を探す（最大3行上まで）
+    for (let i = rewardLineIdx - 1; i >= Math.max(0, rewardLineIdx - 3); i--) {
+      const candidate = lines[i].trim();
+      if (storeValid(candidate) && candidate.length >= 3) { result.storeName = candidate; break; }
+    }
+  }
+
+  // Strategy 1: Uber形式 - 合計行の直後
+  if (!result.storeName) {
+    for (let i = 0; i < lines.length; i++) {
+      if (/合計/.test(lines[i]) && i + 1 < lines.length) {
+        const candidate = lines[i + 1].trim();
+        if (storeValid(candidate)) { result.storeName = candidate; break; }
+        if (i + 2 < lines.length) {
+          const candidate2 = lines[i + 2].trim();
+          if (storeValid(candidate2)) { result.storeName = candidate2; break; }
+        }
       }
     }
   }
