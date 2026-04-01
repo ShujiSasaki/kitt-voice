@@ -541,15 +541,29 @@ functions.http('externalResearch', async (req, res) => {
         }
       } catch(e) { console.warn('Traffic error:', e.message); }
 
-      // 3. 5ch/Reddit風: 配達員コミュニティ情報
+      // 3. X(Twitter)投稿: Google検索経由でsite:x.comの投稿を取得
+      const xKws = ['uber+福岡+site:x.com', '出前館+福岡+site:x.com', 'ロケット+福岡+配達+site:x.com', 'UberEats+福岡+site:x.com'];
+      for (const kw of xKws) {
+        try {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 5)) {
+            results.push({ source: 'X(Twitter)', title: item[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        } catch(e) { console.warn('X RSS error:', kw, e.message); }
+      }
+
+      // 4. 5ch/Reddit風: 配達員コミュニティ情報
       try {
-        const communityKws = ['UberEats+配達員+2026', 'フードデリバリー+配達+稼ぎ'];
+        const communityKws = ['UberEats+配達員+福岡', 'フードデリバリー+配達+福岡+稼ぎ'];
         for (const kw of communityKws) {
           const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
           const rssResp = await fetch(rssUrl);
           const rssText = await rssResp.text();
           const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
-          for (const item of items.slice(0, 2)) {
+          for (const item of items.slice(0, 3)) {
             results.push({ source: 'Community', title: item[1].replace(/&amp;/g,'&'), url: item[2], published_at: item[3], search_query: kw });
           }
         }
@@ -615,7 +629,10 @@ functions.http('externalResearch', async (req, res) => {
         last_updated: Date.now(),
         mode,
         latest_count: unique.length,
-        latest_titles: unique.slice(0, 5).map(r => r.title.substring(0, 80))
+        latest_titles: unique.slice(0, 5).map(r => r.title.substring(0, 80)),
+        x_posts: unique.filter(r => r.source === 'X(Twitter)').slice(0, 10).map(r => ({ title: r.title.substring(0, 100), url: r.url, query: r.search_query })),
+        news: unique.filter(r => r.source === 'GoogleNews').slice(0, 5).map(r => ({ title: r.title.substring(0, 80) })),
+        traffic: unique.filter(r => r.source === 'Traffic').slice(0, 3).map(r => ({ title: r.title.substring(0, 80) }))
       })
     });
 
