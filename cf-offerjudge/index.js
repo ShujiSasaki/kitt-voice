@@ -186,6 +186,24 @@ functions.http('offerJudge', async (req, res) => {
 
     res.status(200).json(responseBody);
 
+    // BG: 直近オファー間隔を更新(オファーが来るたびに密度を再計算)
+    try {
+      const [intervalRows] = await bigquery.query({ query: `
+        WITH recent AS (
+          SELECT timestamp, LAG(timestamp) OVER (ORDER BY timestamp) as prev_ts
+          FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+          WHERE offer_reward > 0 AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
+        )
+        SELECT ROUND(APPROX_QUANTILES(TIMESTAMP_DIFF(timestamp, prev_ts, SECOND), 100)[OFFSET(50)], 0) as median_sec
+        FROM recent WHERE prev_ts IS NOT NULL AND TIMESTAMP_DIFF(timestamp, prev_ts, SECOND) BETWEEN 5 AND 600
+      `});
+      const newInterval = intervalRows[0]?.median_sec;
+      if (newInterval && newInterval > 0) {
+        await updateCoefficients({ next_offer_interval_sec: newInterval });
+        cache.coefficients = { data: null, expiry: 0 };
+      }
+    } catch(e) {}
+
   } catch (error) {
     console.error('offerJudge error:', error);
     const responseTimeMs = Date.now() - startTime;
@@ -1958,6 +1976,38 @@ async function recalculateCoefficients() {
         FROM intervals WHERE sec BETWEEN 5 AND 1800
       `});
       if (intervalRows[0]?.median_sec) updates.next_offer_interval_sec = intervalRows[0].median_sec;
+    } catch(e) {}
+
+    // waiting_expectation_value: 待機時に期待できる時給(拒否後の機会コスト計算用)
+    try {
+      const [waitRows] = await bigquery.query({ query: `
+        SELECT ROUND(AVG(CASE WHEN offer_duration > 0 THEN (offer_reward / offer_duration) * 60 END), 0) as avg_hourly
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        WHERE gemini_decision = 'accept' AND offer_reward > 0 AND offer_duration > 5
+          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)
+      `});
+      if (waitRows[0]?.avg_hourly) updates.waiting_expectation_value = waitRows[0].avg_hourly;
+    } catch(e) {}
+
+    // 天気ブースト係数: 雨の日と晴れの日の実績時給差から自動計算
+    try {
+      const [weatherRows] = await bigquery.query({ query: `
+        SELECT
+          ROUND(AVG(CASE WHEN weather_condition = 'rain' AND COALESCE(NULLIF(actual_duration_minutes,0), offer_duration) > 5 THEN (COALESCE(actual_payout, offer_reward) / COALESCE(NULLIF(actual_duration_minutes,0), offer_duration)) * 60 END), 0) as rain_hourly,
+          ROUND(AVG(CASE WHEN (weather_condition IS NULL OR weather_condition != 'rain') AND COALESCE(NULLIF(actual_duration_minutes,0), offer_duration) > 5 THEN (COALESCE(actual_payout, offer_reward) / COALESCE(NULLIF(actual_duration_minutes,0), offer_duration)) * 60 END), 0) as clear_hourly
+        FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+        WHERE offer_reward > 0 AND offer_duration > 5
+          AND timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+      `});
+      const rain = weatherRows[0]?.rain_hourly;
+      const clear = weatherRows[0]?.clear_hourly;
+      if (rain && clear && clear > 0) {
+        const rainBoost = Math.round(((rain / clear) - 1) * 100) / 100; // 雨の日の時給上昇率
+        if (rainBoost > 0) {
+          updates.rain_boost_light = Math.min(Math.round(rainBoost * 0.7 * 100) / 100, 0.30); // 小雨=上昇率の70%
+          updates.rain_boost_heavy = Math.min(Math.round(rainBoost * 100) / 100, 0.40); // 強雨=上昇率の100%
+        }
+      }
     } catch(e) {}
 
     await updateCoefficients(updates);
