@@ -1792,6 +1792,17 @@ function renderBqStats(d) {
       }
       html += '</div>';
     }
+    // 配達員の投稿
+    if (r.x_drivers?.length > 0) {
+      html += '<div style="margin-top:10px"><div style="font-size:13px;color:var(--green);font-weight:700;margin-bottom:4px">福岡の配達員 (日次収集)</div>';
+      for (const p of r.x_drivers) {
+        html += `<div style="padding:4px 0;border-bottom:1px solid #1a1a1a;font-size:13px">`;
+        html += `<span style="color:var(--text-dim);font-size:11px">${escHtml(p.acct || '')}</span><br>`;
+        html += escHtml(p.title);
+        html += `</div>`;
+      }
+      html += '</div>';
+    }
     // ニュース
     if (r.news?.length > 0) {
       html += '<div style="margin-top:10px"><div style="font-size:13px;color:var(--amber);font-weight:700;margin-bottom:4px">ニュース</div>';

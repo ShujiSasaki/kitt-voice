@@ -542,6 +542,7 @@ functions.http('externalResearch', async (req, res) => {
       } catch(e) { console.warn('Traffic error:', e.message); }
 
       // 3. X(Twitter)投稿: Google検索経由でsite:x.comの投稿を取得
+      // キーワード検索(10分毎)
       const xKws = ['uber+福岡+site:x.com', '出前館+福岡+site:x.com', 'ロケット+福岡+配達+site:x.com', 'UberEats+福岡+site:x.com'];
       for (const kw of xKws) {
         try {
@@ -573,7 +574,7 @@ functions.http('externalResearch', async (req, res) => {
       // 日次: 幅広い情報収集
       const dailyKws = [
         'UberEats+日本+最新+2026', '出前館+配達員+2026', 'フードデリバリー+料金改定',
-        'Wolt+日本+2026', 'menu+配達+2026', 'ロケットナウ+配達',
+        'menu+配達+2026', 'ロケットナウ+配達',
         '福岡+イベント+今週', '福岡+マラソン+交通規制', '福岡+祭り+2026',
         'UberEats+インセンティブ+変更', 'フードデリバリー+法律+規制',
         '配達員+事故+保険', 'ギグワーカー+日本+制度'
@@ -586,6 +587,36 @@ functions.http('externalResearch', async (req, res) => {
           const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
           for (const item of items.slice(0, 5)) {
             results.push({ source: 'DailyResearch', title: item[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        } catch(e) {}
+      }
+
+      // 日次: 福岡配達員Xアカウント個別フォロー
+      const xAccounts = [
+        'andmoreakasaru', 'BTJ6LV9lfU21004', 'tada_nokuzu', 'manapy8',
+        'FuKuOKa1221', 'excitement1212c', 'nako_uber', 'Uber48430592',
+        'yatagarasu0928', 'uberNO1srh', 'cafelatte0904', 'buhimaru320',
+        'Uber_harapeco', 'nono59458071', 'jWrsVRnC5QojJUK', 'fooddeliveryhero',
+        'az_UberFukuoka', 'shino37634021'
+      ];
+      // 各アカウントのプロフィールページからOG descriptionを取得
+      for (const acct of xAccounts) {
+        try {
+          const resp = await fetch(`https://x.com/${acct}`, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' } });
+          if (resp.ok) {
+            const html = await resp.text();
+            // OGP description = プロフィール説明 or 最新ツイート
+            const ogDesc = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+            const ogTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+            if (ogDesc) {
+              results.push({
+                source: 'X(配達員)',
+                title: (ogTitle ? ogTitle[1] + ': ' : '@' + acct + ': ') + ogDesc[1].substring(0, 100),
+                url: `https://x.com/${acct}`,
+                published_at: new Date().toISOString(),
+                search_query: '@' + acct
+              });
+            }
           }
         } catch(e) {}
       }
@@ -631,6 +662,7 @@ functions.http('externalResearch', async (req, res) => {
         latest_count: unique.length,
         latest_titles: unique.slice(0, 5).map(r => r.title.substring(0, 80)),
         x_posts: unique.filter(r => r.source === 'X(Twitter)').slice(0, 10).map(r => ({ title: r.title.substring(0, 100), url: r.url, query: r.search_query })),
+        x_drivers: unique.filter(r => r.source === 'X(配達員)').slice(0, 15).map(r => ({ title: r.title.substring(0, 100), url: r.url, acct: r.search_query })),
         news: unique.filter(r => r.source === 'GoogleNews').slice(0, 5).map(r => ({ title: r.title.substring(0, 80) })),
         traffic: unique.filter(r => r.source === 'Traffic').slice(0, 3).map(r => ({ title: r.title.substring(0, 80) }))
       })
