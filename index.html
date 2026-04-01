@@ -1780,10 +1780,31 @@ function renderBqStats(d) {
     const age = r.last_updated ? Math.round((Date.now() - r.last_updated) / 60000) : null;
     const ageStr = age !== null ? (age < 60 ? age + '分前' : Math.floor(age/60) + '時間前') : '不明';
     html += `<div class="bq-stat"><span class="label">最終取得</span><span class="value">${ageStr} (${r.latest_count || 0}件)</span></div>`;
-    if (r.latest_titles?.length > 0) {
-      html += '<div style="margin-top:6px;font-size:12px;color:var(--text-dim)">';
-      for (const t of r.latest_titles) {
-        html += '<div style="padding:2px 0;border-bottom:1px solid #1a1a1a">' + escHtml(t) + '</div>';
+    // X(Twitter)投稿
+    if (r.x_posts?.length > 0) {
+      html += '<div style="margin-top:10px"><div style="font-size:13px;color:var(--cyan);font-weight:700;margin-bottom:4px">X(Twitter)の投稿</div>';
+      for (const p of r.x_posts) {
+        const queryLabel = (p.query || '').replace(/\+site:x\.com/g,'').replace(/\+/g,' ');
+        html += `<div style="padding:4px 0;border-bottom:1px solid #1a1a1a;font-size:13px">`;
+        html += `<span style="color:var(--text-dim);font-size:11px">${escHtml(queryLabel)}</span><br>`;
+        html += escHtml(p.title);
+        html += `</div>`;
+      }
+      html += '</div>';
+    }
+    // ニュース
+    if (r.news?.length > 0) {
+      html += '<div style="margin-top:10px"><div style="font-size:13px;color:var(--amber);font-weight:700;margin-bottom:4px">ニュース</div>';
+      for (const n of r.news) {
+        html += `<div style="padding:2px 0;border-bottom:1px solid #1a1a1a;font-size:12px">${escHtml(n.title)}</div>`;
+      }
+      html += '</div>';
+    }
+    // 交通情報
+    if (r.traffic?.length > 0) {
+      html += '<div style="margin-top:10px"><div style="font-size:13px;color:var(--red);font-weight:700;margin-bottom:4px">交通情報</div>';
+      for (const t of r.traffic) {
+        html += `<div style="padding:2px 0;border-bottom:1px solid #1a1a1a;font-size:12px">${escHtml(t.title)}</div>`;
       }
       html += '</div>';
     }
