@@ -128,8 +128,7 @@ JSON形式で返してください:
     }],
     generationConfig: {
       responseMimeType: 'application/json',
-      maxOutputTokens: 1024,
-      thinkingConfig: { thinkingBudget: 0 }
+      maxOutputTokens: 1024
     }
   };
 
