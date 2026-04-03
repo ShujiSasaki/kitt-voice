@@ -77,30 +77,40 @@ functions.http('offerJudge', async (req, res) => {
       store_name: rawStoreName,
       reward: rawReward,
       distance_km: rawDistance,
-      duration_min: rawDuration
+      duration_min: rawDuration,
+      // New: AccessibilityService structured data
+      source,        // 'accessibility_service' | 'ocr' | undefined
+      app,           // 'uber' | 'demaecan' | 'rocketnow' | 'menu'
+      dropoffAddress, // ドロップ先住所 (Directions API用)
+      storeName: asStoreName,   // AS直接取得の店名
+      reward: asReward,         // AS直接取得の報酬
+      distance: asDistance,     // AS直接取得の距離
+      duration: asDuration,     // AS直接取得の時間
+      rawText                   // ASが収集した画面テキスト
     } = body;
 
-    // Step 1: Parse offer data (from OCR text or explicit fields)
-    let storeName = rawStoreName || '';
-    let reward = parseFloat(rawReward) || 0;
-    let distanceKm = parseFloat(rawDistance) || 0;
-    let durationMin = parseInt(rawDuration) || 0;
+    // Step 1: Parse offer data (AccessibilityService > explicit fields > OCR)
+    let storeName = asStoreName || rawStoreName || '';
+    let reward = parseFloat(asReward || rawReward) || 0;
+    let distanceKm = parseFloat(asDistance || rawDistance) || 0;
+    let durationMin = parseInt(asDuration || rawDuration) || 0;
 
-    if (ocr_text && (!storeName || !reward)) {
-      const parsed = parseOcrText(ocr_text);
+    if ((ocr_text || rawText) && (!storeName || !reward)) {
+      const parsed = parseOcrText(ocr_text || rawText || '');
       storeName = storeName || parsed.storeName;
       reward = reward || parsed.reward;
       distanceKm = distanceKm || parsed.distanceKm;
       durationMin = durationMin || parsed.durationMin;
     }
 
-    // Step 2: Parallel fetch - coefficients + store history + recent trends + weather
-    const [coefficients, storeHistory, recentTrends, questInfo, weather] = await Promise.all([
+    // Step 2: Parallel fetch - coefficients + store history + recent trends + weather + route
+    const [coefficients, storeHistory, recentTrends, questInfo, weather, routeInfo] = await Promise.all([
       getCoefficients(),
       getStoreHistory(storeName),
       getRecentTrends(),
       getLatestContext('quest'),
-      getWeather(lat, lng)
+      getWeather(lat, lng),
+      getRouteInfo(lat, lng, storeName, dropoffAddress)
     ]);
 
     // Step 3: Need Gemini for image analysis? (fallback if OCR failed)
@@ -121,8 +131,19 @@ functions.http('offerJudge', async (req, res) => {
     const dayOfWeek = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getUTCDay()];
     const isWeekend = dayOfWeek === 'Sat' || dayOfWeek === 'Sun';
 
+    // routeInfoがあれば実ルートの距離・時間で上書き
+    let routeDistanceKm = distanceKm;
+    let routeDurationMin = durationMin;
+    let pickupDurationMin = 0;
+    if (routeInfo) {
+      if (routeInfo.pickupDuration) pickupDurationMin = Math.round(routeInfo.pickupDuration / 60);
+      if (routeInfo.deliveryDistance) routeDistanceKm = routeInfo.deliveryDistance / 1000;
+      if (routeInfo.deliveryDuration) routeDurationMin = Math.round(routeInfo.deliveryDuration / 60);
+    }
+    const totalDurationMin = pickupDurationMin + routeDurationMin;
+
     const score = calculateScore({
-      reward, distanceKm, durationMin,
+      reward, distanceKm: routeDistanceKm, durationMin: totalDurationMin,
       coefficients, storeHistory, recentTrends,
       hourJST, isWeekend, wireless_charging, questInfo, weather
     });
@@ -131,7 +152,8 @@ functions.http('offerJudge', async (req, res) => {
     const confidence = score.total >= score.threshold * 1.3 ? 'high'
       : score.total >= score.threshold * 0.8 ? 'medium' : 'low';
 
-    const estHourlyRate = durationMin > 0 ? (reward / durationMin) * 60 : 0;
+    const estHourlyRate = totalDurationMin > 0 ? (reward / totalDurationMin) * 60 :
+                         durationMin > 0 ? (reward / durationMin) * 60 : 0;
 
     const reason = buildDecisionReason(decision, score, reward, distanceKm, durationMin, estHourlyRate, coefficients);
 
@@ -169,18 +191,32 @@ functions.http('offerJudge', async (req, res) => {
       }).catch(e => console.warn('RTDB write error:', e.message));
 
     // Step 6: Response
+    // Android用: 実効時給を別途計算 (ピックアップ移動時間込み)
+    const effectiveHourlyRate = totalDurationMin > 0 ? Math.round((reward / totalDurationMin) * 60) : Math.round(estHourlyRate);
+
     const responseBody = {
       decision,
       confidence,
       estimated_hourly_rate: Math.round(estHourlyRate),
+      effectiveHourlyRate,
       score: Math.round(score.total * 100) / 100,
       threshold: Math.round(score.threshold * 100) / 100,
       reason,
       tts_text: ttsText,
       store_name: storeName,
       reward,
-      distance_km: distanceKm,
-      duration_min: durationMin,
+      distance_km: routeDistanceKm,
+      duration_min: totalDurationMin,
+      app: app || 'uber',
+      source: source || 'ocr',
+      route: routeInfo ? {
+        pickup_distance_m: routeInfo.pickupDistance,
+        pickup_duration_min: pickupDurationMin,
+        delivery_distance_m: routeInfo.deliveryDistance,
+        delivery_duration_min: routeDurationMin,
+        pickup_address: routeInfo.pickupAddress,
+        dropoff_address: routeInfo.dropoffAddress
+      } : null,
       response_time_ms: responseTimeMs
     };
 
@@ -1562,6 +1598,45 @@ async function getWeather(lat, lng) {
     };
   } catch (e) {
     console.warn('getWeather error:', e.message);
+    return null;
+  }
+}
+
+// --- Google Maps Directions API (ルート計算) ---
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+
+async function getRouteInfo(lat, lng, storeName, dropoffAddress) {
+  if (!GOOGLE_MAPS_API_KEY || !lat || !lng) return null;
+  try {
+    const origin = `${lat},${lng}`;
+
+    // storeName→ジオコーディングはコスト高いので、距離推定のみ
+    // dropoffAddressがあれば、現在地→ドロップ先のルートを計算
+    if (!dropoffAddress) return null;
+
+    // 福岡市内を前提に住所を補完
+    const destination = dropoffAddress.includes('福岡') ? dropoffAddress : `福岡市${dropoffAddress}`;
+
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=driving&language=ja&key=${GOOGLE_MAPS_API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.status !== 'OK' || !data.routes || !data.routes[0]) return null;
+
+    const route = data.routes[0];
+    const leg = route.legs[0];
+
+    return {
+      pickupDistance: null,  // ピック先の位置がわからない場合はnull
+      pickupDuration: null,
+      deliveryDistance: leg.distance?.value || null,  // meters
+      deliveryDuration: leg.duration?.value || null,  // seconds
+      pickupAddress: leg.start_address,
+      dropoffAddress: leg.end_address,
+      summary: route.summary
+    };
+  } catch (e) {
+    console.warn('getRouteInfo error:', e.message);
     return null;
   }
 }

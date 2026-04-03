@@ -16,5 +16,8 @@ kitt-ios-nav/DerivedData/
 .DS_Store
 *.iml
 
+# Node
+node_modules/
+
 # Claude
 .claude/
