@@ -25,22 +25,22 @@ class KittNotificationListener : NotificationListenerService() {
         private const val TAG = "KittNotification"
 
         // 配達アプリのパッケージ名
-        private const val PKG_UBER_DRIVER = "com.ubercab.driver"
-        private const val PKG_DEMAECAN = "jp.co.demaecan.driver"
-        private const val PKG_ROCKETNOW = "jp.co.recruit.rocketnow.driver" // 要確認
-        private const val PKG_MENU = "jp.co.menu.driver" // 要確認
+        const val PKG_UBER_DRIVER = "com.ubercab.driver"
+        const val PKG_DEMAECAN = "jp.co.demaecan.driver"
+        const val PKG_ROCKETNOW = "jp.co.recruit.rocketnow.driver" // 要確認
+        const val PKG_MENU = "jp.co.menu.driver" // 要確認
 
         // カード・銀行アプリ
-        private const val PKG_SMBC = "jp.co.smbc.direct"
-        private const val PKG_SMBC_CARD = "jp.co.smbc.card.vpass"
-        private const val PKG_JCB = "com.jcb.myJCB"
-        private const val PKG_PAYPAY_CARD = "jp.ne.paypay.android.app" // PayPayアプリ内カード
+        const val PKG_SMBC = "jp.co.smbc.direct"
+        const val PKG_SMBC_CARD = "jp.co.smbc.card.vpass"
+        const val PKG_JCB = "com.jcb.myJCB"
+        const val PKG_PAYPAY_CARD = "jp.ne.paypay.android.app" // PayPayアプリ内カード
 
         // ヘルスケア
-        private const val PKG_OMRON = "jp.co.omron.healthcare.omron_connect"
+        const val PKG_OMRON = "jp.co.omron.healthcare.omron_connect"
 
         // カレンダー
-        private const val PKG_TIMETREE = "com.timetreeapp.timetree"
+        const val PKG_TIMETREE = "com.timetreeapp.timetree"
 
         // 配達アプリ一覧
         val DELIVERY_APPS = setOf(PKG_UBER_DRIVER, PKG_DEMAECAN, PKG_ROCKETNOW, PKG_MENU)
