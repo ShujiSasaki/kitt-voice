@@ -592,7 +592,26 @@ functions.http('externalResearch', async (req, res) => {
         } catch(e) { console.warn('X RSS error:', kw, e.message); }
       }
 
-      // 4. 5ch/Reddit風: 配達員コミュニティ情報
+      // 4. 福岡イベント情報 (道路混雑・需要変動に影響)
+      const eventKws = [
+        'PayPayドーム+今日', 'マリンメッセ福岡+イベント+今日',
+        '福岡国際センター+イベント', '福岡+花火大会',
+        '福岡+祭り+今日', '天神+イベント+今日',
+        '福岡+コンサート+今日', '博多駅+イベント'
+      ];
+      for (const kw of eventKws) {
+        try {
+          const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ja&gl=JP&ceid=JP:ja`;
+          const rssResp = await fetch(rssUrl);
+          const rssText = await rssResp.text();
+          const items = [...rssText.matchAll(/<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+          for (const item of items.slice(0, 2)) {
+            results.push({ source: 'Event', title: item[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'), url: item[2], published_at: item[3], search_query: kw });
+          }
+        } catch(e) { console.warn('Event RSS error:', kw, e.message); }
+      }
+
+      // 5. 5ch/Reddit風: 配達員コミュニティ情報
       try {
         const communityKws = ['UberEats+配達員+福岡', 'フードデリバリー+配達+福岡+稼ぎ'];
         for (const kw of communityKws) {
@@ -613,7 +632,12 @@ functions.http('externalResearch', async (req, res) => {
         'menu+配達+2026', 'ロケットナウ+配達',
         '福岡+イベント+今週', '福岡+マラソン+交通規制', '福岡+祭り+2026',
         'UberEats+インセンティブ+変更', 'フードデリバリー+法律+規制',
-        '配達員+事故+保険', 'ギグワーカー+日本+制度'
+        '配達員+事故+保険', 'ギグワーカー+日本+制度',
+        // イベント・交通規制 (需要・道路影響)
+        'PayPayドーム+ホークス+スケジュール', 'マリンメッセ福岡+コンサート',
+        '福岡国際センター+イベント+スケジュール', '福岡+花見+場所+2026',
+        '博多どんたく+2026', '博多祇園山笠+2026', '天神ビッグバン+工事',
+        '福岡+学校+長期休暇+2026', '福岡+交通規制+予定'
       ];
       for (const kw of dailyKws) {
         try {
@@ -2291,4 +2315,172 @@ async function optimizeWeights() {
   }
 }
 
-console.log('UberEats AI Judge Cloud Functions loaded');
+// ============================================================
+// ENDPOINT: /calendarSync - TimeTree iCal取得 + 引き落とし抽出
+// ============================================================
+functions.http('calendarSync', async (req, res) => {
+  try {
+    if (req.method === 'GET') {
+      return res.status(200).json({ status: 'ok' });
+    }
+    if (!checkApiKey(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // iCal URLはRTDBの /config/ical_urls に保存
+    const configUrl = FIREBASE_DB_URL + '/config/ical_urls.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    const configResp = await fetch(configUrl);
+    const icalUrls = await configResp.json();
+
+    if (!icalUrls || typeof icalUrls !== 'object') {
+      return res.status(200).json({ status: 'no_ical_urls_configured' });
+    }
+
+    const allEvents = [];
+    const payments = [];
+
+    for (const [calName, url] of Object.entries(icalUrls)) {
+      if (!url) continue;
+      try {
+        const icalResp = await fetch(url);
+        if (!icalResp.ok) continue;
+        const icalText = await icalResp.text();
+        const events = parseICal(icalText, calName);
+        allEvents.push(...events);
+
+        // 金額が含まれるイベントを引き落としとして抽出
+        for (const ev of events) {
+          const amountMatch = ev.summary.match(/([0-9,]+)\s*円|[¥￥]\s*([0-9,]+)/);
+          if (amountMatch) {
+            const amount = parseInt((amountMatch[1] || amountMatch[2]).replace(/,/g, ''));
+            if (amount > 0) {
+              payments.push({
+                date: ev.dtstart,
+                amount,
+                description: ev.summary,
+                calendar: calName
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`iCal fetch error for ${calName}:`, e.message);
+      }
+    }
+
+    // 今後30日のイベントをRTDBに保存
+    const now = new Date();
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const upcomingEvents = allEvents.filter(e => {
+      const d = new Date(e.dtstart);
+      return d >= now && d <= thirtyDaysLater;
+    }).sort((a, b) => new Date(a.dtstart) - new Date(b.dtstart));
+
+    // 月間の引き落とし合計
+    const currentMonth = now.getMonth();
+    const monthlyPayments = payments.filter(p => new Date(p.date).getMonth() === currentMonth);
+    const totalPayments = monthlyPayments.reduce((sum, p) => sum + p.amount, 0);
+
+    // 次の引き落とし日
+    const upcomingPayments = payments.filter(p => new Date(p.date) >= now)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const result = {
+      events_count: upcomingEvents.length,
+      events: upcomingEvents.slice(0, 50), // 最大50件
+      payments: {
+        monthly_total: totalPayments,
+        upcoming: upcomingPayments.slice(0, 20),
+        next: upcomingPayments[0] || null
+      },
+      synced_at: new Date().toISOString()
+    };
+
+    // RTDBに保存 (KITTアプリから読み取り用)
+    const rtdbSaveUrl = FIREBASE_DB_URL + '/calendar.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    fetch(rtdbSaveUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result)
+    }).catch(e => console.warn('RTDB calendar save error:', e.message));
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    console.error('calendarSync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- iCalパーサー ---
+function parseICal(icalText, calendarName) {
+  const events = [];
+  const lines = icalText.split(/\r?\n/);
+  let inEvent = false;
+  let event = {};
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    // 継続行の処理 (スペースまたはタブで始まる行は前の行の続き)
+    while (i + 1 < lines.length && (lines[i + 1].startsWith(' ') || lines[i + 1].startsWith('\t'))) {
+      i++;
+      line += lines[i].substring(1);
+    }
+
+    if (line === 'BEGIN:VEVENT') {
+      inEvent = true;
+      event = { calendar: calendarName };
+    } else if (line === 'END:VEVENT') {
+      inEvent = false;
+      if (event.summary) {
+        events.push(event);
+      }
+    } else if (inEvent) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx === -1) continue;
+      const key = line.substring(0, colonIdx).split(';')[0]; // パラメータを除去
+      const value = line.substring(colonIdx + 1);
+
+      switch (key) {
+        case 'SUMMARY':
+          event.summary = value;
+          break;
+        case 'DTSTART':
+          event.dtstart = parseICalDate(value);
+          break;
+        case 'DTEND':
+          event.dtend = parseICalDate(value);
+          break;
+        case 'DESCRIPTION':
+          event.description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
+          break;
+        case 'LOCATION':
+          event.location = value;
+          break;
+      }
+    }
+  }
+  return events;
+}
+
+function parseICalDate(value) {
+  // 20260403T120000Z or 20260403 or 20260403T120000
+  if (!value) return null;
+  const clean = value.replace(/[^0-9TZ]/g, '');
+  if (clean.length >= 8) {
+    const y = clean.substring(0, 4);
+    const m = clean.substring(4, 6);
+    const d = clean.substring(6, 8);
+    if (clean.length >= 15) {
+      const h = clean.substring(9, 11);
+      const min = clean.substring(11, 13);
+      const s = clean.substring(13, 15);
+      const isUTC = clean.endsWith('Z');
+      return `${y}-${m}-${d}T${h}:${min}:${s}${isUTC ? 'Z' : '+09:00'}`;
+    }
+    return `${y}-${m}-${d}`;
+  }
+  return value;
+}
+
+console.log('KITT AI Agent Cloud Functions loaded');
