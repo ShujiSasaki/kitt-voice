@@ -10,6 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,45 +20,73 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.kitt.app.service.KittAccessibilityService
 import com.kitt.app.service.KittForegroundService
+import com.kitt.app.service.KittNotificationListener
+import com.kitt.app.service.LocationProvider
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        val notificationLogs = mutableListOf<NotificationLog>()
+    }
+
+    data class NotificationLog(
+        val time: String,
+        val app: String,
+        val title: String,
+        val text: String,
+        val pkg: String
+    )
+
     private val requiredPermissions = arrayOf(
         Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.POST_NOTIFICATIONS
+        Manifest.permission.POST_NOTIFICATIONS,
+        Manifest.permission.ACCESS_FINE_LOCATION
     )
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.values.all { it }) {
-            startKittService()
+    ) { results ->
+        // FINE_LOCATIONが許可されたらBACKGROUND_LOCATIONを別途リクエスト
+        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            requestBackgroundLocationIfNeeded()
         }
     }
+
+    private val bgLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    private var locationProvider: LocationProvider? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setContent {
-            KittTheme {
-                KittScreen()
-            }
+        if (!hasAllPermissions()) {
+            permissionLauncher.launch(requiredPermissions)
+        } else {
+            requestBackgroundLocationIfNeeded()
         }
 
-        // 権限チェック → サービス開始
-        if (hasAllPermissions()) {
-            startKittService()
-        } else {
-            permissionLauncher.launch(requiredPermissions)
+        // GPS開始
+        locationProvider = LocationProvider(this).also { it.startTracking() }
+
+        setContent {
+            KittTheme {
+                KittDashboard()
+            }
         }
+    }
+
+    override fun onDestroy() {
+        locationProvider?.stopTracking()
+        super.onDestroy()
     }
 
     private fun hasAllPermissions(): Boolean {
@@ -64,119 +95,275 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startKittService() {
-        val intent = Intent(this, KittForegroundService::class.java)
-        startForegroundService(intent)
+    private fun isNotificationListenerEnabled(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat?.contains("com.kitt.app") == true
+    }
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+    }
+
+    private fun isA11yEnabled(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_accessibility_services")
+        return flat?.contains("com.kitt.app") == true
     }
 
     @Composable
-    fun KittScreen() {
-        var isConnected by remember { mutableStateOf(false) }
-        var statusText by remember { mutableStateOf("起動中...") }
+    fun KittDashboard() {
+        var logs by remember { mutableStateOf(listOf<NotificationLog>()) }
+        var listenerEnabled by remember { mutableStateOf(false) }
+        var a11yEnabled by remember { mutableStateOf(false) }
+        var fgServiceRunning by remember { mutableStateOf(false) }
+        var gpsLat by remember { mutableStateOf<Double?>(null) }
+        var gpsLng by remember { mutableStateOf<Double?>(null) }
+        var gpsAcc by remember { mutableStateOf<Float?>(null) }
+        val listState = rememberLazyListState()
 
-        // サービス状態を監視
+        // 1秒ごとに全状態を更新
         LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(2000)
-            isConnected = KittForegroundService.instance?.geminiClient != null
-            statusText = if (isConnected) "接続中" else "未接続"
+            while (true) {
+                logs = notificationLogs.toList().reversed()
+                listenerEnabled = isNotificationListenerEnabled()
+                a11yEnabled = isA11yEnabled()
+                fgServiceRunning = KittForegroundService.instance != null
+
+                // GPS: ForegroundService → 自前LocationProvider の順
+                val fgLocation = KittForegroundService.instance?.offerJudgeClient?.locationProvider
+                val locProvider = fgLocation ?: locationProvider
+                gpsLat = locProvider?.lat
+                gpsLng = locProvider?.lng
+                gpsAcc = locProvider?.accuracy
+
+                delay(1000)
+            }
         }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFF0A0A0A))
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(16.dp)
         ) {
-            // KITTロゴ
+            // ヘッダー
             Text(
                 text = "KITT",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Black,
-                color = Color(0xFFE03030),
-                letterSpacing = 12.sp
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFE03030)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "AI DELIVERY AGENT",
-                fontSize = 10.sp,
-                color = Color(0xFF666666),
-                letterSpacing = 4.sp
-            )
+            // === サービス状態 ===
+            ServiceStatusRow("通知リスナー", listenerEnabled)
+            ServiceStatusRow("A11yサービス", a11yEnabled)
+            ServiceStatusRow("常駐サービス", fgServiceRunning)
 
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // ステータスインジケーター
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        color = if (isConnected) Color(0xFF30D060).copy(alpha = 0.1f)
-                        else Color(0xFFE03030).copy(alpha = 0.1f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .background(
-                            color = if (isConnected) Color(0xFF30D060) else Color(0xFFE03030),
-                            shape = CircleShape
-                        )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = statusText,
-                fontSize = 14.sp,
-                color = if (isConnected) Color(0xFF30D060) else Color(0xFF666666)
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // 設定ボタン群
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 通知アクセス設定
-                OutlinedButton(
+            // 通知リスナーOFFなら設定ボタン
+            if (!listenerEnabled) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
                     onClick = {
                         startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFE8E8E8)
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE03030)),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
-                    Text("通知アクセスを設定", fontSize = 12.sp)
-                }
-
-                // アクセシビリティ設定
-                OutlinedButton(
-                    onClick = {
-                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFE8E8E8)
-                    )
-                ) {
-                    Text("アクセシビリティを設定", fontSize = 12.sp)
+                    Text("通知アクセスを許可", fontSize = 11.sp)
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            // A11yサービスOFFなら設定ボタン
+            if (!a11yEnabled) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = {
+                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE03030)),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text("A11yサービスを許可", fontSize = 11.sp)
+                }
+            }
 
+            // ForegroundService開始ボタン
+            if (!fgServiceRunning) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = {
+                        val intent = Intent(this@MainActivity, KittForegroundService::class.java)
+                        startForegroundService(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF30D060)),
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Text("KITT起動", fontSize = 11.sp, color = Color.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // === GPS ===
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("GPS: ", fontSize = 11.sp, color = Color(0xFF888888))
+                if (gpsLat != null && gpsLng != null) {
+                    Text(
+                        String.format("%.5f, %.5f", gpsLat, gpsLng),
+                        fontSize = 11.sp,
+                        color = Color(0xFF30D060)
+                    )
+                    gpsAcc?.let {
+                        Text(
+                            " (${String.format("%.0f", it)}m)",
+                            fontSize = 10.sp,
+                            color = Color(0xFF666666)
+                        )
+                    }
+                } else {
+                    Text("取得中...", fontSize = 11.sp, color = Color(0xFF666666))
+                }
+            }
+
+            // === 対象アプリ・CF判定 ===
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "v1.0.0",
+                "対象: Uber / 出前館 / menu / ロケットナウ",
+                fontSize = 10.sp, color = Color(0xFF666666)
+            )
+            Text(
+                "CF判定: ${if (com.kitt.app.BuildConfig.CF_API_KEY.isNotEmpty()) "設定済み" else "未設定"}",
                 fontSize = 10.sp,
+                color = if (com.kitt.app.BuildConfig.CF_API_KEY.isNotEmpty()) Color(0xFF30D060) else Color(0xFFE03030)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = Color(0xFF333333), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // === ログヘッダー ===
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "ログ: ${logs.size}件",
+                    fontSize = 13.sp,
+                    color = Color(0xFFCCCCCC)
+                )
+                OutlinedButton(
+                    onClick = {
+                        notificationLogs.clear()
+                        logs = emptyList()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF888888)),
+                    modifier = Modifier.height(28.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text("クリア", fontSize = 10.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // === 通知ログ一覧 ===
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(logs) { log ->
+                    NotificationItem(log)
+                    HorizontalDivider(color = Color(0xFF222222), thickness = 0.5.dp)
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ServiceStatusRow(label: String, enabled: Boolean) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(vertical = 2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(
+                        if (enabled) Color(0xFF30D060) else Color(0xFFE03030),
+                        shape = CircleShape
+                    )
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "$label: ${if (enabled) "ON" else "OFF"}",
+                fontSize = 12.sp,
+                color = if (enabled) Color(0xFF30D060) else Color(0xFFE03030)
+            )
+        }
+    }
+
+    @Composable
+    fun NotificationItem(log: NotificationLog) {
+        val isDelivery = log.pkg in KittNotificationListener.DELIVERY_APPS
+        val isFinance = log.pkg in KittNotificationListener.FINANCE_APPS
+        val isOffer = log.app.contains("オファー検知") || log.app.contains("判定結果")
+        val isError = log.app.contains("エラー")
+
+        val accentColor = when {
+            isOffer && log.app.contains("✅") -> Color(0xFF30D060)
+            isOffer && log.app.contains("❌") -> Color(0xFFE03030)
+            isOffer -> Color(0xFFFFD700)
+            isError -> Color(0xFFFF6B6B)
+            isDelivery -> Color(0xFF30D060)
+            isFinance -> Color(0xFFFFB74D)
+            else -> Color(0xFF4FC3F7)
+        }
+
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = log.app,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = log.time,
+                    fontSize = 9.sp,
+                    color = Color(0xFF555555)
+                )
+            }
+            if (log.title.isNotEmpty()) {
+                Text(
+                    text = log.title,
+                    fontSize = 11.sp,
+                    color = Color(0xFFDDDDDD)
+                )
+            }
+            if (log.text.isNotEmpty()) {
+                Text(
+                    text = log.text,
+                    fontSize = 10.sp,
+                    color = Color(0xFF999999),
+                    maxLines = 20
+                )
+            }
+            Text(
+                text = log.pkg,
+                fontSize = 8.sp,
                 color = Color(0xFF333333)
             )
         }

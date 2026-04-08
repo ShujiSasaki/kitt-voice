@@ -21,6 +21,7 @@ android {
         buildConfigField("String", "CF_API_KEY", "\"${project.findProperty("CF_API_KEY") ?: ""}\"")
         buildConfigField("String", "CF_BASE_URL", "\"https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net\"")
         buildConfigField("String", "FIREBASE_RTDB_URL", "\"https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app\"")
+        buildConfigField("String", "FIREBASE_DB_SECRET", "\"${project.findProperty("FIREBASE_DB_SECRET") ?: ""}\"")
     }
 
     buildTypes {

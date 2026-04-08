@@ -29,6 +29,9 @@ class OfferJudgeClient {
         private const val TAG = "OfferJudge"
     }
 
+    // GPS座標の注入用
+    var locationProvider: com.kitt.app.service.LocationProvider? = null
+
     /**
      * オファーデータをCFに送信して判定を取得
      */
@@ -46,10 +49,9 @@ class OfferJudgeClient {
                     offer.dropoffAddress?.let { put("dropoffAddress", it) }
                     put("rawText", offer.rawText)
 
-                    // GPS (KittForegroundServiceから取得)
-                    // TODO: 現在地の緯度経度を注入
-                    // put("lat", currentLat)
-                    // put("lng", currentLng)
+                    // GPS
+                    locationProvider?.lat?.let { put("lat", it) }
+                    locationProvider?.lng?.let { put("lng", it) }
                 }
 
                 val request = Request.Builder()

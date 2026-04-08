@@ -5,6 +5,7 @@
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
+    android:packageNames="com.ubercab.driver,com.demaecan.DemaecanDriver,com.cpone.delivery,inc.menu.deliverer,com.google.android.youtube,jp.radiko.player,jp.co.tver.android,jp.co.jcom.jcomapp,jp.co.omron.healthcare.omron_connect,com.timetreeapp.timetree"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="100"
     android:settingsActivity="com.kitt.app.ui.MainActivity" />

@@ -86,7 +86,6 @@ class NavSender {
     }
 
     private fun getFirebaseSecret(): String {
-        // TODO: BuildConfigから取得 or Secure Storageから読み出し
-        return ""
+        return BuildConfig.FIREBASE_DB_SECRET
     }
 }
