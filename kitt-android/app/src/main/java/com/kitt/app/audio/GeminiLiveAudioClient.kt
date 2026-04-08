@@ -39,6 +39,11 @@ class GeminiLiveAudioClient(
         private const val KEEPALIVE_INTERVAL_MS = 300_000L // 5分
     }
 
+    private val httpClient = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS) // WebSocketは無期限
+        .pingInterval(30, TimeUnit.SECONDS)
+        .build()
+
     /**
      * Gemini Live Audio WebSocketに接続
      */
@@ -55,14 +60,9 @@ class GeminiLiveAudioClient(
 
         val url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=$apiKey"
 
-        val client = OkHttpClient.Builder()
-            .readTimeout(0, TimeUnit.MILLISECONDS) // WebSocketは無期限
-            .pingInterval(30, TimeUnit.SECONDS)
-            .build()
-
         val request = Request.Builder().url(url).build()
 
-        client.newWebSocket(request, object : WebSocketListener() {
+        httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d(TAG, "WebSocket opened, sending setup...")
                 ws = webSocket
@@ -278,9 +278,11 @@ class GeminiLiveAudioClient(
         val base64 = Base64.encodeToString(pcmData, Base64.NO_WRAP)
         val msg = buildJsonObject {
             putJsonObject("realtimeInput") {
-                putJsonObject("mediaChunks") {
-                    put("data", base64)
-                    put("mimeType", "audio/pcm;rate=16000")
+                putJsonArray("mediaChunks") {
+                    addJsonObject {
+                        put("data", base64)
+                        put("mimeType", "audio/pcm;rate=16000")
+                    }
                 }
             }
         }
@@ -319,17 +321,32 @@ class GeminiLiveAudioClient(
                     "メディア操作を実行しました: $action ${app ?: ""} ${query ?: ""}"
                 }
                 "accept_offer" -> {
-                    // 現在表示中のアプリで受諾タップ
-                    val success = KittAccessibilityService.instance?.tapAcceptButton(
-                        currentOfferApp ?: ""
-                    ) ?: false
-                    if (success) "受諾しました" else "受諾ボタンが見つかりません"
+                    val pkg = currentOfferApp ?: ""
+                    val success = KittAccessibilityService.instance?.tapAcceptButton(pkg) ?: false
+                    if (success) {
+                        // 受諾成功 → ピック先ナビをiPhoneに送信
+                        currentJudgment?.let { judgment ->
+                            KittForegroundService.instance?.updateNotification("ピック中: ${judgment.storeName}")
+                        }
+                        currentOfferApp = null
+                        currentJudgment = null
+                        "受諾しました"
+                    } else {
+                        "受諾ボタンが見つかりません"
+                    }
                 }
                 "reject_offer" -> {
-                    val success = KittAccessibilityService.instance?.tapRejectButton(
-                        currentOfferApp ?: ""
-                    ) ?: false
-                    if (success) "拒否しました" else "拒否ボタンが見つかりません"
+                    val pkg = currentOfferApp ?: ""
+                    val success = KittAccessibilityService.instance?.tapRejectButton(pkg) ?: false
+                    if (success) {
+                        currentOfferApp = null
+                        currentJudgment = null
+                        KittForegroundService.instance?.updateNotification("KITT 待機中")
+                        audioRouter.abandonAudioFocus()
+                        "拒否しました"
+                    } else {
+                        "拒否ボタンが見つかりません"
+                    }
                 }
                 else -> "不明なコマンド: $name"
             }
@@ -353,9 +370,14 @@ class GeminiLiveAudioClient(
     }
 
     private var currentOfferApp: String? = null
+    private var currentJudgment: OfferJudgeClient.JudgmentResult? = null
 
     fun setCurrentOfferApp(app: String) {
         currentOfferApp = app
+    }
+
+    fun setCurrentJudgment(judgment: OfferJudgeClient.JudgmentResult) {
+        currentJudgment = judgment
     }
 
     private fun onDisconnected() {

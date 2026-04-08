@@ -22,6 +22,7 @@ class AudioRouter(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var hasAudioFocus = false
+    private var currentFocusRequest: AudioFocusRequest? = null
 
     companion object {
         private const val TAG = "AudioRouter"
@@ -160,6 +161,7 @@ class AudioRouter(private val context: Context) {
             .setOnAudioFocusChangeListener(focusChangeListener)
             .build()
 
+        currentFocusRequest = focusRequest
         val result = audioManager.requestAudioFocus(focusRequest)
         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         Log.d(TAG, "AudioFocus request: ${if (hasAudioFocus) "granted" else "denied"}")
@@ -171,11 +173,8 @@ class AudioRouter(private val context: Context) {
     fun abandonAudioFocus() {
         if (!hasAudioFocus) return
 
-        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setOnAudioFocusChangeListener(focusChangeListener)
-            .build()
-
-        audioManager.abandonAudioFocusRequest(focusRequest)
+        currentFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        currentFocusRequest = null
         hasAudioFocus = false
         Log.d(TAG, "AudioFocus released")
     }

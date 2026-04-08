@@ -3,7 +3,11 @@ package com.kitt.app.service
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.kitt.app.ui.MainActivity
 import kotlinx.coroutines.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 全アプリの通知を監視
@@ -26,9 +30,9 @@ class KittNotificationListener : NotificationListenerService() {
 
         // 配達アプリのパッケージ名
         const val PKG_UBER_DRIVER = "com.ubercab.driver"
-        const val PKG_DEMAECAN = "jp.co.demaecan.driver"
-        const val PKG_ROCKETNOW = "jp.co.recruit.rocketnow.driver" // 要確認
-        const val PKG_MENU = "jp.co.menu.driver" // 要確認
+        const val PKG_DEMAECAN = "com.demaecan.DemaecanDriver"
+        const val PKG_ROCKETNOW = "com.cpone.delivery"
+        const val PKG_MENU = "inc.menu.deliverer"
 
         // カード・銀行アプリ
         const val PKG_SMBC = "jp.co.smbc.direct"
@@ -70,6 +74,23 @@ class KittNotificationListener : NotificationListenerService() {
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
         Log.d(TAG, "Notification: pkg=$pkg title=$title text=$text")
+
+        // UIにログ追加
+        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.JAPAN).format(Date())
+        val appName = when (pkg) {
+            PKG_UBER_DRIVER -> "Uber Driver"
+            PKG_DEMAECAN -> "出前館"
+            PKG_ROCKETNOW -> "ロケットナウ"
+            PKG_MENU -> "menu"
+            else -> pkg.substringAfterLast(".")
+        }
+        MainActivity.notificationLogs.add(
+            MainActivity.NotificationLog(timeStr, appName, title, text, pkg)
+        )
+        // 最大100件
+        if (MainActivity.notificationLogs.size > 100) {
+            MainActivity.notificationLogs.removeAt(0)
+        }
 
         when {
             pkg in DELIVERY_APPS -> handleDeliveryNotification(pkg, title, text, sbn)

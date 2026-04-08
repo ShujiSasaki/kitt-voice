@@ -37,6 +37,8 @@ class KittForegroundService : Service() {
         private set
     lateinit var offerJudgeClient: OfferJudgeClient
         private set
+    lateinit var locationProvider: LocationProvider
+        private set
     lateinit var navSender: NavSender
         private set
 
@@ -52,7 +54,8 @@ class KittForegroundService : Service() {
 
         audioRouter = AudioRouter(this)
         geminiClient = GeminiLiveAudioClient(audioRouter)
-        offerJudgeClient = OfferJudgeClient()
+        locationProvider = LocationProvider(this).also { it.startTracking() }
+        offerJudgeClient = OfferJudgeClient().also { it.locationProvider = locationProvider }
         navSender = NavSender()
 
         // WakeLock: CPU稼働維持 (画面OFFでも動作)
@@ -75,6 +78,7 @@ class KittForegroundService : Service() {
         scope.cancel()
         geminiClient.disconnect()
         audioRouter.release()
+        locationProvider.stopTracking()
         wakeLock?.let { if (it.isHeld) it.release() }
         super.onDestroy()
     }
@@ -97,11 +101,12 @@ class KittForegroundService : Service() {
             // AudioFocusを取得してメディア音量をダック
             audioRouter.requestAudioFocusForSpeech()
 
+            // function callingで受諾/拒否するときにどのアプリか伝える
+            geminiClient.setCurrentOfferApp(offerApp)
+            geminiClient.setCurrentJudgment(judgment)
+
             // KITTが判定理由を音声で報告
             geminiClient.sendOfferContext(judgment)
-
-            // Phase A: Shujiの声で受諾/拒否を待つ
-            // Phase B (将来): 自動で受諾/拒否タップ
         }
     }
 
