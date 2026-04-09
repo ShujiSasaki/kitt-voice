@@ -968,16 +968,31 @@ async function startMic() {
   if (state.micActive) return;
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        sampleRate: { ideal: 16000 },
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        // 風切り音対策: ハイパスフィルタはWeb Audio APIで後段追加
+    // AirPods接続時はマイクゲインが極端に低い(iOS Safari制限)
+    // → iPhoneマイクを強制選択して入力、AirPodsは出力のみ
+    let preferredDeviceId = null;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput');
+      const iphoneMic = mics.find(m => m.label.includes('iPhone') || m.label.includes('内蔵'));
+      if (iphoneMic && mics.length > 1) {
+        preferredDeviceId = iphoneMic.deviceId;
+        log('Forcing iPhone mic (AirPods mic too quiet): ' + iphoneMic.label);
       }
-    });
+    } catch(e) {}
+
+    const audioConstraints = {
+      channelCount: 1,
+      sampleRate: { ideal: 16000 },
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+    if (preferredDeviceId) {
+      audioConstraints.deviceId = { exact: preferredDeviceId };
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     state.micStream = stream;
 
     // Duck YouTube while mic is active
