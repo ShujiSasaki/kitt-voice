@@ -1036,12 +1036,12 @@ async function startMic() {
     const voiceBoost = micCtx.createBiquadFilter();
     voiceBoost.type = 'peaking';
     voiceBoost.frequency.value = 2000;
-    voiceBoost.gain.value = 6; // +6dB
+    voiceBoost.gain.value = 3; // +3dB (6dBだとゲインと合わせて音割れ)
     voiceBoost.Q.value = 1.0;
 
     // AirPodsマイク用ゲインブースト (iOS Safariでゲインが極端に低い問題の対策)
     const micGain = micCtx.createGain();
-    micGain.gain.value = state._micIsAirPods ? 5.0 : 1.0; // AirPods: 5倍増幅 (20倍だと音割れ)
+    micGain.gain.value = state._micIsAirPods ? 2.0 : 1.0; // AirPods: 2倍増幅 (5倍+voiceBoostで音割れしてた)
 
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
