@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KITT v2 設計書 — Pixel 10 Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e8e8e8;font-family:'Helvetica Neue',sans-serif;line-height:1.7;padding:20px;max-width:900px;margin:0 auto}
+h1{color:#e03030;font-size:28px;margin:30px 0 10px;border-bottom:2px solid #e03030;padding-bottom:8px}
+h2{color:#e03030;font-size:20px;margin:25px 0 8px;border-bottom:1px solid #333;padding-bottom:4px}
+h3{color:#ffb74d;font-size:16px;margin:18px 0 6px}
+p{margin:8px 0;font-size:14px}
+pre{background:#111;border:1px solid #333;border-radius:4px;padding:12px;overflow-x:auto;font-size:12px;line-height:1.5;margin:8px 0}
+code{background:#1a1a1a;padding:1px 4px;border-radius:2px;font-size:13px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th{background:#1a1a1a;color:#e03030;text-align:left;padding:6px 8px;border:1px solid #333}
+td{padding:6px 8px;border:1px solid #222}
+tr:nth-child(even){background:#111}
+.ok{color:#30d060}
+.warn{color:#ffb74d}
+.ng{color:#e03030}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;margin:2px}
+.tag-new{background:#30d060;color:#000}
+.tag-change{background:#ffb74d;color:#000}
+.tag-keep{background:#555;color:#fff}
+.tag-delete{background:#e03030;color:#fff}
+ul{margin:6px 0 6px 20px;font-size:14px}
+li{margin:3px 0}
+.phase{background:#1a1a1a;border-left:3px solid #e03030;padding:10px 14px;margin:10px 0;border-radius:0 4px 4px 0}
+.phase-title{color:#e03030;font-weight:bold;font-size:15px}
+</style>
+</head>
+<body>
+
+<h1>KITT v2 設計書 — Pixel 10 Pro ネイティブ移行</h1>
+<p style="color:#888">2026-04-10 | 実機検証済み設計 | Shuji × Claude</p>
+
+<h2>ビジョン</h2>
+<p>KITTはShujiの個人AI執事。<strong>KITTに判断を任せた方がShujiの時給単価が上がる世界線</strong>が最終目標。</p>
+<p>Pixel 10 Proへの全面移行により、iOS/PWAの制約（バックグラウンド制限、OCR依存、AirPodsマイク品質問題）を解消。</p>
+
+<h2>実機検証結果 (2026-04-09)</h2>
+<table>
+<tr><th>項目</th><th>結果</th><th>詳細</th></tr>
+<tr><td>A11y 4社読取</td><td class="ok">✅ 全社OK</td><td>Uber/出前館/ロケットナウ/menu のUI要素を構造化取得</td></tr>
+<tr><td>通知リスナー</td><td class="ok">✅ OK</td><td>4社+カード+OMRON+TimeTree</td></tr>
+<tr><td>CF判定 E2E</td><td class="ok">✅ 4社成功</td><td>テストボタンで模擬オファー→CF→結果表示</td></tr>
+<tr><td>GPS</td><td class="ok">✅ 精度8-22m</td><td>FusedLocationProvider 10秒間隔</td></tr>
+<tr><td>デュアルカメラ</td><td class="ok">✅ 対応</td><td>Pixel 6+でConcurrentCamera API動作確認済み</td></tr>
+<tr><td>AirPodsマイク</td><td class="ng">❌ 品質不足</td><td>iOS SafariでGemini認識不可→Pixel+ピンマイクが解決策</td></tr>
+</table>
+
+<h2>システムアーキテクチャ</h2>
+<pre>
+=== デバイス層 ===
+
+Pixel 10 Pro (KITT Android)
+  ├─ KittForegroundService (常駐, WakeLock)
+  │   ├─ GeminiLiveAudioClient (WS永続接続)
+  │   │   ├─ 音声入力: ピンマイク → PCM16/16kHz → Gemini
+  │   │   ├─ 音声出力: Gemini → PCM16/24kHz → AirPods
+  │   │   ├─ 映像入力: デュアルカメラ → 1fps JPEG → Gemini
+  │   │   └─ function calling: 14種 (後述)
+  │   ├─ AudioRouter (AudioFocus + BT SCO)
+  │   ├─ LocationProvider (GPS 10秒)
+  │   ├─ CameraStreamManager (前後カメラ同時)
+  │   └─ DeliveryStateTracker (配達状態機械)
+  ├─ KittAccessibilityService (A11y常駐)
+  ├─ KittNotificationListener (通知監視)
+  └─ MainActivity (設定/デバッグ)
+
+AirPods Pro 2 (出力専用)
+ピンマイク (入力)
+iPhone XR (Google Maps ナビ)
+
+=== クラウド層 ===
+
+Cloud Functions (asia-northeast1)
+  ├─ contextBridge <span class="tag tag-new">NEW</span> 記憶管理・文脈集約
+  ├─ offerJudge <span class="tag tag-change">変更</span> Gemini直接判定
+  ├─ conversationLog <span class="tag tag-new">NEW</span> 会話ログ保存
+  ├─ deliveryTrack <span class="tag tag-new">NEW</span> 配達ステップ記録
+  ├─ nandemoBox <span class="tag tag-change">変更</span> Android対応拡張
+  ├─ dashboardFeed / systemHealth / weatherCheck <span class="tag tag-keep">既存</span>
+  └─ pdcaCycle <span class="tag tag-delete">廃止</span>
+
+BigQuery (永久記憶)
+  ├─ offer_logs / delivery_history / context_logs <span class="tag tag-keep">既存</span>
+  ├─ conversation_logs <span class="tag tag-new">NEW</span>
+  ├─ delivery_tracking <span class="tag tag-new">NEW</span>
+  └─ dynamic_coefficients <span class="tag tag-delete">廃止</span>
+</pre>
+
+<h2>AI構成: 2層構造（上司と部下）</h2>
+<pre>
+Shujiさん ←→ 音声会話
+     ↕
+KITT (Live Audio AI) ← 窓口・人格・全ての会話
+     ↕ function calling
+裏方AI (CF) ← 記憶管理・データ分析・判定サポート
+     ↕
+BigQuery ← 永久記憶
+</pre>
+
+<table>
+<tr><th></th><th>KITT (Live Audio)</th><th>裏方 (CF)</th></tr>
+<tr><td>Shujiとの会話</td><td class="ok">全部やる</td><td class="ng">直接話さない</td></tr>
+<tr><td>オファー判定</td><td>BQデータを見て自分で判断</td><td>データを渡すだけ</td></tr>
+<tr><td>文脈維持</td><td>セッション内(15分)</td><td>再接続時に文脈を整理して渡す</td></tr>
+<tr><td>データ保存</td><td>「覚えて」と裏方に指示</td><td>BQに保存</td></tr>
+</table>
+
+<h3>判定方式の変更</h3>
+<table>
+<tr><th>変更前（係数方式）</th><th>変更後（AI直接判定）</th></tr>
+<tr><td>7項目の重み付けスコア計算</td><td>BQ全蓄積データをGeminiに渡して直接判断</td></tr>
+<tr><td>score ≥ 0.85 → accept</td><td>Geminiが文脈（クエスト・天気・疲労・エリア需要）を総合判断</td></tr>
+<tr><td>dynamic_coefficientsテーブルに依存</td><td>テーブル廃止。データが溜まるほどAIが賢くなる</td></tr>
+</table>
+
+<h2>文脈の永続化</h2>
+<pre>
+セッション1 (0:00-0:15)
+  オファー3件蹴った、1件受けた → BQに全部記録
+
+セッション2 (0:15-0:30) ← 自動再接続
+  ① ContextBridgeClient → CF /contextBridge GET
+  ② CF が BQ から並列5クエリ (3秒以内)
+  ③ 今日の全履歴+会話サマリーを systemPrompt に注入
+  → KITTは「さっき3件蹴って1件受けた」を知ってる状態で再開
+</pre>
+<p><strong>短期記憶</strong> = Live Audioセッション内(15分) / <strong>長期記憶</strong> = BQ(永遠)</p>
+
+<h2>受諾後フロー（状態遷移）</h2>
+<pre>
+IDLE → OFFER_DETECTED → OFFER_JUDGING → OFFER_REPORTED
+  ↑                                         ↓
+  │    ←←← reject ←←←←←←←←←←←←←←←←←←←←←
+  │                                         ↓ accept
+  │    ACCEPTED → PICKING → AT_PICKUP → DELIVERING → DROPPED → IDLE
+  │        ↓          ↓          ↓           ↓           ↓
+  │      GPS+BQ     GPS+BQ    GPS+BQ      GPS+BQ     GPS+BQ+リザルト
+  └────────────────────────────────────────────────────────┘
+</pre>
+
+<table>
+<tr><th>ステップ</th><th>検知方法</th><th>アクション</th></tr>
+<tr><td>OFFER_DETECTED</td><td>A11yがオファーUI検知</td><td>CF判定送信</td></tr>
+<tr><td>ACCEPTED</td><td>accept_offer function calling</td><td>ピック先ナビ→iPhone</td></tr>
+<tr><td>AT_PICKUP</td><td>GPS店舗座標50m以内 or A11y「ピック完了」</td><td>配達時間計測開始</td></tr>
+<tr><td>DELIVERING</td><td>A11yピック完了後の画面変化</td><td>ドロップ先ナビ→iPhone</td></tr>
+<tr><td>DROPPED</td><td>A11y「配達完了」テキスト</td><td>リザルト→BQ自動保存</td></tr>
+</table>
+
+<h2>デュアルカメラ</h2>
+<table>
+<tr><th>項目</th><th>仕様</th></tr>
+<tr><td>API</td><td>ConcurrentCamera API (Android 11+, Pixel 6+確認済み)</td></tr>
+<tr><td>解像度</td><td>前後各720p (同時使用時の制限)</td></tr>
+<tr><td>送信レート</td><td>1fps (Gemini Live APIの要件)</td></tr>
+<tr><td>送信形式</td><td>768x768 JPEG q=60 (~30KB/枚)</td></tr>
+<tr><td>デフォルト</td><td>OFF (function callingでON/OFF制御)</td></tr>
+<tr><td>帯域</td><td>~60KB/s (2カメラ)</td></tr>
+</table>
+
+<h2>GPS活用</h2>
+<table>
+<tr><th>活用</th><th>内容</th></tr>
+<tr><td>オファー判定</td><td>ピック先まで実距離・実時間、エリア需要密度</td></tr>
+<tr><td>自動検知</td><td>店到着(50m以内)、ドロップ完了、大濠ENEOS接近→給油提案</td></tr>
+<tr><td>軌跡記録</td><td>配達中1秒間隔→delivery_trackingに保存</td></tr>
+<tr><td>稼働分析</td><td>エリア別時給、待機vs走行比率、1日走行距離(経費用)</td></tr>
+<tr><td>稼働終了検知</td><td>自宅GPS到達→「今日は¥XXX、お疲れ様でした」</td></tr>
+</table>
+
+<h2>Function Calling (14種)</h2>
+<table>
+<tr><th>#</th><th>名前</th><th>用途</th><th>状態</th></tr>
+<tr><td>1</td><td>control_media</td><td>YouTube/TVer/radiko操作</td><td><span class="tag tag-keep">既存</span></td></tr>
+<tr><td>2</td><td>accept_offer</td><td>受諾ボタン自動タップ</td><td><span class="tag tag-keep">既存</span></td></tr>
+<tr><td>3</td><td>reject_offer</td><td>拒否ボタン自動タップ</td><td><span class="tag tag-keep">既存</span></td></tr>
+<tr><td>4</td><td>get_context</td><td>BQ稼働状況・文脈取得</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>5</td><td>camera_control</td><td>デュアルカメラON/OFF</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>6</td><td>navigate_to</td><td>iPhoneにナビ送信</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>7</td><td>send_to_nandemo</td><td>何でもBOXにテキスト送信</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>8</td><td>control_delivery_app</td><td>アプリUI操作(オンライン等)</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>9</td><td>get_weather</td><td>天気・降水予報</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>10</td><td>get_directions</td><td>経路・所要時間</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>11</td><td>report_health</td><td>健康データ記録</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>12</td><td>set_reminder</td><td>TimeTreeに予定作成</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>13</td><td>get_finance</td><td>カード利用額・引落し</td><td><span class="tag tag-new">NEW</span></td></tr>
+<tr><td>14</td><td>system_control</td><td>KITT自体の制御</td><td><span class="tag tag-new">NEW</span></td></tr>
+</table>
+
+<h2>何でもBOX Android版</h2>
+<table>
+<tr><th>入力方法</th><th>仕組み</th></tr>
+<tr><td>共有インテント</td><td>他アプリから「共有」→KITT→CF nandemoBox→BQ</td></tr>
+<tr><td>アプリ内カメラ</td><td>KITTから直接撮影→送信</td></tr>
+<tr><td>テキスト入力</td><td>音声で伝えにくい情報（住所、数字等）</td></tr>
+<tr><td>クリップボード</td><td>コピーした内容をKITTに送る</td></tr>
+</table>
+
+<h2>BQテーブル設計</h2>
+
+<h3>conversation_logs <span class="tag tag-new">NEW</span></h3>
+<pre>
+log_id STRING
+session_id STRING       -- WS接続ごとのUUID
+timestamp TIMESTAMP
+role STRING             -- user / assistant / system
+text STRING
+tool_call STRING        -- function callingのJSON
+tool_result STRING
+offer_context STRING    -- オファー報告時のoffer_id
+PARTITION BY DATE(timestamp)
+CLUSTER BY session_id, role
+</pre>
+
+<h3>delivery_tracking <span class="tag tag-new">NEW</span></h3>
+<pre>
+tracking_id STRING      -- 1配達につき1UUID
+offer_id STRING         -- offer_logsとの紐付け
+step STRING             -- offer_detected/accepted/picking/at_pickup/delivering/dropped
+timestamp TIMESTAMP
+app STRING
+lat FLOAT64, lng FLOAT64
+store_name STRING
+dropoff_address STRING
+reward INT64
+step_duration_sec INT64 -- 前ステップからの経過秒
+PARTITION BY DATE(timestamp)
+CLUSTER BY tracking_id, app
+</pre>
+
+<h2>実装ファイル構成</h2>
+<pre>
+kitt-android/app/src/main/java/com/kitt/app/
+├─ service/
+│   ├─ KittForegroundService.kt     <span class="tag tag-change">拡張</span>
+│   ├─ KittAccessibilityService.kt  <span class="tag tag-change">拡張</span>
+│   ├─ KittNotificationListener.kt  <span class="tag tag-keep">既存</span>
+│   ├─ LocationProvider.kt          <span class="tag tag-change">軌跡追加</span>
+│   └─ DeliveryStateTracker.kt      <span class="tag tag-new">NEW</span>
+├─ audio/
+│   ├─ GeminiLiveAudioClient.kt     <span class="tag tag-change">FC拡張</span>
+│   └─ AudioRouter.kt               <span class="tag tag-keep">既存</span>
+├─ camera/
+│   └─ CameraStreamManager.kt       <span class="tag tag-new">NEW</span>
+├─ context/
+│   ├─ ContextBridgeClient.kt       <span class="tag tag-new">NEW</span>
+│   └─ ConversationLogger.kt        <span class="tag tag-new">NEW</span>
+├─ offer/
+│   └─ OfferJudgeClient.kt          <span class="tag tag-change">レスポンス変更</span>
+├─ nandemo/
+│   └─ NandemoBoxClient.kt          <span class="tag tag-new">NEW</span>
+├─ nav/
+│   └─ NavSender.kt                 <span class="tag tag-keep">既存</span>
+└─ ui/
+    ├─ MainActivity.kt              <span class="tag tag-change">タブ拡張</span>
+    └─ NandemoBoxActivity.kt         <span class="tag tag-new">NEW</span>
+</pre>
+
+<h2>実装スケジュール</h2>
+
+<div class="phase">
+<div class="phase-title">Phase 0 — ケース届く前（コード実装）</div>
+<ul>
+<li>CF: offerJudge → Gemini直接判定に切替</li>
+<li>CF: contextBridge エンドポイント新規作成</li>
+<li>CF: conversationLog / deliveryTrack エンドポイント新規作成</li>
+<li>BQ: conversation_logs / delivery_tracking テーブル作成</li>
+<li>Android: DeliveryStateTracker.kt 新規作成</li>
+<li>Android: ConversationLogger.kt 新規作成</li>
+<li>Android: ContextBridgeClient.kt 新規作成</li>
+<li>Android: function calling 14種定義</li>
+<li>Android: NandemoBoxActivity.kt (共有インテント)</li>
+</ul>
+</div>
+
+<div class="phase">
+<div class="phase-title">Phase 1 — ケース到着後（実機テスト）</div>
+<ul>
+<li>CameraStreamManager.kt (デュアルカメラ)</li>
+<li>受諾後フローの実オファーテスト・パーサー調整</li>
+<li>GPS軌跡蓄積 + delivery_tracking書き込み</li>
+<li>ピンマイクでの音声認識テスト</li>
+</ul>
+</div>
+
+<div class="phase">
+<div class="phase-title">Phase 2 — 安定稼働後</div>
+<ul>
+<li>GPS店舗到着自動検知</li>
+<li>リザルト自動検知 + nandemoBox自動送信</li>
+<li>OMRON / カード通知のデータ蓄積</li>
+<li>Insta360 X4 連携検討（必要なら）</li>
+</ul>
+</div>
+
+<h2>コスト見積もり</h2>
+<table>
+<tr><th>項目</th><th>月額</th></tr>
+<tr><td>Gemini API (判定+会話)</td><td>¥500-3,000</td></tr>
+<tr><td>BQ (ストレージ+クエリ)</td><td>~¥100</td></tr>
+<tr><td>CF (実行コスト)</td><td>~¥500</td></tr>
+<tr><td>GCS (スクショ14日)</td><td>~¥50</td></tr>
+<tr><td><strong>合計</strong></td><td><strong>¥1,150-3,650</strong></td></tr>
+</table>
+
+<p style="color:#888;margin-top:40px;font-size:12px">Generated by Claude Opus 4.6 — 2026-04-10</p>
+</body>
+</html>
