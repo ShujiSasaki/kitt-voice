@@ -236,7 +236,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- Log Bar -->
-<div id="log-bar"><span id="log-text">KITT v2.4 ready</span></div>
+<div id="log-bar"><span id="log-text">KITT v2.4 ready</span><button onclick="showMicLogs()" style="margin-left:auto;background:#333;color:#e8e8e8;border:1px solid #555;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">MIC LOG</button></div>
+<div id="mic-log-panel" style="display:none;position:fixed;bottom:28px;left:0;right:0;max-height:60vh;background:#111;border-top:1px solid #e03030;overflow-y:auto;z-index:51;padding:8px;font-size:11px;color:#ccc;font-family:monospace">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#e03030;font-weight:bold">MIC LOGS</span><button onclick="document.getElementById('mic-log-panel').style.display='none'" style="background:none;border:none;color:#888;font-size:16px;cursor:pointer">✕</button></div>
+  <pre id="mic-log-content" style="margin:0;white-space:pre-wrap;word-break:break-all"></pre>
+</div>
 
 <!-- Keepalive silent audio -->
 <audio id="keepalive" loop playsinline>
@@ -441,6 +445,14 @@ async function restoreFromCloud() {
 // ============================================================
 // Logging
 // ============================================================
+function showMicLogs() {
+  const panel = document.getElementById('mic-log-panel');
+  const content = document.getElementById('mic-log-content');
+  const logs = JSON.parse(localStorage.getItem('kitt-mic-logs') || '[]');
+  content.textContent = logs.length ? logs.join('\n') : 'ログなし';
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
 function log(msg) {
   const el = document.getElementById('log-text');
   const t = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
