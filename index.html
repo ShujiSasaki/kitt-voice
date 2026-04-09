@@ -973,34 +973,18 @@ async function startMic() {
       audio: { channelCount: 1, sampleRate: { ideal: 16000 }, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
-    // AirPods接続時はマイクゲインが極端に低い(iOS Safari制限)
-    // → iPhoneマイクを強制選択して入力、AirPodsは出力のみ
+    // マイクデバイス情報をログ出力
+    const currentTrack = stream.getAudioTracks()[0];
+    const currentLabel = currentTrack ? currentTrack.label : '';
+    state._micIsAirPods = currentLabel.includes('AirPods') || currentLabel.includes('Bluetooth');
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const mics = devices.filter(d => d.kind === 'audioinput');
-      log('Available mics: ' + mics.map(m => m.label + '(' + m.deviceId.slice(0,8) + ')').join(' | '));
-
-      const currentTrack = stream.getAudioTracks()[0];
-      const currentLabel = currentTrack ? currentTrack.label : '';
-
-      // 現在AirPodsマイクが選ばれていたら、iPhoneマイクに切替
-      if (currentLabel.includes('AirPods') || currentLabel.includes('Bluetooth')) {
-        const iphoneMic = mics.find(m => !m.label.includes('AirPods') && !m.label.includes('Bluetooth') && m.label.length > 0);
-        if (iphoneMic) {
-          log('Switching from AirPods to iPhone mic: ' + iphoneMic.label);
-          // 現在のストリームを止めて、iPhoneマイクで取り直す
-          stream.getTracks().forEach(t => t.stop());
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              deviceId: { exact: iphoneMic.deviceId },
-              channelCount: 1, sampleRate: { ideal: 16000 },
-              echoCancellation: true, noiseSuppression: true, autoGainControl: true
-            }
-          });
-          log('Switched to: ' + stream.getAudioTracks()[0].label);
-        }
-      }
-    } catch(e) { log('Mic switch error: ' + e.message); }
+      log('Available mics: ' + mics.map(m => m.label).join(' | '));
+    } catch(e) {}
+    if (state._micIsAirPods) {
+      log('AirPods mic detected - applying 20x gain boost');
+    }
 
     state.micStream = stream;
 
@@ -1034,8 +1018,12 @@ async function startMic() {
     const voiceBoost = micCtx.createBiquadFilter();
     voiceBoost.type = 'peaking';
     voiceBoost.frequency.value = 2000;
-    voiceBoost.gain.value = 6; // +6dB (3→6に強化、走行中は声が埋もれるため)
+    voiceBoost.gain.value = 6; // +6dB
     voiceBoost.Q.value = 1.0;
+
+    // AirPodsマイク用ゲインブースト (iOS Safariでゲインが極端に低い問題の対策)
+    const micGain = micCtx.createGain();
+    micGain.gain.value = state._micIsAirPods ? 20.0 : 1.0; // AirPods: 20倍増幅
 
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
@@ -1112,8 +1100,9 @@ async function startMic() {
       }
     };
 
-    // フィルタチェーン: source → ハイパス1 → ハイパス2 → 音声帯域強調 → processor
-    source.connect(highpass);
+    // フィルタチェーン: source → ゲイン増幅 → ハイパス1 → ハイパス2 → 音声帯域強調 → processor
+    source.connect(micGain);
+    micGain.connect(highpass);
     highpass.connect(highpass2);
     highpass2.connect(voiceBoost);
     voiceBoost.connect(processor);
@@ -1121,6 +1110,7 @@ async function startMic() {
 
     state.micSource = source;
     state.micProcessor = processor;
+    state._micGain = micGain;
     state._micHighpass = highpass;
     state._micHighpass2 = highpass2;
     state._micVoiceBoost = voiceBoost;
@@ -1148,6 +1138,10 @@ function stopMic() {
   if (state.micProcessor) {
     try { state.micProcessor.disconnect(); } catch(e) {}
     state.micProcessor = null;
+  }
+  if (state._micGain) {
+    try { state._micGain.disconnect(); } catch(e) {}
+    state._micGain = null;
   }
   if (state._micHighpass) {
     try { state._micHighpass.disconnect(); } catch(e) {}
