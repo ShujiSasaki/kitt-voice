@@ -323,12 +323,25 @@ class KittAccessibilityService : AccessibilityService() {
 
     /**
      * Uber Driverのオファー画面読取
-     * 実機確認済みテキスト例: "¥320", "合計 12分 (2.0 km)", "ローソン 福岡黒門", "西公園中央区福岡市", "承諾"
+     * 実機確認済み (2026-04-09):
+     *   texts: [¥505, 合計 23分 (4.9 km), マクドナルド シーサイドももち店,
+     *           McDonald's SEA SIDE MOMOCHI, 福岡市早良区城西1丁目8-ジュゼン西新, 承諾]
+     *   ￥10,030 等のクエスト情報も混ざる → 「承諾」近傍のデータを優先
      */
     private fun readUberOffer(texts: List<String>): OfferData {
+        // Uber特有: "合計 XX分 (X.X km)" という1テキストに時間と距離が同時に入る
+        var distance: Double? = null
+        var duration: Int? = null
+        for (t in texts) {
+            val match = Regex("""合計\s*(\d+)\s*分\s*\((\d+\.?\d*)\s*km\)""").find(t)
+            if (match != null) {
+                duration = match.groupValues[1].toIntOrNull()
+                distance = match.groupValues[2].toDoubleOrNull()
+                break
+            }
+        }
+
         val reward = extractReward(texts)
-        val distance = extractDistance(texts)
-        val duration = extractDuration(texts)
         val storeName = extractStoreName(texts)
         val dropoff = extractDropoffAddress(texts)
 
@@ -337,8 +350,8 @@ class KittAccessibilityService : AccessibilityService() {
         return OfferData(
             app = "uber",
             reward = reward,
-            distance = distance,
-            duration = duration,
+            distance = distance ?: extractDistance(texts),
+            duration = duration ?: extractDuration(texts),
             storeName = storeName,
             dropoffAddress = dropoff,
             rawText = texts.joinToString("\n")
@@ -347,25 +360,55 @@ class KittAccessibilityService : AccessibilityService() {
 
     /**
      * 出前館のオファー画面読取
-     * TODO: 実オファーでUI構造を確認して精密化
+     * 実機確認済み (2026-04-09):
+     *   texts: [拒否, "バーガーキング　西新店\n福岡県福岡市中央区六本松2-14-2\n福岡市中央区大名2丁目1-21",
+     *           詳細, 584円, /, 合計]
+     *   店名テキスト内に改行区切りで: 店名 → ピック先住所 → ドロップ先住所
      */
     private fun readDemaecanOffer(texts: List<String>): OfferData {
+        var storeName: String? = null
+        var pickupAddress: String? = null
+        var dropoffAddress: String? = null
+
+        // 出前館特有: 1つのテキストに店名+住所が改行区切りで入っている
+        for (t in texts) {
+            if (t.contains("\n") && t.length > 10) {
+                val lines = t.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+                if (lines.size >= 2) {
+                    // 1行目 = 店名, 2行目 = ピック先住所, 3行目 = ドロップ先住所
+                    storeName = lines[0]
+                    if (lines.size >= 2) pickupAddress = lines[1]
+                    if (lines.size >= 3) dropoffAddress = lines[2]
+                    break
+                }
+            }
+        }
+
+        // フォールバック
+        if (storeName == null) storeName = extractStoreName(texts)
+        if (dropoffAddress == null) dropoffAddress = extractDropoffAddress(texts)
+
+        val reward = extractReward(texts)
+        Log.d(TAG, "Demaecan offer: reward=$reward store=$storeName pickup=$pickupAddress drop=$dropoffAddress")
+
         return OfferData(
             app = "demaecan",
-            reward = extractReward(texts),
+            reward = reward,
             distance = extractDistance(texts),
             duration = extractDuration(texts),
-            storeName = extractStoreName(texts),
+            storeName = storeName,
+            dropoffAddress = dropoffAddress,
             rawText = texts.joinToString("\n")
         )
     }
 
     /**
      * menuのオファー画面読取
-     * 確認済み: テキストが1文字ずつバラバラに分かれてる → 結合して読む
+     * 実機確認済み (2026-04-09):
+     *   テキストが1文字ずつバラバラに分かれてる → 結合してパース
+     *   待機画面: [ブーストが発生しました, , 7, 0, 円, 0, 件]
      */
     private fun readMenuOffer(texts: List<String>): OfferData {
-        // menuはテキストがバラバラなので結合してからパース
         val joined = texts.joinToString("")
         val joinedTexts = listOf(joined) + texts
         return OfferData(
@@ -380,16 +423,32 @@ class KittAccessibilityService : AccessibilityService() {
 
     /**
      * ロケットナウのオファー画面読取
-     * 確認済み: "配達を開始する➔", Flutterアプリ(FLAG_SECURE)
-     * TODO: 実オファーでUI構造を確認して精密化
+     * 実機確認済み (2026-04-09):
+     *   texts: [指名, マルチ, 詳細, バーガーキング 西新店, 1,214円, 追加料金を含む]
+     *   Flutterアプリ。報酬は「XXX円」形式(¥マークなし)
      */
     private fun readRocketNowOffer(texts: List<String>): OfferData {
+        // ロケットナウ特有: 店名は「指名」「マルチ」「詳細」等のUIラベルでない日本語テキスト
+        val uiLabels = setOf("指名", "マルチ", "詳細", "追加料金を含む", "Googleマップ",
+            "地図上のマーカー", "配達を開始する➔", "受諾", "拒否")
+        val storeName = texts.firstOrNull { t ->
+            t.length in 2..40 &&
+            t !in uiLabels &&
+            !t.contains("円") && !t.contains("km") && !t.contains("分") &&
+            !t.contains("基本料金") && !t.contains("ミッション") && !t.contains("グリーン") &&
+            !t.contains("天候") &&
+            t.matches(Regex(".*[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}].*"))
+        }
+
+        val reward = extractReward(texts)
+        Log.d(TAG, "RocketNow offer: reward=$reward store=$storeName")
+
         return OfferData(
             app = "rocketnow",
-            reward = extractReward(texts),
+            reward = reward,
             distance = extractDistance(texts),
             duration = extractDuration(texts),
-            storeName = extractStoreName(texts),
+            storeName = storeName,
             rawText = texts.joinToString("\n")
         )
     }

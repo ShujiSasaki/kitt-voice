@@ -23,11 +23,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.kitt.app.offer.OfferJudgeClient
 import com.kitt.app.service.KittAccessibilityService
 import com.kitt.app.service.KittForegroundService
 import com.kitt.app.service.KittNotificationListener
 import com.kitt.app.service.LocationProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -245,6 +252,23 @@ class MainActivity : ComponentActivity() {
                 color = if (com.kitt.app.BuildConfig.CF_API_KEY.isNotEmpty()) Color(0xFF30D060) else Color(0xFFE03030)
             )
 
+            // === テスト判定ボタン ===
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TestOfferButton("Uber") {
+                    testOffer("uber", 505, 4.9, 23, "マクドナルド シーサイドももち店", "福岡市早良区城西1丁目8")
+                }
+                TestOfferButton("出前館") {
+                    testOffer("demaecan", 584, null, null, "マクドナルド 六本松駅前店", "福岡市中央区大名2丁目1-21")
+                }
+                TestOfferButton("menu") {
+                    testOffer("menu", 700, 3.2, 18, "ケンタッキー 天神店", "福岡市中央区天神2丁目")
+                }
+                TestOfferButton("ロケナウ") {
+                    testOffer("rocketnow", 1214, null, null, "バーガーキング 西新店", null)
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = Color(0xFF333333), thickness = 1.dp)
             Spacer(modifier = Modifier.height(8.dp))
@@ -285,6 +309,60 @@ class MainActivity : ComponentActivity() {
                     HorizontalDivider(color = Color(0xFF222222), thickness = 0.5.dp)
                 }
             }
+        }
+    }
+
+    private val testScope = CoroutineScope(Dispatchers.IO)
+
+    private fun testOffer(
+        app: String, reward: Int, distance: Double?, duration: Int?,
+        storeName: String, dropoffAddress: String?
+    ) {
+        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.JAPAN).format(Date())
+        notificationLogs.add(NotificationLog(timeStr, "🧪 テスト $app", "模擬オファー送信中...",
+            "reward=$reward store=$storeName", app))
+
+        testScope.launch {
+            val offer = KittAccessibilityService.OfferData(
+                app = app, reward = reward, distance = distance,
+                duration = duration, storeName = storeName,
+                dropoffAddress = dropoffAddress,
+                rawText = "TEST: $storeName ¥$reward ${distance ?: "?"}km ${duration ?: "?"}分"
+            )
+            val client = OfferJudgeClient().also {
+                it.locationProvider = locationProvider
+            }
+            try {
+                val result = client.judge(offer)
+                val t = SimpleDateFormat("HH:mm:ss", Locale.JAPAN).format(Date())
+                if (result != null) {
+                    val emoji = if (result.decision == "accept") "✅" else "❌"
+                    notificationLogs.add(NotificationLog(t, "$emoji テスト判定",
+                        "${result.decision.uppercase()} ¥${result.reward} ${result.storeName}",
+                        "時給¥${result.estimatedHourlyRate} 実効¥${result.effectiveHourlyRate}\n" +
+                            "スコア${String.format("%.2f", result.score)} (閾値${result.threshold})\n${result.reason}",
+                        app))
+                } else {
+                    notificationLogs.add(NotificationLog(t, "⚠️ テスト判定", "CF応答なし",
+                        "reward=$reward store=$storeName", app))
+                }
+            } catch (e: Exception) {
+                val t = SimpleDateFormat("HH:mm:ss", Locale.JAPAN).format(Date())
+                notificationLogs.add(NotificationLog(t, "⚠️ テストエラー", e.message ?: "不明",
+                    e.stackTraceToString().take(300), app))
+            }
+        }
+    }
+
+    @Composable
+    fun TestOfferButton(label: String, onClick: () -> Unit) {
+        OutlinedButton(
+            onClick = onClick,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFD700)),
+            modifier = Modifier.height(28.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+        ) {
+            Text(label, fontSize = 9.sp)
         }
     }
 
