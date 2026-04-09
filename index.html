@@ -968,31 +968,40 @@ async function startMic() {
   if (state.micActive) return;
 
   try {
+    // まず一度getUserMediaしてマイク権限を取得 (enumerateDevicesのラベル取得に必要)
+    let stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, sampleRate: { ideal: 16000 }, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
     // AirPods接続時はマイクゲインが極端に低い(iOS Safari制限)
     // → iPhoneマイクを強制選択して入力、AirPodsは出力のみ
-    let preferredDeviceId = null;
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const mics = devices.filter(d => d.kind === 'audioinput');
-      const iphoneMic = mics.find(m => m.label.includes('iPhone') || m.label.includes('内蔵'));
-      if (iphoneMic && mics.length > 1) {
-        preferredDeviceId = iphoneMic.deviceId;
-        log('Forcing iPhone mic (AirPods mic too quiet): ' + iphoneMic.label);
+      log('Available mics: ' + mics.map(m => m.label + '(' + m.deviceId.slice(0,8) + ')').join(' | '));
+
+      const currentTrack = stream.getAudioTracks()[0];
+      const currentLabel = currentTrack ? currentTrack.label : '';
+
+      // 現在AirPodsマイクが選ばれていたら、iPhoneマイクに切替
+      if (currentLabel.includes('AirPods') || currentLabel.includes('Bluetooth')) {
+        const iphoneMic = mics.find(m => !m.label.includes('AirPods') && !m.label.includes('Bluetooth') && m.label.length > 0);
+        if (iphoneMic) {
+          log('Switching from AirPods to iPhone mic: ' + iphoneMic.label);
+          // 現在のストリームを止めて、iPhoneマイクで取り直す
+          stream.getTracks().forEach(t => t.stop());
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              deviceId: { exact: iphoneMic.deviceId },
+              channelCount: 1, sampleRate: { ideal: 16000 },
+              echoCancellation: true, noiseSuppression: true, autoGainControl: true
+            }
+          });
+          log('Switched to: ' + stream.getAudioTracks()[0].label);
+        }
       }
-    } catch(e) {}
+    } catch(e) { log('Mic switch error: ' + e.message); }
 
-    const audioConstraints = {
-      channelCount: 1,
-      sampleRate: { ideal: 16000 },
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-    };
-    if (preferredDeviceId) {
-      audioConstraints.deviceId = { exact: preferredDeviceId };
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     state.micStream = stream;
 
     // Duck YouTube while mic is active
