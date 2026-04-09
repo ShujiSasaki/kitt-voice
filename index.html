@@ -960,7 +960,14 @@ async function startMic() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+      audio: {
+        channelCount: 1,
+        sampleRate: { ideal: 16000 },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        // 風切り音対策: ハイパスフィルタはWeb Audio APIで後段追加
+      }
     });
     state.micStream = stream;
 
@@ -976,6 +983,20 @@ async function startMic() {
     }
     const actualRate = micCtx.sampleRate;
     const source = micCtx.createMediaStreamSource(stream);
+
+    // 風切り音対策: 200Hzハイパスフィルタ (低周波ノイズカット)
+    const highpass = micCtx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 200;
+    highpass.Q.value = 0.7;
+
+    // 音声帯域強調: 2kHzピーキングフィルタ (人の声を持ち上げる)
+    const voiceBoost = micCtx.createBiquadFilter();
+    voiceBoost.type = 'peaking';
+    voiceBoost.frequency.value = 2000;
+    voiceBoost.gain.value = 3; // +3dB
+    voiceBoost.Q.value = 1.0;
+
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
     let _micDbg = 0;
@@ -988,12 +1009,26 @@ async function startMic() {
       }
       const inputData = e.inputBuffer.getChannelData(0);
 
+      // ノイズゲート: RMS計算して閾値以下なら送信しない（風切り音排除）
+      let sumSq = 0;
+      let mx = 0;
+      for (let i = 0; i < inputData.length; i++) {
+        const v = Math.abs(inputData[i]);
+        sumSq += inputData[i] * inputData[i];
+        if (v > mx) mx = v;
+      }
+      const rms = Math.sqrt(sumSq / inputData.length);
+      const NOISE_GATE_THRESHOLD = 0.008; // 風切り音レベル以下はカット
+
       // Check audio level periodically (~6s intervals)
       if (_micDbg % 100 === 1) {
-        let mx = 0;
-        for (let i = 0; i < inputData.length; i++) { const v = Math.abs(inputData[i]); if (v > mx) mx = v; }
         if (mx < 0.001) _micSilent++;
-        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' silent=' + _micSilent);
+        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' rms=' + rms.toFixed(4) + ' silent=' + _micSilent);
+      }
+
+      // ノイズゲート: 小さすぎる音はGeminiに送らない
+      if (rms < NOISE_GATE_THRESHOLD) {
+        return;
       }
 
       // Resample if needed (iOS often gives 48000 instead of 16000)
@@ -1035,17 +1070,22 @@ async function startMic() {
       }
     };
 
-    source.connect(processor);
+    // フィルタチェーン: source → ハイパス(風切り音カット) → 音声帯域強調 → processor
+    source.connect(highpass);
+    highpass.connect(voiceBoost);
+    voiceBoost.connect(processor);
     processor.connect(micCtx.destination); // Required for ScriptProcessor to fire
 
     state.micSource = source;
     state.micProcessor = processor;
+    state._micHighpass = highpass;
+    state._micVoiceBoost = voiceBoost;
     state.micActive = true;
     state._micCtx = micCtx;
     updateMicUI();
     const track = stream.getAudioTracks()[0];
     const ts = track ? track.getSettings() : {};
-    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
+    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' filters=highpass200+voiceBoost2k track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
 
   } catch(e) {
     log('Mic error: ' + e.message);
@@ -1057,6 +1097,14 @@ function stopMic() {
   if (state.micProcessor) {
     try { state.micProcessor.disconnect(); } catch(e) {}
     state.micProcessor = null;
+  }
+  if (state._micHighpass) {
+    try { state._micHighpass.disconnect(); } catch(e) {}
+    state._micHighpass = null;
+  }
+  if (state._micVoiceBoost) {
+    try { state._micVoiceBoost.disconnect(); } catch(e) {}
+    state._micVoiceBoost = null;
   }
   if (state.micSource) {
     try { state.micSource.disconnect(); } catch(e) {}
