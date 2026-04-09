@@ -1035,7 +1035,7 @@ async function startMic() {
 
     // AirPodsマイク用ゲインブースト (iOS Safariでゲインが極端に低い問題の対策)
     const micGain = micCtx.createGain();
-    micGain.gain.value = state._micIsAirPods ? 20.0 : 1.0; // AirPods: 20倍増幅
+    micGain.gain.value = state._micIsAirPods ? 5.0 : 1.0; // AirPods: 5倍増幅 (20倍だと音割れ)
 
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
 
