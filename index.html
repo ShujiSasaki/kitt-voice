@@ -446,6 +446,15 @@ function log(msg) {
   const t = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   el.textContent = `[${t}] ${msg}`;
   console.log(`[KITT] ${msg}`);
+  // micログをlocalStorageに蓄積 (最新200件)
+  if (msg.startsWith('mic') || msg.startsWith('Mic')) {
+    try {
+      const logs = JSON.parse(localStorage.getItem('kitt-mic-logs') || '[]');
+      logs.push(`[${t}] ${msg}`);
+      if (logs.length > 200) logs.splice(0, logs.length - 200);
+      localStorage.setItem('kitt-mic-logs', JSON.stringify(logs));
+    } catch(e) {}
+  }
 }
 
 // ============================================================
@@ -1025,10 +1034,12 @@ async function startMic() {
         if (v > mx) mx = v;
       }
       const rms = Math.sqrt(sumSq / inputData.length);
-      // ログ: 走行中の音声レベルを記録 (~6s間隔)
-      if (_micDbg % 100 === 1) {
+      // ログ: 音声レベルを記録
+      // 通常は~6s間隔、声検知時は即ログ
+      const isVoice = mx > 0.01;
+      if (_micDbg % 100 === 1 || (isVoice && _micDbg % 10 === 1)) {
         if (mx < 0.001) _micSilent++;
-        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' rms=' + rms.toFixed(4) + ' silent=' + _micSilent);
+        log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' rms=' + rms.toFixed(4) + (isVoice ? ' 🎙VOICE' : '') + ' silent=' + _micSilent);
       }
 
       // ノイズゲート無効化: 走行中はエンジン音でRMSが常に高く声との区別不可
@@ -1094,7 +1105,14 @@ async function startMic() {
     updateMicUI();
     const track = stream.getAudioTracks()[0];
     const ts = track ? track.getSettings() : {};
-    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' filters=hp300+hp250+voice2k+6dB track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
+    log('Mic ON rate=' + actualRate + ' device="' + (track ? track.label : '?') + '" ec=' + ts.echoCancellation + ' ns=' + ts.noiseSuppression + ' agc=' + ts.autoGainControl + ' hw=' + (ts.sampleRate || '?'));
+
+    // 全利用可能マイクを列挙
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput');
+      log('Mics: ' + mics.map(m => m.label || m.deviceId).join(' | '));
+    } catch(e) {}
 
   } catch(e) {
     log('Mic error: ' + e.message);
