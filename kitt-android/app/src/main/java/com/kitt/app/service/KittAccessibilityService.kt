@@ -74,47 +74,55 @@ class KittAccessibilityService : AccessibilityService() {
                     if (now - lastDumpTime < 2000) return
                     lastDumpTime = now
 
-                    dumpAllWindows(pkg)
+                    // 全配達アプリのウィンドウをスキャン（オーバーレイ含む）
+                    // 出前館がフォアグラウンドでもUberのオファーオーバーレイを検知する
+                    scanAllDeliveryWindows()
                 }
             }
         }
     }
 
     /**
-     * 全ウィンドウ（オーバーレイ含む）をスキャンして配達アプリのUIを読む
+     * 全ウィンドウ（オーバーレイ含む）をスキャンして全配達アプリのUIを読む
+     * 出前館がフォアグラウンドでもUberのオファーオーバーレイを見逃さない
      */
-    private fun dumpAllWindows(triggerPkg: String) {
+    private fun scanAllDeliveryWindows() {
         val timeStr = SimpleDateFormat("HH:mm:ss", Locale.JAPAN).format(Date())
-        val appName = when (triggerPkg) {
-            KittNotificationListener.PKG_UBER_DRIVER -> "Uber Driver"
-            KittNotificationListener.PKG_DEMAECAN -> "出前館"
-            KittNotificationListener.PKG_ROCKETNOW -> "ロケットナウ"
-            KittNotificationListener.PKG_MENU -> "menu"
-            else -> triggerPkg
-        }
 
         try {
-            // 全ウィンドウを走査（オーバーレイを含む）
             val allWindows = windows
-            val targetTexts = mutableListOf<String>()
-            val targetTree = StringBuilder()
+
+            // 全配達アプリのウィンドウをアプリ別にグループ化
+            val appTextsMap = mutableMapOf<String, MutableList<String>>()
+            val appTreeMap = mutableMapOf<String, StringBuilder>()
 
             for (window in allWindows) {
                 val root = window.root ?: continue
                 val windowPkg = root.packageName?.toString() ?: ""
 
-                // 配達アプリのウィンドウのみダンプ
-                if (windowPkg == triggerPkg) {
+                if (windowPkg in KittNotificationListener.DELIVERY_APPS) {
                     val texts = collectAllText(root)
                     val tree = dumpNodeTree(root, 0)
-                    targetTexts.addAll(texts)
-                    targetTree.append("--- Window type=${window.type} layer=${window.layer} ---\n")
-                    targetTree.append(tree)
+                    appTextsMap.getOrPut(windowPkg) { mutableListOf() }.addAll(texts)
+                    appTreeMap.getOrPut(windowPkg) { StringBuilder() }
+                        .append("--- Window type=${window.type} layer=${window.layer} ---\n")
+                        .append(tree)
                 }
                 root.recycle()
             }
 
-            if (targetTexts.isNotEmpty()) {
+            // 各アプリごとに処理
+            for ((pkg, targetTexts) in appTextsMap) {
+                if (targetTexts.isEmpty()) continue
+
+                val appName = when (pkg) {
+                    KittNotificationListener.PKG_UBER_DRIVER -> "Uber Driver"
+                    KittNotificationListener.PKG_DEMAECAN -> "出前館"
+                    KittNotificationListener.PKG_ROCKETNOW -> "ロケットナウ"
+                    KittNotificationListener.PKG_MENU -> "menu"
+                    else -> pkg
+                }
+
                 // UIテキストをログに追加
                 MainActivity.notificationLogs.add(
                     MainActivity.NotificationLog(
@@ -122,20 +130,22 @@ class KittAccessibilityService : AccessibilityService() {
                         app = "[$appName] A11y",
                         title = "UI要素 ${targetTexts.size}個",
                         text = targetTexts.joinToString(" | "),
-                        pkg = triggerPkg
+                        pkg = pkg
                     )
                 )
 
                 // ツリー構造もログに追加
-                MainActivity.notificationLogs.add(
-                    MainActivity.NotificationLog(
-                        time = timeStr,
-                        app = "[$appName] Tree",
-                        title = "UIツリー",
-                        text = targetTree.toString(),
-                        pkg = triggerPkg
+                appTreeMap[pkg]?.let { tree ->
+                    MainActivity.notificationLogs.add(
+                        MainActivity.NotificationLog(
+                            time = timeStr,
+                            app = "[$appName] Tree",
+                            title = "UIツリー",
+                            text = tree.toString(),
+                            pkg = pkg
+                        )
                     )
-                )
+                }
 
                 if (MainActivity.notificationLogs.size > 200) {
                     repeat(50) { MainActivity.notificationLogs.removeAt(0) }
@@ -143,29 +153,35 @@ class KittAccessibilityService : AccessibilityService() {
 
                 Log.d(TAG, "[$appName] texts=${targetTexts.size}: ${targetTexts.take(10)}")
 
-                // オファー検知: アプリ別に受諾ボタンの有無で判定
+                // オファー検知
                 val joinedText = targetTexts.joinToString(" ")
-                // 報酬額が含まれているか (¥320 等。「基本料金」「クエスト」は除外)
                 val hasReward = (joinedText.contains("¥") || joinedText.contains("￥") ||
                     joinedText.contains("·") || joinedText.contains("円")) &&
                     !joinedText.contains("基本料金") && !joinedText.contains("クエストを選択")
 
-                // 待機画面の除外キーワード
                 val isStandbyScreen = joinedText.contains("オンラインにする") ||
                     joinedText.contains("オフラインです") ||
                     joinedText.contains("ブーストが発生") ||
-                    (joinedText.contains("配達を開始する") && !joinedText.contains("受諾"))
+                    joinedText.contains("業務を開始する") || // 出前館の業務開始画面
+                    (joinedText.contains("配達を開始する") && !joinedText.contains("受諾") &&
+                        !joinedText.contains("詳細") && !joinedText.contains("指名")) // ロケットナウのオファー画面は除外しない
 
-                val isOffer = !isStandbyScreen && when (triggerPkg) {
+                val isOffer = !isStandbyScreen && when (pkg) {
                     KittNotificationListener.PKG_UBER_DRIVER ->
                         joinedText.contains("承諾") && hasReward
                     KittNotificationListener.PKG_DEMAECAN ->
-                        (joinedText.contains("受諾") || joinedText.contains("配達する")) && hasReward
+                        // 出前館は「拒否」+「詳細」+報酬 でオファー画面
+                        (joinedText.contains("受諾") || joinedText.contains("配達する") ||
+                            (joinedText.contains("拒否") && joinedText.contains("詳細"))) && hasReward
                     KittNotificationListener.PKG_MENU ->
                         joinedText.contains("受け付ける") && hasReward &&
-                        !joinedText.contains("ブースト") // ブースト通知画面除外
+                        !joinedText.contains("ブースト")
                     KittNotificationListener.PKG_ROCKETNOW ->
-                        joinedText.contains("受諾") && hasReward // 「配達を開始する」だけでは反応しない
+                        // ロケットナウは「受諾」ボタンがない場合あり。
+                        // 報酬(XXX円)+店名テキストがあればオファー画面
+                        hasReward && (joinedText.contains("受諾") ||
+                            joinedText.contains("詳細") || joinedText.contains("指名") ||
+                            joinedText.contains("マルチ"))
                     else -> false
                 }
 
@@ -182,20 +198,20 @@ class KittAccessibilityService : AccessibilityService() {
                                 t.contains("受け付ける") ||
                                 t.matches(Regex(".*[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}].*"))
                             }.joinToString(" | "),
-                            pkg = triggerPkg
+                            pkg = pkg
                         )
                     )
 
                     // オファー読取 → CF判定（重複防止）
-                    val now2 = System.currentTimeMillis()
-                    if (now2 - lastJudgeTime < JUDGE_COOLDOWN_MS) {
-                        Log.d(TAG, "Judge cooldown, skipping (${now2 - lastJudgeTime}ms since last)")
-                        return
+                    val now = System.currentTimeMillis()
+                    if (now - lastJudgeTime < JUDGE_COOLDOWN_MS) {
+                        Log.d(TAG, "Judge cooldown, skipping (${now - lastJudgeTime}ms since last)")
+                        continue
                     }
-                    lastJudgeTime = now2
+                    lastJudgeTime = now
 
                     scope.launch {
-                        val offerData = when (triggerPkg) {
+                        val offerData = when (pkg) {
                             KittNotificationListener.PKG_UBER_DRIVER -> readUberOffer(targetTexts)
                             KittNotificationListener.PKG_DEMAECAN -> readDemaecanOffer(targetTexts)
                             KittNotificationListener.PKG_MENU -> readMenuOffer(targetTexts)
@@ -209,7 +225,7 @@ class KittAccessibilityService : AccessibilityService() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to dump windows for $triggerPkg", e)
+            Log.e(TAG, "Failed to scan delivery windows", e)
         }
     }
 
