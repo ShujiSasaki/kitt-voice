@@ -984,17 +984,24 @@ async function startMic() {
     const actualRate = micCtx.sampleRate;
     const source = micCtx.createMediaStreamSource(stream);
 
-    // 風切り音対策: 200Hzハイパスフィルタ (低周波ノイズカット)
+    // 風切り音対策: 300Hzハイパスフィルタ (低周波ノイズを強力カット)
+    // 走行中のエンジン音+風切り音は200Hz以下に集中。300Hzまで上げて確実にカット
     const highpass = micCtx.createBiquadFilter();
     highpass.type = 'highpass';
-    highpass.frequency.value = 200;
-    highpass.Q.value = 0.7;
+    highpass.frequency.value = 300;
+    highpass.Q.value = 1.0; // Q上げてカーブを急峻に
+
+    // 2段目ハイパス: さらに低周波を削る (2段で-24dB/oct)
+    const highpass2 = micCtx.createBiquadFilter();
+    highpass2.type = 'highpass';
+    highpass2.frequency.value = 250;
+    highpass2.Q.value = 0.7;
 
     // 音声帯域強調: 2kHzピーキングフィルタ (人の声を持ち上げる)
     const voiceBoost = micCtx.createBiquadFilter();
     voiceBoost.type = 'peaking';
     voiceBoost.frequency.value = 2000;
-    voiceBoost.gain.value = 3; // +3dB
+    voiceBoost.gain.value = 6; // +6dB (3→6に強化、走行中は声が埋もれるため)
     voiceBoost.Q.value = 1.0;
 
     const processor = micCtx.createScriptProcessor(4096, 1, 1);
@@ -1018,16 +1025,16 @@ async function startMic() {
         if (v > mx) mx = v;
       }
       const rms = Math.sqrt(sumSq / inputData.length);
-      const NOISE_GATE_THRESHOLD = 0.008; // 風切り音レベル以下はカット
-
-      // Check audio level periodically (~6s intervals)
+      // ログ: 走行中の音声レベルを記録 (~6s間隔)
       if (_micDbg % 100 === 1) {
         if (mx < 0.001) _micSilent++;
         log('mic #' + _micDbg + ' amp=' + mx.toFixed(4) + ' rms=' + rms.toFixed(4) + ' silent=' + _micSilent);
       }
 
-      // ノイズゲート: 小さすぎる音はGeminiに送らない
-      if (rms < NOISE_GATE_THRESHOLD) {
+      // ノイズゲート無効化: 走行中はエンジン音でRMSが常に高く声との区別不可
+      // ハイパスフィルタ2段(300Hz+250Hz)と音声帯域強調(2kHz +6dB)で対策
+      // 完全無音のみスキップ
+      if (mx < 0.0001) {
         return;
       }
 
@@ -1070,22 +1077,24 @@ async function startMic() {
       }
     };
 
-    // フィルタチェーン: source → ハイパス(風切り音カット) → 音声帯域強調 → processor
+    // フィルタチェーン: source → ハイパス1 → ハイパス2 → 音声帯域強調 → processor
     source.connect(highpass);
-    highpass.connect(voiceBoost);
+    highpass.connect(highpass2);
+    highpass2.connect(voiceBoost);
     voiceBoost.connect(processor);
     processor.connect(micCtx.destination); // Required for ScriptProcessor to fire
 
     state.micSource = source;
     state.micProcessor = processor;
     state._micHighpass = highpass;
+    state._micHighpass2 = highpass2;
     state._micVoiceBoost = voiceBoost;
     state.micActive = true;
     state._micCtx = micCtx;
     updateMicUI();
     const track = stream.getAudioTracks()[0];
     const ts = track ? track.getSettings() : {};
-    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' filters=highpass200+voiceBoost2k track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
+    log('Mic ON rate=' + actualRate + ' ctx=' + micCtx.state + ' filters=hp300+hp250+voice2k+6dB track=' + (track ? track.readyState : '?') + ' hw=' + (ts.sampleRate || '?'));
 
   } catch(e) {
     log('Mic error: ' + e.message);
@@ -1101,6 +1110,10 @@ function stopMic() {
   if (state._micHighpass) {
     try { state._micHighpass.disconnect(); } catch(e) {}
     state._micHighpass = null;
+  }
+  if (state._micHighpass2) {
+    try { state._micHighpass2.disconnect(); } catch(e) {}
+    state._micHighpass2 = null;
   }
   if (state._micVoiceBoost) {
     try { state._micVoiceBoost.disconnect(); } catch(e) {}
