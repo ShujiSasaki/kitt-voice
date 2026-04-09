@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// local.properties からAPIキーを読み込み
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.inputStream().use { localProps.load(it) }
 }
 
 android {
@@ -16,12 +25,12 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        // API keys from local.properties or CI
-        buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\"")
-        buildConfigField("String", "CF_API_KEY", "\"${project.findProperty("CF_API_KEY") ?: ""}\"")
+        // API keys from local.properties
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("GEMINI_API_KEY", "")}\"")
+        buildConfigField("String", "CF_API_KEY", "\"${localProps.getProperty("CF_API_KEY", "")}\"")
         buildConfigField("String", "CF_BASE_URL", "\"https://asia-northeast1-gen-lang-client-0549297663.cloudfunctions.net\"")
         buildConfigField("String", "FIREBASE_RTDB_URL", "\"https://ubereats-kitt-default-rtdb.asia-southeast1.firebasedatabase.app\"")
-        buildConfigField("String", "FIREBASE_DB_SECRET", "\"${project.findProperty("FIREBASE_DB_SECRET") ?: ""}\"")
+        buildConfigField("String", "FIREBASE_DB_SECRET", "\"${localProps.getProperty("FIREBASE_DB_SECRET", "")}\"")
     }
 
     buildTypes {

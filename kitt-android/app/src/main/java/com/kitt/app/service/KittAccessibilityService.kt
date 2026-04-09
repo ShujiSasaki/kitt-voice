@@ -145,17 +145,27 @@ class KittAccessibilityService : AccessibilityService() {
 
                 // オファー検知: アプリ別に受諾ボタンの有無で判定
                 val joinedText = targetTexts.joinToString(" ")
-                val hasReward = joinedText.contains("¥") || joinedText.contains("￥") ||
-                    joinedText.contains("·") || joinedText.contains("円")
-                val isOffer = when (triggerPkg) {
+                // 報酬額が含まれているか (¥320 等。「基本料金」「クエスト」は除外)
+                val hasReward = (joinedText.contains("¥") || joinedText.contains("￥") ||
+                    joinedText.contains("·") || joinedText.contains("円")) &&
+                    !joinedText.contains("基本料金") && !joinedText.contains("クエストを選択")
+
+                // 待機画面の除外キーワード
+                val isStandbyScreen = joinedText.contains("オンラインにする") ||
+                    joinedText.contains("オフラインです") ||
+                    joinedText.contains("ブーストが発生") ||
+                    (joinedText.contains("配達を開始する") && !joinedText.contains("受諾"))
+
+                val isOffer = !isStandbyScreen && when (triggerPkg) {
                     KittNotificationListener.PKG_UBER_DRIVER ->
                         joinedText.contains("承諾") && hasReward
                     KittNotificationListener.PKG_DEMAECAN ->
                         (joinedText.contains("受諾") || joinedText.contains("配達する")) && hasReward
                     KittNotificationListener.PKG_MENU ->
-                        (joinedText.contains("受け付ける") || joinedText.contains("受諾")) && hasReward
+                        joinedText.contains("受け付ける") && hasReward &&
+                        !joinedText.contains("ブースト") // ブースト通知画面除外
                     KittNotificationListener.PKG_ROCKETNOW ->
-                        (joinedText.contains("受諾") || joinedText.contains("配達を開始")) && hasReward
+                        joinedText.contains("受諾") && hasReward // 「配達を開始する」だけでは反応しない
                     else -> false
                 }
 
