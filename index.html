@@ -454,7 +454,7 @@ async function restoreFromCloud() {
 function showMicLogs() {
   const panel = document.getElementById('mic-log-panel');
   const content = document.getElementById('mic-log-content');
-  const logs = JSON.parse(localStorage.getItem('kitt-mic-logs') || '[]');
+  const logs = JSON.parse(localStorage.getItem('kitt-mic-logs') || '[]').reverse();
   content.textContent = logs.length ? logs.join('\n') : 'ログなし';
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
