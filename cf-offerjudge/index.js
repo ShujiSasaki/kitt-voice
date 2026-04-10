@@ -2484,3 +2484,208 @@ function parseICalDate(value) {
 }
 
 console.log('KITT AI Agent Cloud Functions loaded');
+
+// --- Context Bridge Helpers ---
+
+async function getTodayStats() {
+  try {
+    const [rows] = await bigquery.query({ query: `
+      SELECT
+        COUNT(*) as total_offers,
+        COUNTIF(gemini_decision = 'accept') as accepted,
+        COUNTIF(gemini_decision = 'reject') as rejected,
+        ROUND(AVG(CASE WHEN estimated_hourly_rate > 0 THEN estimated_hourly_rate END), 0) as avg_hourly_rate,
+        SUM(CASE WHEN actual_payout > 0 THEN actual_payout ELSE CASE WHEN gemini_decision = 'accept' THEN offer_reward ELSE 0 END END) as total_earnings,
+        COUNTIF(actual_accepted = true) as actual_deliveries
+      FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE DATE(timestamp, 'Asia/Tokyo') = CURRENT_DATE('Asia/Tokyo')
+    `});
+    return rows[0] || { total_offers: 0, accepted: 0, rejected: 0, avg_hourly_rate: 0, total_earnings: 0, actual_deliveries: 0 };
+  } catch(e) { console.warn('getTodayStats error:', e.message); return {}; }
+}
+
+async function getAllStoreHistory() {
+  try {
+    const [rows] = await bigquery.query({ query: `
+      SELECT store_name, COUNT(*) as offers,
+        COUNTIF(gemini_decision='accept') as accepts,
+        ROUND(AVG(estimated_hourly_rate),0) as avg_hourly,
+        ROUND(AVG(offer_distance),1) as avg_dist
+      FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE store_name IS NOT NULL AND store_name != '' AND offer_reward > 0
+      GROUP BY store_name HAVING COUNT(*) >= 2
+      ORDER BY COUNT(*) DESC LIMIT 30
+    `});
+    return rows;
+  } catch(e) { console.warn('getAllStoreHistory error:', e.message); return []; }
+}
+
+async function getRecentOffers(limit) {
+  try {
+    const [rows] = await bigquery.query({ query: `
+      SELECT store_name, offer_reward, offer_distance, offer_duration,
+        gemini_decision, estimated_hourly_rate, decision_reason,
+        FORMAT_TIMESTAMP('%H:%M', timestamp, 'Asia/Tokyo') as time_jst
+      FROM \`${PROJECT_ID}.${DATASET}.offer_logs\`
+      WHERE offer_reward > 0
+      ORDER BY timestamp DESC LIMIT ${limit || 5}
+    `});
+    return rows;
+  } catch(e) { console.warn('getRecentOffers error:', e.message); return []; }
+}
+
+async function getActiveQuests() {
+  try {
+    const [rows] = await bigquery.query({ query: `
+      SELECT summary, structured_data, timestamp
+      FROM \`${PROJECT_ID}.${DATASET}.context_logs\`
+      WHERE (type = 'quest' OR (type = 'nandemo' AND LOWER(summary) LIKE '%クエスト%'))
+        AND DATE(timestamp, 'Asia/Tokyo') >= DATE_SUB(CURRENT_DATE('Asia/Tokyo'), INTERVAL 7 DAY)
+      ORDER BY timestamp DESC LIMIT 5
+    `});
+    return rows;
+  } catch(e) { console.warn('getActiveQuests error:', e.message); return []; }
+}
+
+async function getLatestWeather() {
+  try {
+    const stateUrl = FIREBASE_DB_URL + '/weather.json';
+    const resp = await fetch(stateUrl);
+    if (resp.ok) return await resp.json();
+    return null;
+  } catch(e) { return null; }
+}
+
+async function getConversationSummary() {
+  try {
+    const [rows] = await bigquery.query({ query: `
+      SELECT role, text,
+        FORMAT_TIMESTAMP('%H:%M', timestamp, 'Asia/Tokyo') as time_jst
+      FROM \`${PROJECT_ID}.${DATASET}.conversation_logs\`
+      WHERE DATE(timestamp, 'Asia/Tokyo') = CURRENT_DATE('Asia/Tokyo')
+      ORDER BY timestamp DESC LIMIT 20
+    `});
+    return rows.reverse(); // 古い順に戻す
+  } catch(e) { console.warn('getConversationSummary error:', e.message); return []; }
+}
+
+// ============================================================
+// ENDPOINT: /contextBridge - 文脈集約・記憶管理
+// ============================================================
+functions.http('contextBridge', async (req, res) => {
+  // CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+  if (!checkApiKey(req)) return res.status(401).json({ error: 'Unauthorized' });
+
+  const mode = req.query.mode || req.body?.mode || 'reconnect';
+
+  try {
+    if (mode === 'offer') {
+      // オファー判定用: 最小文脈 (3秒以内)
+      const [todayStats, storeHistory, recentOffers, weather, quests] = await Promise.all([
+        getTodayStats(),
+        getAllStoreHistory(),
+        getRecentOffers(5),
+        getLatestWeather(),
+        getActiveQuests()
+      ]);
+      return res.json({ todayStats, storeHistory, recentOffers, weather, quests });
+    }
+
+    if (mode === 'reconnect') {
+      // 再接続用: 今日の全履歴 + 会話サマリー
+      const [todayStats, recentOffers, quests, conversations, weather] = await Promise.all([
+        getTodayStats(),
+        getRecentOffers(10),
+        getActiveQuests(),
+        getConversationSummary(),
+        getLatestWeather()
+      ]);
+      return res.json({ todayStats, recentOffers, quests, conversations, weather });
+    }
+
+    res.status(400).json({ error: 'Invalid mode. Use offer or reconnect' });
+  } catch (e) {
+    console.error('contextBridge error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT: /conversationLog - 会話ログ保存
+// ============================================================
+functions.http('conversationLog', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!checkApiKey(req)) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const { entries } = req.body; // Array of { session_id, role, text, tool_call, tool_result, offer_context }
+    if (!entries || !entries.length) return res.status(400).json({ error: 'No entries' });
+
+    const rows = entries.map(e => ({
+      log_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+      session_id: e.session_id || '',
+      timestamp: bigquery.timestamp(new Date()),
+      role: e.role || 'user',
+      text: e.text || '',
+      tool_call: e.tool_call || null,
+      tool_result: e.tool_result || null,
+      offer_context: e.offer_context || null
+    }));
+
+    await bigquery.dataset(DATASET).table('conversation_logs').insert(rows);
+    res.json({ saved: rows.length });
+  } catch (e) {
+    console.error('conversationLog error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT: /deliveryTrack - 配達ステップ記録
+// ============================================================
+functions.http('deliveryTrack', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') return res.status(204).send('');
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (!checkApiKey(req)) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const { tracking_id, step, app, offer_id, lat, lng, store_name, dropoff_address, reward, prev_step_timestamp } = req.body;
+
+    const now = new Date();
+    const stepDurationSec = prev_step_timestamp ? Math.round((now.getTime() - new Date(prev_step_timestamp).getTime()) / 1000) : 0;
+
+    const row = {
+      tracking_id: tracking_id || `trk_${Date.now()}`,
+      offer_id: offer_id || null,
+      step: step || 'unknown',
+      timestamp: bigquery.timestamp(now),
+      app: app || 'uber',
+      lat: parseFloat(lat) || null,
+      lng: parseFloat(lng) || null,
+      store_name: store_name || null,
+      dropoff_address: dropoff_address || null,
+      reward: parseInt(reward) || null,
+      step_duration_sec: stepDurationSec
+    };
+
+    await bigquery.dataset(DATASET).table('delivery_tracking').insert([row]);
+
+    // RTDB にも現在状態を書き込み
+    const stateUrl = FIREBASE_DB_URL + '/kitt_state.json' + (FIREBASE_DB_SECRET ? '?auth=' + FIREBASE_DB_SECRET : '');
+    fetch(stateUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: step, app, store_name, tracking_id, timestamp: now.toISOString() })
+    }).catch(e => console.warn('RTDB kitt_state error:', e.message));
+
+    res.json({ saved: true, tracking_id: row.tracking_id, step, step_duration_sec: stepDurationSec });
+  } catch (e) {
+    console.error('deliveryTrack error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});

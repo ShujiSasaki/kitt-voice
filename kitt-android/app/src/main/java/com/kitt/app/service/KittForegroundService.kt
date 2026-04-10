@@ -11,6 +11,8 @@ import com.kitt.app.KittApplication
 import com.kitt.app.R
 import com.kitt.app.audio.AudioRouter
 import com.kitt.app.audio.GeminiLiveAudioClient
+import com.kitt.app.context.ContextBridgeClient
+import com.kitt.app.context.ConversationLogger
 import com.kitt.app.nav.NavSender
 import com.kitt.app.offer.OfferJudgeClient
 import com.kitt.app.ui.MainActivity
@@ -21,9 +23,12 @@ import kotlinx.coroutines.*
  *
  * Foreground Serviceとして永続稼働:
  * - Gemini Live Audio WebSocket接続維持
- * - BTオーディオルーティング (DJI MIC MINI入力 / AirPods出力)
- * - GPS継続取得
+ * - BTオーディオルーティング (ピンマイク入力 / AirPods出力)
+ * - GPS継続取得 (待機3秒 / 配達中1秒)
  * - オファー判定結果の音声出力
+ * - 配達ステップ追跡 (DeliveryStateTracker)
+ * - 会話ログ保存 (ConversationLogger)
+ * - 文脈管理 (ContextBridgeClient)
  * - AudioFocus管理 (メディアアプリとの共存)
  */
 class KittForegroundService : Service() {
@@ -41,6 +46,12 @@ class KittForegroundService : Service() {
         private set
     lateinit var navSender: NavSender
         private set
+    lateinit var deliveryTracker: DeliveryStateTracker
+        private set
+    lateinit var conversationLogger: ConversationLogger
+        private set
+    lateinit var contextBridge: ContextBridgeClient
+        private set
 
     companion object {
         var instance: KittForegroundService? = null
@@ -57,6 +68,9 @@ class KittForegroundService : Service() {
         locationProvider = LocationProvider(this).also { it.startTracking() }
         offerJudgeClient = OfferJudgeClient().also { it.locationProvider = locationProvider }
         navSender = NavSender()
+        deliveryTracker = DeliveryStateTracker().also { it.locationProvider = locationProvider }
+        conversationLogger = ConversationLogger().also { it.start() }
+        contextBridge = ContextBridgeClient()
 
         // WakeLock: CPU稼働維持 (画面OFFでも動作)
         val pm = getSystemService(PowerManager::class.java)
@@ -67,8 +81,13 @@ class KittForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification("KITT 稼働中"))
-        scope.launch { geminiClient.connect() }
-        return START_STICKY // OS に kill されても再起動
+        scope.launch {
+            // 再接続時: BQから文脈を取得してシステムプロンプトに注入
+            val context = contextBridge.fetchReconnectContext()
+            geminiClient.setDynamicContext(context)
+            geminiClient.connect()
+        }
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -79,6 +98,8 @@ class KittForegroundService : Service() {
         geminiClient.disconnect()
         audioRouter.release()
         locationProvider.stopTracking()
+        deliveryTracker.destroy()
+        conversationLogger.destroy()
         wakeLock?.let { if (it.isHeld) it.release() }
         super.onDestroy()
     }
@@ -90,23 +111,22 @@ class KittForegroundService : Service() {
 
     /**
      * オファー判定結果を処理
-     * - Gemini Live Audioで音声報告
-     * - iPhoneにナビ先を送信 (受諾時)
      */
     fun handleOfferJudgment(
         judgment: OfferJudgeClient.JudgmentResult,
         offerApp: String
     ) {
         scope.launch {
-            // AudioFocusを取得してメディア音量をダック
             audioRouter.requestAudioFocusForSpeech()
-
-            // function callingで受諾/拒否するときにどのアプリか伝える
             geminiClient.setCurrentOfferApp(offerApp)
             geminiClient.setCurrentJudgment(judgment)
-
-            // KITTが判定理由を音声で報告
             geminiClient.sendOfferContext(judgment)
+
+            // 会話ログに記録
+            conversationLogger.logAssistant(
+                "オファー判定: ${judgment.decision} ¥${judgment.reward} ${judgment.storeName}",
+                offerContext = judgment.app
+            )
         }
     }
 
@@ -117,6 +137,7 @@ class KittForegroundService : Service() {
         scope.launch {
             navSender.sendNavigation(pickupLat, pickupLng, storeName, "pick")
             updateNotification("ピック中: $storeName")
+            deliveryTracker.transition(DeliveryStateTracker.State.PICKING)
         }
     }
 
@@ -127,17 +148,18 @@ class KittForegroundService : Service() {
         scope.launch {
             navSender.sendNavigation(dropLat, dropLng, dropAddress, "drop")
             updateNotification("ドロップ中: $dropAddress")
+            deliveryTracker.transition(DeliveryStateTracker.State.DELIVERING)
         }
     }
 
     /**
-     * ドロップ完了: iPhoneに待機エリア or 帰宅方向ナビ
+     * ドロップ完了
      */
     fun onDropoffComplete() {
         scope.launch {
             updateNotification("KITT 待機中")
-            // AudioFocus解放 → メディア音量復帰
             audioRouter.abandonAudioFocus()
+            deliveryTracker.transition(DeliveryStateTracker.State.DROPPED)
         }
     }
 

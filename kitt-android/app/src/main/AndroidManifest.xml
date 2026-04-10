@@ -49,6 +49,24 @@
             </intent-filter>
         </activity>
 
+        <!-- 何でもBOX (共有インテント受信) -->
+        <activity
+            android:name=".ui.NandemoBoxActivity"
+            android:exported="true"
+            android:label="KITTに送る"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- KITT常駐サービス -->
         <service
             android:name=".service.KittForegroundService"
