@@ -74,26 +74,18 @@ functions.http('offerJudge', async (req, res) => {
       lat, lng, address, wireless_charging,
       ocr_text,
       image_base64,
-      store_name: rawStoreName,
-      reward: rawReward,
-      distance_km: rawDistance,
-      duration_min: rawDuration,
-      // New: AccessibilityService structured data
       source,        // 'accessibility_service' | 'ocr' | undefined
       app,           // 'uber' | 'demaecan' | 'rocketnow' | 'menu'
       dropoffAddress, // ドロップ先住所 (Directions API用)
-      storeName: asStoreName,   // AS直接取得の店名
-      reward: asReward,         // AS直接取得の報酬
-      distance: asDistance,     // AS直接取得の距離
-      duration: asDuration,     // AS直接取得の時間
-      rawText                   // ASが収集した画面テキスト
+      rawText        // ASが収集した画面テキスト
     } = body;
 
     // Step 1: Parse offer data (AccessibilityService > explicit fields > OCR)
-    let storeName = asStoreName || rawStoreName || '';
-    let reward = parseFloat(asReward || rawReward) || 0;
-    let distanceKm = parseFloat(asDistance || rawDistance) || 0;
-    let durationMin = parseInt(asDuration || rawDuration) || 0;
+    // AS直接フィールド(storeName/reward/distance/duration)を優先、なければOCRフィールド(store_name/reward/distance_km/duration_min)
+    let storeName = body.storeName || body.store_name || '';
+    let reward = parseFloat(body.reward) || 0;
+    let distanceKm = parseFloat(body.distance || body.distance_km) || 0;
+    let durationMin = parseInt(body.duration || body.duration_min) || 0;
 
     if ((ocr_text || rawText) && (!storeName || !reward)) {
       const parsed = parseOcrText(ocr_text || rawText || '');
