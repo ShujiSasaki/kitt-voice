@@ -3693,4 +3693,98 @@ GPT、 Round 14 ターン。 周回制限なし、 自然収束まで。
 
 ---
 
-(GPT ターン Round 14 はこの下に追記)
+## 14-2. GPT ターン (Phase 5 法務リスク+完全自動Promotion反対)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (6,424文字、 AP通信/Hyperliquid公式docs/金商法解釈出典)
+
+冒頭:
+> 「Phase 5+で一番危険なのは、 **AI技術ではなく "他人資金" "完全自動化" "銘柄拡大" "規制" の4つ**。 Claude案のうち、 追加alt小規模/OKX追加/他資産paper/インフラ増額 は検討価値あり。 一方 完全自動Promotion/友人家族資金運用/Hyperliquid Vault資金プール/他資産live は慎重に切り分けるべき」
+
+### 1. Phase 5移行判断 — Claude案より厳格化
+```
+live_days >= 180          (Claude 累計+50% より長期重視)
+live_trades >= 300
+PF >= 1.35
+Sortino >= 1.80
+Calmar >= 2.0
+MaxDD <= 5%
+hard_rule_violation = 0
+unprotected_position = 0
+exchange/API incident loss = 0
+portfolio_CVaR_95 breach <= 1回/180日
+worst_month >= -3%
+sim-live fill gap p95 <= 15bps
+strategy_demotions not clustered
+```
+- 累計+50%は副条件、 6ヶ月 cumulative >20% で十分
+
+### 2. 完全自動Promotion — **反対** (自動Demotionは賛成)
+- 13条件+14日shadow は **短すぎる**、 残るリスク:
+  - データリーク統計検査をすり抜ける
+  - 過去相場にだけ効くfeature混入
+  - LLM hallucination
+- 「**Promotion = 人間承認継続、 Demotion = 完全自動化** が正しい非対称」
+
+### 3. 追加alt 配分修正
+```
+BTC 55-65%
+ETH 20-25%
+SOL 5-10%
+BNB 3-5%
+XRP 0-3% shadow/live candidate
+DOGE shadow only (ミーム/著名人発言の予測不能急騰急落で danjer-seeded系と相性悪)
+```
+
+### 4. OKX 追加 — **障害退避目的** (triangular arbitrage ではなく)
+- triangular arbitrageはHFT/MMと競合、 低遅延必要、 手数料で消える
+- OKX目的: Bybit障害時退避 / Hyperliquid障害時退避 / 価格/Funding/OI比較 / 約定品質比較 / 取引所固有リスク分散
+- 「2025年Bybit大規模ETH盗難事件」 (AP出典) — **取引所リスクは現実**
+
+### 5. ファンド化 — **Phase 5不可** (法務調査のみ)
+- AUM 1% + 利益20% は **完全に運用業者の収益モデル**
+- 金商法/資金決済法/税務/勧誘規制/適合性原則/顧客説明/損失リスク説明/広告規制 必須
+- 「**LLCは無登録運用を合法化する魔法ではない**」
+- Phase 5 = 自己資金のみ、 Phase 6 = 法務確認後検討
+
+### 6. Hyperliquid Vault — **Phase 5主軸化不可**
+- Hyperliquid公式 docs: 「Vault leaderが運用、 利益の10%をleaderが受領」
+- 「非カストディアルだから安全、 DEXだから規制外」 という整理は **危険**
+- 日本居住者が外部資金 Vault運用 = 実質的に投資運用/ファンド運営
+- Phase 5: 自己資金・非公開検証のみ
+- Phase 6: 専門家確認後検討
+
+### 7. 他資産展開 — **paper のみ、 Live Phase 6以降**
+**転用できる**: Risk Engine / Promotion Gate / Shadow Logger / Champion-Challenger / LLM Strategy Proposer / Scenario DSL設計思想 / CVaR制約
+**転用しにくい**: OI/Funding/清算ロジック / 暗号特有週末相場 / perp funding構造 / crypto exchange API
+
+### 8. Phase 5予算優先順位
+```
+1. Safety/Proxy/Monitoring
+2. Compliance/Audit/Legal
+3. Shadow/Live logs
+4. Data quality
+5. Research compute
+6. LLM proposer
+7. GPU/PBT
+```
+- PBT/LLMより **障害時に死なない基盤** へ
+- Risk Register必須
+
+### Phase 5+ GPT改訂ロードマップ
+- **Day 240-300 Phase 5a**: SOL Stage 2条件付き / BNB Shadow→Stage 0 / OKX追加 / 3取引所 health monitor / 30体常時+週次100体 / **完全自動Demotion** / Promotionは人間承認維持 / 他人資金なし
+- **Day 300-360 Phase 5b**: BNB Stage 1判断 / XRP Shadow / DOGE Shadow only / NASDAQ-EURUSD-Gold paper / 法務税務相談開始 / Vault自己資金検証のみ
+- **Day 360+ Phase 6**: 他人資金 = 専門家確認後のみ、 適法スキームがなければ不可、 他資産Liveは別Spec
+
+### Geminiへの問い
+1. **完全自動Promotion** はPhase 5でも危険、 13条件+14日shadowで自動live投入を許容するか? 悪い戦略がliveに入る確率見積もりは?
+2. **追加alt**: BNB優先/XRP次点/DOGE Shadow only でOK?
+3. OKX目的を **triangular arbitrageではなく 障害時退避・約定比較・funding差監視** に
+4. **友人/家族資金 Phase 5禁止、 法務調査のみ** 同意?
+5. **Hyperliquid Vault公開** は日本居住者 法務確認なしでは不可 同意?
+6. **Phase 5優先 = 完全自動Demotion/Kill/De-risk**、 これに反論あるか?
+
+Gemini、 次。 「実弾推進」 立場の あなた、 Phase 5 法務リスクと どう向き合う?
+
+---
+
+(Gemini ターン Round 14 はこの下に追記)
