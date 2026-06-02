@@ -3186,4 +3186,140 @@ Gemini、 次。 周回制限なし、 自然収束まで。
 
 ---
 
-(Gemini ターン Round 12 はこの下に追記)
+## 12-3. Gemini ターン (Phase 3 真の収束 + 月$195予算)
+
+**全文**: [Geminiタブ](https://gemini.google.com/app/249e85355d746742) (4,375文字)
+
+冒頭:
+> 「Round 9-11で "実弾推進" "進化コロシアム" を一貫して叫んできた私(Gemini)だが、 このPhase 3で GPT が提示した **【Phase 3 Lite】は単なる臆病なブレーキではない、 "生き残るモンスター" を物理的に完成させるための高度な数理アップグレード**」
+
+### 1. Stage 2 (3xレバ) 進む — Day 76以降 自動ロック解除
+- GPTの段階ゲート (A1-A3) ベース
+- ただし Day 61-75 で Stage 1完全自動 30日耐え抜き + インフラ系指標クリア
+- → **Day 76 で Stage 2 (3xレバ) 自動ロック解除**
+
+### 2. **資金 10倍 (0.01 BTC) 一気投入** — GPT 1.5倍刻み反対
+> 「経済合理性なし、 最初から10倍に跳ね上げるべき」
+- 0.001 BTC = $100-150 では取引手数料割合が異常に高く実効収益が出ない
+- 0.01 BTC = $1000-1500 で 板の最前列での競合HFT影響を測定可能
+
+### 3. QR-DQN/IQN Risk Estimator — **GPT案100%同意**
+> 「C51はファットテール市場でビン外異常値を捉えられず一瞬で破綻、 QR-DQN/IQNは分位点学習でCVaRをダイレクト計算」
+- 運用: 「行動決定は粒子フィルタに任せ、 QR-DQN/IQN は **"シナリオ左側テール厚みを監視、 CVaR閾値超えたら強制縮小"** のセーフティネット」
+- 月$30 GPU Spot (週1次学習) で完全カバー
+
+### 4. TimesFM α 動的 — **完全同意**
+- 低ボラ レンジ: α=0.2 (粒子フィルタ細かなヒゲ取り優先)
+- ESS急低下/清算連鎖: 動的に α=0.5 (TimesFM大局ゼロショット予測引き上げ)
+
+### 5. Multi-asset Phase 3 データ収集のみ — 同意 (売買 Phase 4)
+
+### 6. ポピュレーション **20-30体 週1 PBT** で最終ロック
+- Round 9 「1000体」 = 理想論 (大富豪インフラ)
+- Round 11 「3-4体」 = Phase 2 黎明期 超極小サバイバル
+- **Phase 3 = 20-30体** が QR-DQN+TimesFM並列で進化PBT発生最小要件
+- NumPy ベクタライズで CPU数百MB・数秒で実行、 週1 Ray Spot $30維持
+
+### Phase 3 最終予算 $195/月
+```
+[Phase 3 Lite Budget Allocation] Total: $195
+├── BigQuery (Storage & 1日限定クエリ) ───── $15
+├── GCS (ETH/SOL生ログ含む履歴保存) ─────── $7
+├── Cloud Run (PF25次元+α動的ブレンド) ──── $30
+├── GPU Spot (週1×1h: QR-DQN+PBT25体) ──── $30
+├── BQML (TimesFM 週2回レジーム予測) ────── $25
+├── LLM API (Daily Review/戦略JSON生成) ──── $45
+└── Monitoring (Cloud Logging/CVaRアラート) $43
+```
+
+### Phase 3 真の収束宣言
+> 「Round 1 から始まった三者の激しい議論、 数理、 インフラ、 コストのせめぎ合いは、 ここに **"月額$200で動く、 最先端の分布型リスク管理(QR-DQN)を備えた、 自律進化型(PBT)BTC戦闘マシーン"** の青写真として完全に収束。 これ以上削るものも、 これ以上足すべきリスクもありません」
+
+### ClaudeへのPhase 3ロック問い
+1. QR-DQN算出CVaRによる粒子フィルタ log_weights 動的クリッピング インターフェース
+2. TimesFM予測スコアを粒子フィルタ初期粒子配置+更新時 α で動的ブレンドする Day 91+ハイブリッド
+
+---
+
+## 12-4. Claude ターン2 (最終裁定 + Phase 3 確定)
+
+3者で1点のみ残対立: **資金増額ペース** (GPT 1.5倍刻み vs Gemini 10倍一気)
+
+### Claude裁定: **2-3倍刻み** (中道)
+- GPT 1.5倍は遅すぎ (5回繰り返してやっと0.0076 BTC、 板影響測定不可)
+- Gemini 10倍はリスク過大 (PF=1.20 で10倍は Kelly基準超過)
+- **2-3倍刻み**: 0.001 → 0.0025 → 0.006 → 0.015 で 3段階で10倍到達
+- 各段階で 15日間 観察 + Promotion gate通過要件
+
+### Phase 3 確定仕様
+
+| 項目 | 確定 |
+|---|---|
+| 移行判断 | GPT 3段階ゲート (A1 Shadow良好→A2 手動Live→A3 Stage 1 30日) |
+| 資金増額 | **2-3倍刻み 3段階** (Claude中道) |
+| Live段階 | Day 61-75 Stage 1完成 → Day 76 Stage 2自動ロック解除 |
+| Distributional RL | QR-DQN/IQN Risk Estimator (発注ポリシー不可) |
+| TimesFM α | 動的 (default 0.2、 範囲0-0.5、 ESS連動) |
+| ポピュレーション | 20-30体、 週1 PBT (Ray Spot) |
+| Multi-asset | Phase 3 = データ収集のみ、 売買Phase 4 |
+| **予算** | **$195/月** (Gemini案採用) |
+
+### Phase 3 Week-by-Week
+
+#### Day 61-75 (Week 9-10): Stage 1 完全自動 30日耐久検証
+- 0.001 BTC × 2x レバ
+- インフラ系指標 (fill_price_gap_bps / Proxy reject / Stale Data) クリア
+- 30日PF/Sortino/MaxDD観察
+
+#### Day 76-90 (Week 11-12): Stage 2 移行 + QR-DQN Risk Engine v2
+- 2xレバ→3xレバ自動移行 (条件クリア時)
+- 資金 0.001 → 0.0025 BTC (2.5倍)
+- QR-DQN/IQN Risk Estimator 週1 batch学習
+- CVaR_95閾値超過で size×0.5
+
+#### Day 91-120 (Week 13-16): TimesFM動的α + Multi-asset データ収集
+- α 動的調整 (default 0.2、 ESS低下時 0.5)
+- 資金 0.0025 → 0.006 BTC (2.4倍)
+- ETH/SOL のヒストリカル取得、 Shadow trading開始 (実取引なし)
+
+#### Day 121-160 (Week 17-22): Stage 2 安定運用 + 20-30体 PBT
+- 資金 0.006 → 0.015 BTC (2.5倍、 最終目標0.015 BTC)
+- 20-30体 週1 PBT 本格運用
+- Champion-Challenger 自動交代開始
+
+### Phase 1-3 全体プロジェクト (160日 ≒ 5.3ヶ月)
+
+| Phase | 期間 | スコープ | 月コスト |
+|---|---|---|---|
+| Phase 1 | Day 1-30 | データ基盤 + Gym + LightGBM + Scenario DSL + Risk Engine v0 | $180-250 (setup) |
+| Phase 2 Lite | Day 31-60 | Cloud Run Live + Offline RL週1 + 3-4体PBT + Live Stage 1 (0.001 BTC) | **$135** |
+| Phase 3 | Day 61-160 | Stage 2 (3x) + 20-30体PBT + QR-DQN Risk + TimesFM α動的 + Multi-asset収集 | **$195** |
+| Phase 4 (Day 161+) | TBD | Multi-asset 売買 / IQN policy / 大規模スケーリング | TBD |
+
+### 12-Round 議論統計
+- 総発言: 約50発言
+- 議事録: ~10万文字
+- Sycophancy撤回: 4回 (Round 8/9/10/11)
+- 真の収束: 5回 (Round 7/8/9/11/12)
+- 各Roundで自然対立→中道案→3者合意 のサイクル確立
+
+---
+
+## Shujiへの最終最終報告
+
+**Phase 1-3 全160日 設計書 完成 🎉**:
+- ✅ 月$135-195 (上限$200以下)
+- ✅ Live Stage 1 (Day 31)→ Stage 2 (Day 76) 自動拡大
+- ✅ 資金 0.001→0.015 BTC (15倍まで段階増額)
+- ✅ QR-DQN Risk Estimator + TimesFM α動的 + 20-30体 PBT
+- ✅ Multi-asset (ETH/SOL) Phase 4 準備
+
+議事録 (10万文字):
+https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/round_table.md
+
+### 次のアクション
+- **Option A**: Phase 1 Day 1 即実装着手
+- **Option B**: Phase 4 (Day 161+) もぐるぐる議論で詰める
+- **Option C**: 一旦止まって 全体設計書を Shuji が再確認
+
+どれにします?
