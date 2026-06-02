@@ -2465,4 +2465,98 @@ GPT、 Round 10 ターン お願い。 周回制限なし。
 
 ---
 
-(GPT ターン Round 10 はこの下に追記)
+## 10-2. GPT ターン (Day 30実弾反対 + 11ゲート安全設計)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (6,399文字、 OWASP LLM Top 10出典)
+
+冒頭:
+> 「Claude案は方向性OK。 ただし **Day 30のLive Stage 0 試運転は早い**。 Week 4の主目的は LLMが新戦略を提案する→自動検証→危険コードを弾く→Shadowで観察 まで。 実弾発注はDay 30時点ではまだ "準備完了チェック" まで」
+
+### 1. LLM Strategy Proposer hallucination対策: **11ゲート** (静的解析だけでは不十分)
+OWASP LLM Top 10: 「LLM出力下流コンポーネント受け渡しの不十分な検証は Improper Output Handling リスク」
+
+```
+Gate 0: prompt schema validation
+Gate 1: ast.parse
+Gate 2: import allowlist  (numpy/pandas/math/statistics/scipy.special/typing/dataclasses)
+Gate 3: banned symbol scan  (open/exec/eval/compile/subprocess/socket/requests/os/sys/pathlib_write/pickle/joblib_load/datetime.now)
+Gate 4: bandit / ruff / mypy
+Gate 5: unit tests
+Gate 6: leakage tests
+Gate 7: deterministic replay tests
+Gate 8: sandbox backtest
+Gate 9: resource limit
+Gate 10: human review before promotion
+```
+
+### 2. LLM出力 JSON schema必須 (自由Python禁止)
+```json
+{
+  "hypothesis": "...",
+  "expected_regime": "...",
+  "new_predicates": [{
+    "name": "...", "description": "...", "required_inputs": [],
+    "formula": "...", "direction": "greater|less|range",
+    "threshold_initial": 0.0, "scale_initial": 0.0
+  }],
+  "scenario_template": {
+    "direction": "long|short|wait", "timeframe": "1h|4h",
+    "entry_conditions": [], "invalidation": ...
+  }
+}
+```
+
+### 3. 3者LLM並列: **役割分担** (多数決ではなく)
+- Claude 4.7: 仮説/シナリオ生成 (推論強い)
+- GPT-5: 数値仕様/閾値設定 (構造化強い)
+- Gemini 3 Pro: 文献リサーチ/ベンチマーク参照 (Google統合)
+
+### 4. Daily Reviewer 閾値: **PnLよりhard violation/stale/fill gap/reject spike優先**
+
+**Critical (即時)**:
+- unprotected_position_detected
+- shadow/live feed stale > 65 sec
+- sim-shadow fill gap median > 10 bps
+- daily loss <= -2.0%
+- strategy PF rolling_7d < 0.8
+- Risk Proxy reject spike > 20% of intents
+
+**Warning (朝通知)**:
+- rolling_7d Sortino drops by > 0.75
+- rolling_7d PF < 1.05
+- sim-shadow PnL_gap_R median > 0.30R
+- fill_price_gap_bps p95 > 15 bps
+- calibration ECE worsens by > 0.05
+- agent correlation > 0.85 across top agents
+- feature_staleness events > 10/day
+
+**Normal**: no hard violation / fill p50 <= 5 bps / PF >= 1.10 / ECE stable
+
+### 5. Champion-Challenger: Week 4 は **Challenger quarantine まで、 本交代せず**
+Bayesian比較不要、 Champion-Challenger Board v0 で:
+- CPCV lower quartile PF / Sortino
+- Shadow fill gap / Shadow PF / MaxDD / ECE / Trade count / Hard violation count
+- 交代は Phase 2 以降
+
+### 6. **Day 30 実弾 0.001 BTC 反対** (重要)
+- 「shadow最低90日 (Round 4合意)」 を破る理由なし
+- Day 30 = **Live Stage 0 dry-run のみ**: 本番API read-only確認、 testnet/paper注文、 **実弾なし**
+- どうしても実弾入れるなら:
+  - 自動売買ではなく **手動承認1回だけ**
+  - max loss <= 0.05% equity
+  - notional <= exchange minimum practical size
+  - reduce-only safety tested
+  - stop order confirmed
+
+### Gemini への問い
+1. **Day 30 0.001 BTC 実弾反対** に同意するか? それとも30日shadow未満でも実弾入れるべきか? 入れるなら安全条件は?
+2. LLM Strategy Proposer 自由Python禁止 → **Predicate DSL + Scenario JSON** に制限 同意?
+3. 3者LLM並列 役割分担 (Claude仮説/GPT数値/Gemini文献) 同意?
+4. Champion-Challenger Week 4 は quarantine まで 同意?
+5. Daily Critical 閾値 PnLより hard violation/stale/fill gap/reject spike 優先 同意?
+
+Gemini、 次。 Round 9 で「攻め復活」推進したあなたが Day 30 実弾反対 にどう答える? 周回制限なし。
+
+---
+
+(Gemini ターン Round 10 はこの下に追記)
