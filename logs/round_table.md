@@ -1428,4 +1428,51 @@ Shujiの判断を仰ぐ。
 
 ---
 
-(Round 8 はこの下に追記、 もしくは Phase 1 実装フェーズへ移行)
+# Round 8 (2026-06-02): Week 2 (Day 8-14) 設計
+
+Shuji指示「Option C」: Phase 1 全30日の設計書を完成させてから実装。 Round 8=Week 2、 Round 9=Week 3、 Round 10=Week 4。 各Round で Claude→GPT→Gemini 1周回ぐるぐる、 必要なら追加周回。
+
+議題: **Week 2 = ベースラインモデル + Strategy Pool初期 + Risk Engine v0 + Promotion Gate運用準備**
+
+## 8-1. Claude ターン (Week 2 口火)
+
+Week 1で「未来情報リーク ゼロ + EnvState 堅牢 + 特徴量 + ラベル + baseline report」が完了している前提。 Week 2 で何をするか。
+
+### 私(Claude)の提案
+
+**Day 8-9: LightGBM ベースラインモデル**
+- 予測ターゲット: `P(TP before SL)` (1h/4h 両方)
+- 入力: Week 1で作った全特徴量 (OHLCV派生 + funding/oi + liquidation 4項目 + TimesFM/Chronos View)
+- HP: `num_leaves=63, max_depth=8, learning_rate=0.05, n_estimators=500, early_stopping=50, feature_fraction=0.7, lambda_l1=0.1, lambda_l2=0.1`
+- 検証: walk-forward (train 24mo / val 3mo / test 3mo / step 1mo) + Purged K-fold (K=5, purge=2×label_horizon)
+
+**Day 10: 期待値ルールエンジン (LLM/RL なし)**
+- 期待値 = `P(TP) × avg_TP_R − P(SL) × avg_SL_R − fee_R − slippage_R − funding_R`
+- 期待値 > 0.1 (10% edge) で entry signal
+- position size: `0.005 × fractional_Kelly_0.2 × confidence²` (Round 6 SAC-Lagrangian online 規則の sim 版)
+
+**Day 11-12: 10系統 lightweight agents 初期実装**
+- wait_only_baseline / buy_hold_baseline / simple_trend (EMA cross) / simple_mean_reversion (RSI extreme) / breakout (range+retest) / liquidation_sweep (清算cluster狙い) / funding_oi_contrarian (FR過熱逆張り) / vol_expansion (BB squeeze) / danjer_bias (RAG中心、 まだdanjer corpus薄いので mock) / lightgbm_meta (Day 8-9のモデル)
+
+**Day 13: Risk Engine v0**
+- Hard Rail: 損切未発注で reward -100 (sim内) / 連続損失停止 (3連敗 60min, 5連敗 daily) / Daily loss 2% / Weekly 5% / Rolling 30d 8%
+- 動的サイズ: fractional Kelly 0.2 × confidence² × edge_score × reverse_tolerance × regime
+- 全Agent通過必須 = Agent毎に異なる戦略でも Risk Engine は共通
+
+**Day 14: 全Agent 並走 baseline 比較レポート**
+- 各Agent の OOS Sortino / Calmar / PF / MaxDD / 取引頻度
+- Promotion Gate 13条件の各項目通過状況
+- 「どの Agent が初期 promotion 候補か」を レポート出力
+
+### GPT/Gemini への問い
+1. **LightGBM HP は OK か?** BTC perp 特有の調整 (例: 出来高imbalance 局面でweightをあげる)が必要か
+2. **期待値ルールエンジンの閾値 0.1 (10% edge)** は妥当か?
+3. **10系統エージェント の中で 「Week 2 で先に試すべき」 3つは?**
+4. **Risk Engine v0 で 抜けている重要項目** はあるか?
+5. **Day 14 のレポート で 何を見ればプロジェクト全体の健全性が判定できるか?**
+
+GPT、 次お願いします。
+
+---
+
+(GPT ターン Round 8 はこの下に追記)
