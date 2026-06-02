@@ -3098,4 +3098,92 @@ GPT、 Round 12 ターン。 周回制限なし、 自然収束まで。
 
 ---
 
-(GPT ターン Round 12 はこの下に追記)
+## 12-2. GPT ターン (Phase 3 攻めすぎ批判 + Phase 3 Lite案)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (6,253文字、 arXiv C51/QR-DQN/IQN出典)
+
+冒頭:
+> 「Claude案は成果A前提でも **攻めすぎ**。 月$200制約では Live Stage 2・40体PBT・Distributional RL・TimesFM本格運用 を同時にやるのは無理。 Phase 3は "拡大フェーズ" ではなく **"拡大しても壊れないかを検証するフェーズ"** にすべき」
+
+### 1. Phase 2→3 移行判断 — **3段階に細分化**
+Claude案 (PF/Sortino/MaxDD/trades) は最低条件、 追加必要:
+```
+shadow_days >= 60
+hard_rule_violation = 0
+unprotected_position = 0
+sim-shadow fill gap p50 <= 5 bps
+sim-shadow fill gap p95 <= 15 bps
+PnL_gap_R median <= 0.30R
+calibration ECE <= 0.08
+CPCV lower_quartile PF >= 1.05
+stress cost PF >= 1.00
+```
+
+**3段階移行**:
+- **A1 Shadow良好**: Stage 0継続 + 手動承認Live検証
+- **A2 Shadow+手動Live良好**: live/manual fills 20件+, hard violation 0 → Stage 1最小自動
+- **A3 Stage 1良好**: 30日以上, live PF≥1.15, MaxDD≤3% → **Stage 2検討**
+- 「Phase 2 shadowだけでStage 2には行かない」
+
+### 2. 資金 10倍 → **1.5倍刻み** に
+- 0.001 → 0.0015 → 0.0023 → 0.0034... ゆるやかに
+- Phase 3 で最大 0.003 BTC (3倍程度) まで
+
+### 3. Distributional RL — **risk estimator のみ** (発注ポリシー不可)
+arXiv 出典:
+- **C51** (Bellemare et al.): 固定supportのcategorical distribution
+- **QR-DQN** (Dabney et al.): 分位点回帰、 C51より柔軟
+- **IQN**: quantile function を暗黙学習、 CVaRと相性◎
+
+GPT推奨:
+```
+Phase 3: QR-DQN-style quantile risk model
+  目的: CVaR / 下側分位の推定
+  発注判断には使わない
+Phase 4: IQN risk-sensitive policy 候補、 ただしlive権限なし
+```
+- 「Distributional RL というより、 **distributional risk model** として始める」
+- input: state + scenario posterior + agent signal → output: trade_R分布 q05/q10/q50/q90 + CVaR_95_loss
+- risk rule: `if predicted_CVaR_95_loss > 0.75% equity → no_entry or size *= 0.5`
+
+### 4. TimesFM α — **動的調整** (固定0.3 反対)
+```
+forecast_blend = α_t × foundation_forecast + (1 - α_t) × specialist_forecast
+α_t = f(recent calibration, ECE, regime similarity)
+default α = 0.2, range 0.0-0.5
+```
+
+### 5. Multi-asset (ETH/SOL) — Phase 3 はデータ収集のみ、 **売買 Phase 4送り**
+
+### 6. 月$200 内 Phase 3 Lite 予算
+
+**維持**: BQ/GCS / Shadow Logger / Risk Engine / Champion-Challenger / LightGBM / Scenario DSL / Daily Reviewer簡易版
+**制限**: 40体→**20-30体**、 PBT→週1、 Distributional risk model→週1再学習、 TimesFM→週2-3回、 LLM→週次提案+毎日短文
+**やらない**: 100体常時復活、 Live Stage 2自動、 ETH/SOL実取引、 大型RL常時学習
+
+| 項目 | $/月 |
+|---|---|
+| BQ | $10-20 |
+| GCS | $5 |
+| Cloud Run | $10-25 |
+| e2-small | $0-25 |
+| GPU Spot | $20-30 |
+| BQML | $0-20 |
+| LLM API | $30-50 |
+| Monitor | $5-10 |
+| 余裕 | $30-60 |
+| **合計** | **$110-190** |
+
+### Geminiへの問い
+1. Phase 2成果Aでも **Stage 0.5-1留め** vs PF>=1.20でStage 2進めるか?
+2. 資金 **1.5倍刻み** vs 10倍?
+3. Distributional RL を **risk estimator のみ** (C51ではなくQR-DQN/IQN) 同意?
+4. TimesFM α **動的調整** 同意?
+5. ETH/SOL **Phase 3データ収集のみ、 売買Phase 4** 同意?
+6. **20-30体+週次PBT** が現実的、 40体維持なら何削る?
+
+Gemini、 次。 周回制限なし、 自然収束まで。
+
+---
+
+(Gemini ターン Round 12 はこの下に追記)
