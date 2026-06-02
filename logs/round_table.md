@@ -1475,4 +1475,92 @@ GPT、 次お願いします。
 
 ---
 
-(GPT ターン Round 8 はこの下に追記)
+## 8-2. GPT ターン (Claude案を検証+改善)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (4,518文字 + LightGBM公式/SSRN出典)
+
+冒頭:
+> 「Claude案は大枠OK。 ただし修正すべきは3点。 LightGBM HPが少し強すぎる / EV閾値0.1は良いがR単位で定義し直すべき / Kelly式の 0.005×0.2×conf² は小さすぎて学習評価が鈍る」
+> 「Week 2は "儲かる戦略探し" より、 **10系統を同じ土俵で比較できるか** が目的」
+
+### 1. LightGBM HP (Claude案より浅化+正則化強化)
+
+LightGBM公式: 「num_leaves < 2^max_depth が実務望ましい」 (LightGBM 公式docs)
+
+GPT推奨 (Week 2):
+```python
+objective = binary
+metric = ['auc', 'binary_logloss']
+num_leaves = 31           # Claude 63 → 31
+max_depth = 6              # Claude 8 → 6
+learning_rate = 0.03       # Claude 0.05 → 0.03
+n_estimators = 1000        # Claude 500 → 1000 (early_stopで止める)
+early_stopping_rounds = 100
+feature_fraction = 0.65
+bagging_fraction = 0.70
+bagging_freq = 1
+lambda_l1 = 0.3            # Claude 0.1 → 0.3
+lambda_l2 = 1.0            # Claude 0.1 → 1.0
+min_data_in_leaf = 500-2000
+min_gain_to_split = 0.01
+max_bin = 255
+```
+- **追加: 確率校正必須** (Platt scaling or Isotonic regression)、 P(TP)=0.62 が実際0.45なら **edge偽物**
+- Week 2 は「高精度」より「**OOSで壊れないか**」 を見る
+
+### 2. EV閾値: R単位で再定義
+```
+EV_R = P_tp1·1.0 + P_tp2·2.0 + P_timeout·timeout_R − P_sl·1.0 − cost_R
+cost_R = (fee_bps + spread_bps + slippage_bps + expected_funding_bps) / stop_distance_bps
+```
+- Week 2: **EV_R > 0.10**
+- スキャ系: **EV_R > 0.20**
+- 「EV > 0.1 (10% edge) という曖昧表現は危険」 — 損切幅が狭い戦略ほど過大評価される
+
+### 3. サイズ式の修正
+Claude案 `0.005 × 0.2 × confidence² = 0.001` (0.1%) は **小さすぎてsim比較で学習評価が鈍る**。 GPT修正:
+```python
+risk_fraction = base_risk * confidence^2 * edge_score * reverse_tol * regime_score
+base_risk = 0.005   # 0.5%
+min_risk = 0
+max_risk = 0.01     # 1.0% sim cap
+```
+- **Kelly は Week 2 では本番サイズに使わず、 参考ログ保存** (P(TP)とavg win/loss が不安定なため過大/過小サイズになりやすい)
+
+### 4. Top 3 Agent (Week 2 本気検証)
+1. **lightgbm_meta** — Week 2 の主役、 P(TP before SL) ベース
+2. **funding_oi_contrarian** — BTC perp 特有の edge、 needs OI/FR z-score
+3. **breakout + liquidation hybrid** — danjer 思想に近い、 清算 cluster を狙う
+
+残り7系統は雛形・baseline のみ。
+
+### 5. Risk Engine v0 追加項目 (Claude案に5つ追加)
+1. **損切未発注 常時検査** (stepごとに、 entry filled で stop_order_active=false なら reward-100 + force_exit)
+2. **stale data 拒否**: oi_staleness > 10min OR funding_staleness > 8h+5min → 該当特徴量無効
+3. **同時ポジション制限**: max_open_positions = 1、 no_pyramiding in Week 2
+4. **注文反転制限**: long→short direct flip 禁止、 must close first + cooldown 1 bar
+5. **コストストレス**: Day 14で fee×1.5 / slippage×2.0 / spread×1.5 でも生存するか
+
+### 6. Day 14 健全性10指標 (GPT追加)
+1. **signal coverage** — entry候補出現頻度
+2. **trade concentration** — 利益が特定月/年に偏っていないか
+3. **cost sensitivity** — slippage 2倍で PF どれだけ落ちるか
+4. **calibration error** — 予測P(TP) と実現TP率 のズレ
+5. **feature leakage audit** — FR/OI/label混入チェック
+6. **agent correlation** — 10系統が同局面で同じ負け方していないか
+7. **turnover** — 過剰売買コスト負け
+8. **tail loss** — worst 5% trades の平均損失
+9. **exposure time** — ポジション保有時間 過長
+10. **no-trade quality** — WAITした局面で本当に edge が無かったか
+
+### Geminiへの問い
+1. LightGBM HP 浅化案 (num_leaves=31, max_depth=6, l2=1.0) に賛成か?
+2. EV閾値 R単位 + スキャ系 0.20 に同意か?
+3. Kelly Week 2 参考ログのみ、 本番サイズは base_risk=0.005×conf² で OK?
+4. Top 3 を lightgbm_meta / funding_oi_contrarian / breakout+liquidation hybrid に絞る同意か?
+
+Gemini、 次お願い。 Claude+GPT を踏まえて Google検索+論文で 批判+補強+次のClaudeへの問いに繋げて。 周回制限なし、 自然収束まで深掘り。
+
+---
+
+(Gemini ターン Round 8 はこの下に追記)
