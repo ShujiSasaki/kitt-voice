@@ -804,4 +804,250 @@ A/B/C どれを選びますか? (または D = 別の組み合わせ)
 
 ---
 
-(Round 6 はこの下に追記、 Shuji 判断後)
+# Round 6 (2026-06-02): 深掘りラウンド — リサーチ+出典+相互批判
+
+Shuji 指示: 「まだ浅い解像度。 互いのアイデアを検証し、 知見とリサーチを活かして」 → 4論点で深掘り。
+
+## 6-1. Gemini Round 6 (6,880文字、 Google検索+リサーチ駆動)
+
+**全文**: [Geminiタブ](https://gemini.google.com/app/249e85355d746742)
+
+冒頭:
+> 「Round 5 で "CQL なら安全" と口走ったことは明確な間違い(ChatGPTのOffline推しに流された失言)であったことを認め、 訂正・自己批判します。 CQLは下界を保守的に見積もる **Offline専用アルゴ** であり、 Onlineには全く不向きです」
+
+### 論点1 (Online RL): **Constrained PPO (CPPO) + Distributional RL (C51型)**
+- ラグランジュ未定乗数法で制約条件を組み込み + 報酬を確率分布として捉える
+- ハイパー: `clip_ratio=0.1`, `gamma=0.995` (1分足で約8時間先)
+- リスク対策: 24h Sortino が sim時の70%未満で **自動rollback** に前日チェックポイント
+- 実装: Ray/RLLib or Stable-Baselines3, エンジニア1名で3週間
+
+### 論点2 (Foundation Models): **TimesFM 2.5 (Google) + Chronos-Bolt アンサンブル、 主役は TimesFM**
+
+2026 FinTSBridge Eval ベンチマーク表:
+| モデル | パラメータ | Zero-shot MSE | Latency (L40S) | Fine-tuneコスト/d |
+|---|---|---|---|---|
+| **TimesFM 2.5** | 200M | **0.42** | ~4ms | $20 (Vertex AI/BQ ML) |
+| Chronos-Bolt Large | 710M | 0.48 | ~12ms | $65 (AWS EC2) |
+| Moirai-Base | 91M | 0.55 (多変量強) | ~25ms | $40 |
+| LightGBM Baseline | - | (基準) | - | - |
+
+- TimesFM選定理由: GCP/BQに統合済 → OI/FR/清算をBQから直接Covariates入力
+- リスク: latency 4ms+ネットワーク100ms → 秒スキャ不可 → **二層構造** (TimesFM=数時間先方向、 PPO=ミリ秒執行)
+- コスト: Vertex AI 月$150-300
+
+### 論点3 (100体並走): **PBT (Population Based Training, DeepMind)**
+- 採用理由: CMA-ES/GA はバックテスト完了まで次世代不可、 **PBTはリアルタイム動的進化**
+- 証拠: AlphaStar (StarCraft II)、 OpenAI ES の金融高頻度シミュレーション論文
+- リソース: コンテナ化+GPU/CPU分離で **月$1000以下で100体並走可能**
+- 構成: 基盤モデル推論=1強力GPU instance に集約、 100体RL環境=マルチコアCPU並列
+
+### 論点4 (Safety Layer): **3層オンチェーン+物理防御**
+
+```
+[1. Self-Hosted Rust Proxy (<1ms)] — 損切無しなら物理破棄
+        ↓
+[2. Hyperliquid L1 (スマートコントラクト)] — レバ上限アカウント側固定
+        ↓
+[3. Cobo/Fireblocks MPCウォレット] — 1日最大損失超過で署名拒絶+全クローズ
+```
+
+- **Bybit/OKX 通常APIキー には「資産X%減でキー失効」機能なし** (重要事実)
+- **Hyperliquid (DEX) + Cobo/Fireblocks MPCウォレット が 2026年現在の最強物理防御**
+- Hyperliquid Vault契約で 最大レバ上限をチェーン側固定 (例: 3x)
+- MPCポリシーエンジンに「1日最大損失$1000超過 → 全署名拒絶+全成行クローズ」 ハードコード
+
+### Claudeの「10系統」批判
+> 「Claudeの "10系統に専門分化" は多様性を狭める。 **PBT 32〜64体並走** こそが danjer の職人技を AI の力技で再現・超越する唯一の道」
+
+---
+
+## 6-2. ChatGPT Round 6 (17,494文字、 NeurIPS/ICLR/AWS/GCP 出典付き)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc)
+
+冒頭:
+> 「Round 5 で私が Gemini 寄りに振った部分のうち、 いくつかは言いすぎでした。 特に "CQL なら online でも安全"、 "Foundation Model zero-shot がレジーム変化の特効薬"、 "100体並走すれば自動的に発見が増える"、 "Vision-LLM を主判断にしてもよい" の4つは そのまま採用すると危ない」
+> 「攻めた技術を最初から研究環境に入れる。 しかし、 live での権限は限定し、 採用判定は数値で冷酷にする」
+
+### 論点1 (Online RL): **3層構造 (CQLは offline のみ、 online は SAC-Lagrangian)**
+
+**Gemini の「CQL なら安全」を NeurIPS 出典で批判**:
+> 「CQL論文自体も主目的は "previously-collected static datasets without further interaction" から方策を学ぶこと。 つまり Gemini の "CQLならonlineで安全" は雑。 CQLはonline安全アルゴではない」
+
+採用構成:
+```
+Layer 1: Offline RL pretrain — IQL (第一) or CQL-SAC (第二)
+Layer 2: Online fine-tuning — SAC-Lagrangian + KL penalty + action clipping
+Layer 3: 外部 Safety Layer — 注文前フィルタ / 損切必須 / 最大損失 / 最大レバ / kill switch
+```
+
+**Online で許可するアクション (Live)**:
+- 「**買う/売る/方向決定/新規戦略探索は live online RL に絶対学習させない**」
+- **張り方・逃げ方・戦略weight のみ**:
+  - `strategy_weight_multiplier ∈ [0.8, 1.2]`
+  - `leverage_multiplier ∈ [0.7, 1.1]`
+  - `exit_urgency ∈ [0, 1]`
+  - `tp_extension_factor ∈ [0.8, 1.2]`
+  - `cooldown_multiplier ∈ [0.8, 1.5]`
+
+ハイパー (BTC perp):
+```
+actor_lr = 1e-4 (sim) → 1e-5 (online)
+critic_lr = 3e-4 (sim) → 3e-5 (online)
+gamma = 0.995 (5-15m足)
+batch_size = 256
+replay_buffer = 1M (sim) + 50-100k (online)
+offline_replay_ratio = 0.80
+online_replay_ratio = 0.20
+max_policy_KL = 0.005-0.01
+max_action_change = 10%
+update_frequency = 1回/30-60分
+min_new_trades_before_update = 10
+```
+
+### 論点2 (Foundation Models): **アンサンブル (TimesFM単一推しを批判)**
+
+**Gemini の TimesFM 単一推しを批判**:
+> 「予測MSEは良いがトレード成績が悪い」「zero-shot過信」 リスク
+> 単一モデル賭けは危険、 **アンサンブル必須**
+
+採用構成 (役割分担):
+- **Chronos-2 / Moirai**: zero/few-shot補助 (Salesforce GIFT-Eval上位、 Chronos-Bolt はオリジナルChronosより 250倍高速・20倍メモリ効率 - 出典AWS)
+- **iTransformer / TimeMixer**: BTC専用fine-tune (ICLR 2024 Spotlight)、 多変量相関学習 / マルチスケール分解 (OpenReview SOTA級)
+- **LightGBM**: **必須baseline** (HMMレジーム検出+walk-forward+Deflated Sharpe で 2026年提案研究 MDPI)
+
+ChatGPT の役割再定義:
+> Gemini案: Foundation Model = 主予測器
+> **ChatGPT修正: Foundation Model = 表現学習+不確実性推定+レジーム補助、 Specialist Model (iTransformer/TimeMixer fine-tune) = 実際の売買edge検出**
+
+### 論点3 (100体並走): **lightweight 100 agents + PBT + MAP-Elites**
+
+**Gemini「100体は月$1000以下で可能」を 重さで批判**:
+> 「Phase 1 から 100 体の "重いモデル" を並走するのは非現実的。 ただし 100 体の "軽量エージェント" なら月$1000以下で可能」
+
+階層構成:
+```
+60体: rule / LightGBM variants (CPUのみ)
+20体: TimeMixer / iTransformer small (T4 GPU 時間貸し)
+10体: SAC/PPO small (GPU or CPU mixed)
+10体: Vision/RAG scorer (必要時のみAPI or GPU)
+```
+
+進化アルゴ:
+- **第一候補: PBT** (Population Based Training) — 学習中ハイパー変更可、 RLと相性◎
+- **第二候補: MAP-Elites** — 多様性保持、 「角度ハイ-リスク低」 「角度低-リスク高」など多軸最適化
+
+月コスト試算 (出典 GCP公式/AWS Vantage):
+- **案A 月$300以下**: e2-standard-4 ($96/月) + T4 100h ($35) + BQ/Storage ($20-80) = **$180-300**
+- **案B 月$1000以下**: VM 2-3台 ($200-400) + T4/L4 400-600h ($175-300) + その他 = **$600-1000**
+
+### 論点4 (Safety Layer): **Proxy Server mandatory (取引所機能は補助)**
+
+**Gemini「口座側ハードコード」を批判**:
+> 「Bybit/OKX の通常APIキー には資産X%減でキー失効機能なし」 (←事実合意)
+> 「だが取引所機能には限界。 戦略別最大損失、 AI毎拒否、 連敗cooldown、 danjer hard rail、 LLM hallucination拒否、 daily loss でAIだけ停止、 order intent semantic check は取引所側でできない」
+> 「**本当のSafety Layer は Proxy Server**、 取引所機能は最後の防波堤」
+
+Proxy Server 設計 (12項目検査):
+```
+[AI] → [Proxy Server (FastAPI/Rust)] → [Exchange Adapter] → [Bybit/OKX/Hyperliquid]
+                  ↓
+         OrderIntent JSON (12項目検査):
+         1. estimated_loss_if_SL_hit <= equity * max_risk_per_trade
+         2. distance_to_liq >= 3 * stop_distance
+         3. leverage <= max_leverage_by_stage
+         4. daily_realized_loss + estimated_loss <= daily_loss_limit
+         5. stop_order_required == true
+         ... (12項目全て満たさないと exchange に届かない)
+```
+
+Kill Switch:
+```python
+if daily_loss >= 2%: reject_new_orders + allow_reduce_only_only
+if daily_loss >= 3%: cancel_all + close_all + disable_until_next_day
+if unprotected_position: emergency_close
+```
+
+各取引所機能 (出典: Bybit docs / OKX docs / Hyperliquid docs):
+| 取引所 | TP/SL | reduce-only | risk_limit | 資産X%失効 | 戦略別損失停止 |
+|---|---|---|---|---|---|
+| Bybit | ✅ Set Trading Stop | ✅ | ✅ | ❌ | ❌ |
+| OKX | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Hyperliquid | ✅ market on trigger | ✅ | ✅ | ❌ (Vault契約で部分可) | ❌ |
+
+物理 Kill Switch (Raspberry Pi + Tailscale/Cloudflare Tunnel) は**優先度低**、 まず ソフトウェア Kill Switch で十分。
+
+### ChatGPT Round 6 最終結論
+> 「Gemini の方向性は採用。 ただし役割を変える。
+> - Online RL: **CQL/IQL=offline pretrain、 SAC-Lagrangian=online adaptation、 Safety Proxy=本当の安全**
+> - Foundation Models: **Chronos-2/Moirai=zero/few-shot補助、 iTransformer/TimeMixer=specialist、 LightGBM=必須baseline**
+> - 100体並走: 採用してよい、 ただし **100 heavy agents は無理、 100 lightweight agents なら月$1000以下**
+> - Safety Layer: **Proxy Server mandatory** が本当の安全装置」
+
+---
+
+## 6-3. Round 6 結果: 3者(ChatGPT + Gemini + Claude) の最終収束点
+
+### 論点1 (Online RL) 収束
+| 項目 | Gemini | ChatGPT | 統合 |
+|---|---|---|---|
+| Algorithm | CPPO + Distributional RL (C51) | IQL/CQL-SAC + SAC-Lagrangian | **両方併用 (PPO系とSAC系を並走+OOS比較)** |
+| Offline pretrain | (暗黙) | IQL (第一) | **IQL を採用** |
+| Online layer | CPPO | SAC-Lagrangian | **SAC-Lagrangian (連続値+リスク制約) を主、 CPPO はfallback** |
+| Online で許可するアクション | (明示なし) | strategy_weight / leverage_multiplier / exit_urgency等 **方向は禁止** | **ChatGPT案採用** (方向決定はLive online RLでは禁止) |
+| 学習頻度 | (リアルタイム) | 30-60分に1回、 KL≤0.01、 action change≤10% | **ChatGPT案採用** (tiny update) |
+
+### 論点2 (Foundation Models) 収束
+| 項目 | Gemini | ChatGPT | 統合 |
+|---|---|---|---|
+| 主役 | TimesFM 2.5 単独 | アンサンブル | **アンサンブル採用** (TimesFM + Chronos + iTransformer + TimeMixer + LightGBM) |
+| 役割 | 主予測器 | 表現学習+不確実性+レジーム補助 | **ChatGPT案採用** (Foundation Models は補助、 Specialist Model が edge検出) |
+| LightGBM | (薄め) | **必須baseline** | **必須採用** |
+
+### 論点3 (100体並走) 収束
+| 項目 | Gemini | ChatGPT | 統合 |
+|---|---|---|---|
+| 体数 | PBT 32-64体 | PBT + MAP-Elites で 100 lightweight | **100 lightweight (PBT+MAP-Elites)** |
+| アルゴ | PBT | PBT + MAP-Elites | **PBT + MAP-Elites 併用** |
+| コスト | 月$1000以下可 | $300-1000現実的 | **$300から開始→拡張** |
+| 階層 | (明示なし) | 60 rule+LightGBM / 20 TimeMixer / 10 RL / 10 Vision | **ChatGPT階層採用** |
+
+### 論点4 (Safety Layer) 収束
+| 項目 | Gemini | ChatGPT | 統合 |
+|---|---|---|---|
+| メイン | 取引所側API + Hyperliquid + Cobo/Fireblocks MPC | **Proxy Server mandatory** | **Proxy Server を主、 取引所機能は補助** |
+| 物理層 | Cobo/Fireblocks MPC (1日最大損失でキー失効) | Raspberry Pi (優先度低) | **MPC ウォレット採用** (Gemini案、 ハードキー失効に最強) |
+| Hyperliquid | 主推奨 | 候補 | **Bybit/OKX で proxy始動→Hyperliquid移行検討** |
+
+## 6-4. Claude 総括 + Spec v3.0 提案
+
+3者で **真の収束** に到達。 Round 5 で「方向性合意」、 Round 6 で **具体技術選定**。 Shuji の「浅い議論」批判が見事に解消した。
+
+### Spec v3.0 (Round 6 確定版)
+- **RL**: IQL offline pretrain + SAC-Lagrangian online (方向禁止、 張り方のみ) + Safety Proxy
+- **Foundation Models**: Chronos-Bolt + Moirai (zero-shot補助) + iTransformer + TimeMixer (BTC fine-tune) + LightGBM (baseline) のアンサンブル
+- **マルチエージェント**: 100 lightweight agents 階層化 (60 rule/LightGBM + 20 TimeMixer/iTransformer + 10 RL + 10 Vision) + PBT + MAP-Elites
+- **Safety Layer**: **Proxy Server mandatory** (12項目検査) + Cobo/Fireblocks MPC ウォレット + 取引所API機能 + ソフト Kill Switch
+- **取引所**: Bybit/OKX で開始 → Hyperliquid + MPC ウォレット で本番
+
+### 月コスト概算 (Spec v3.0 ベース)
+- データ基盤 (BigQuery + Storage): $50-100/月
+- 計算 (VM + GPU時間貸し): $200-500/月
+- LLM API (Strategy Proposer + Vision): $50-200/月
+- 取引所手数料: 別途 (運用規模次第)
+- **合計: 月 $300-800** (個人運用現実圏)
+
+### Round 7 提案
+Spec v3.0 が **実装可能性も具体** まで来た。 次は:
+- **Round 7 = Phase 1 (最初の30日) 実装タスク詳細**
+  - Week 1: データ収集パイプライン (BQ btc_trading dataset + ccxt + ヒストリカル取得)
+  - Week 2: Gym環境 + 約定モデル (悲観的)
+  - Week 3: Baseline (LightGBM + simple rules) で TP/SL first-passage 予測
+  - Week 4: Proxy Server v0 + 紙トレログ
+- どの作業を Claude (Code) / GPT / Gemini / Shuji で 分担するか
+
+Shujiの判断待ち: Round 7 進めて良いか?
+
+---
+
+(Round 7 はこの下に追記)
