@@ -3364,4 +3364,105 @@ GPT、 Round 13 ターン。 周回制限なし、 自然収束まで。
 
 ---
 
-(GPT ターン Round 13 はこの下に追記)
+## 13-2. GPT ターン (Claude案を再び保守化)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (6,709文字、 IQN論文 proceedings.mlr.press 出典)
+
+冒頭:
+> 「Phase 4でも Claude案はまだ攻めすぎ。 0.015 BTCで Stage 2が安定したとしても、 Phase 4で同時に ETH/SOL売買開始 + IQN 50%委任 + 100体常時PBT + 人間ゲート解除 + 0.045 BTC 3倍増額 を全部やるのは **リスクが重なりすぎ**」
+> 「Phase 4 の正しいテーマは **"BTC単体で勝てた仕組みを、 壊さずに横展開・一部自動化する"**」
+
+### 1. Phase 4 移行判断 — Claude条件 + 追加
+```
+最低条件:
+  Stage2 live_days >= 90
+  live_trades >= 100
+  PF >= 1.30
+  Sortino >= 1.80
+  MaxDD <= 4%
+  hard_rule_violation = 0
+  unprotected_position = 0
+  exchange/API incident loss = 0
+  sim-live fill gap p95 <= 15 bps
+  daily_loss_limit_hit <= 1回 / 90日
+  strategy demotion event <= 1回 / 90日
+  CPCV lower_quartile PF >= 1.10
+  stress-cost PF >= 1.05
+```
+- 「月収益+8% は **副条件** に」、 主は「壊れ方が管理できていたか」
+
+### 2. Multi-asset — **ETHのみ Live、 SOL Shadow継続**
+- ETH: BTC相関高+流動性大+perp厚い → Phase 4 Live可
+- SOL: 高ボラ・流動性中位 → **Shadow継続、 Live は Phase 5**
+- BNB/XRP/DOGE: 不要 (Phase 5以降)
+
+銘柄配分:
+```
+Day 161: BTC 80% / ETH 20% / SOL 0%
+Day 190+: BTC 70% / ETH 25% / SOL 5% shadow/live candidate
+最大: BTC 60% / ETH 30% / SOL 10%
+```
+
+### 3. IQN live権限 — **50%委任 早い、 最大25%**
+- Day 161-190: IQN = **risk-only** (発注権限なし、 size haircut / no-entry filterのみ)
+- Day 191-220: IQN = **exit urgency only** (利確早める/撤退強める)
+- Day 221+: IQN = **10-25% allocation** (Champion合議の一部、 単独発注不可)
+- 50% は Phase 5以降
+
+絶対条件:
+- IQN単独で hard violation = 0
+- live-assisted PF >= 1.15
+- IQNが止めたトレードの **回避損失 > 逃した利益**
+- CVaR予測校正良好
+
+### 4. 100体常時 + daily PBT — 月$300-400でも優先度低い
+- daily PBT: **ノイズ適応リスク** (過学習/リーク)
+- 推奨: **30体常時 + 週次100体 batch**
+
+### 5. 人間ゲート解除 — 段階的
+- Day 201+: **発注の A+ setup 自動化は可** (trade execution の自動化のみ)
+- **戦略採用 = 人間承認継続** (Phase 5以降)
+
+### 6. Live Stage 3 — 1.5倍刻み
+```
+0.015 → 0.0225 → 0.033 → 0.045
+```
+各段階: 14日+ / 20 trades+ / PF≥1.15 / MaxDD≤2% / fill gap p95≤15bps
+daily loss limit 2% → 1.5% に下げる賛成
+
+### 7. 予算 $300-400 — 修正ルール
+```
+infra_budget <= min(
+  10% of trailing_3mo_avg_net_profit,
+  0.5% of trading_equity,
+  fixed_cap = $400
+)
+```
+優先順位: Safety/Proxy/Monitoring → Shadow/Logs/BQ → Live実行信頼性 → Research compute → LLM proposer → Foundation model実験
+
+### 8. 未議論リスク → **Risk Register化**
+- 取引所障害頻発 (Bybit/OKX/Hyperliquid いずれもUS規制リスク)
+- ハック / Bridge失敗 (DEX系)
+- 規制変化 (海外取引所利用に税務+規制)
+- 競合HFT進化 (アルファ shrinkage)
+- 相関崩壊 (BTC/ETH/SOL stress時 corr ≈ 0.9)
+- **LLM挙動変化** (API/Webモデル予告なく更新、 Strategy Proposer出力直採用禁止、 必ずDSL+test+Promotion Gateを通す)
+
+### Phase 4 GPT改訂案
+- **Day 161-180**: ETH Shadow→最小Live準備、 BTC Stage3 1.5倍刻み、 IQN risk-only、 30体+週次100体
+- **Day 181-210**: ETH Live Stage 0/1、 BTC最大0.033 BTC、 SOL Shadow、 Portfolio CVaR、 IQN exit urgency
+- **Day 211-240**: BTC 0.045到達判断、 ETH 20%上限、 SOL 5%shadow、 IQN 10-25% allocation、 A+自動化、 戦略採用は人間ゲート維持
+
+### Geminiへの問い
+1. ETH のみ Phase 4 Live、 SOL Shadow継続、 BNB/XRP/DOGE Phase 5以降 同意?
+2. IQN委任 50% → **25%上限** 同意?
+3. 100体常時 vs **30体常時+週次100体 batch**、 どっち?
+4. 人間ゲート解除: **A+発注のみ自動化、 戦略採用は人間承認** 同意?
+5. 予算$300-400 + 「利益10%/equity 0.5%/$400固定キャップ」の3点制御 賛成?
+6. **複数取引所切替準備** (Bybit/OKX/Hyperliquid) を Phase 4 必須項目に?
+
+Gemini、 次お願い。 周回制限なし。 「実弾推進」立場の あなたが Phase 4 で何を死守、 何を譲るか。
+
+---
+
+(Gemini ターン Round 13 はこの下に追記)
