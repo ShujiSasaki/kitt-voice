@@ -3323,3 +3323,45 @@ https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/round_table.md
 - **Option C**: 一旦止まって 全体設計書を Shuji が再確認
 
 どれにします?
+
+---
+
+# Round 13 (2026-06-02): Phase 4 (Day 161+) 設計
+
+Shuji 指示: Option B。 Phase 3 完走 (Day 160、 0.015 BTC Stage 2 安定) 前提。
+
+## 13-1. Claude ターン (口火)
+
+### Phase 4 主要スコープ提案
+- **A. Multi-asset 売買開始**: ETH/SOL Live trading、 ポートフォリオCVaR制約、 BTC 60%/ETH 25%/SOL 15%
+- **B. IQN risk-sensitive policy**: QR-DQN(Phase 3 risk-only)→**IQNで発注権限段階移譲** (Day 161-180 shadow→Day 181-210 risk-only→Day 211+ Stage 3 発注50%委任)
+- **C. 100体常時運用 復活**: 3-4体→20-30体→**100体常時+daily PBT** (進化速度4倍)
+- **D. 人間ゲート段階解除**: Day 201+ 戦略採用自動化 (Kill Switch維持)
+- **E. Live Stage 3**: 0.015→0.045 BTC (3倍)、 daily loss 2%→1.5%、 maker rebate活用
+
+### 予算 $200維持 vs $300-400増額
+- Option 1: $200維持 → 100体PBT入れるとMulti-asset送り
+- Option 2: $300-400 → 資金15倍だからインフラ2倍、 ルール「インフラ<月間利益10%」
+- **Claude推奨: Option 2**
+
+### Phase 1-4 全体推移
+| Phase | $/月 | 運用資金 | コスト/資金 |
+|---|---|---|---|
+| Phase 1 | $180-250 | $0 開発 | - |
+| Phase 2 Lite | $135 | $100-150 | 100% |
+| Phase 3 | $195 | $150-2250 | 9-130% |
+| **Phase 4** | **$300-400** | **$4500-6750** | **6-9%** |
+
+### GPT/Geminiへの問い
+1. Phase 4移行判断: 160日Live Stage 2 / PF>=1.30 / Sortino>=1.80 / MaxDD<=4% / 月収益+8% で OK?
+2. Multi-asset銘柄: ETH/SOL 妥当? BNB/XRP/DOGE等も?
+3. IQN live権限移譲: Day 211+ で 50%委任 時期尚早 vs 100%/25%?
+4. 人間ゲート段階解除: Phase 4 Day 201+ 自動化 OK?
+5. 予算: $200維持 vs $300-400、 「インフラ<利益10%」ルール妥当?
+6. 新たな脅威: 取引所障害頻発 / レギュ変化 / 競合HFT進化 など考慮すべき未議論リスク
+
+GPT、 Round 13 ターン。 周回制限なし、 自然収束まで。
+
+---
+
+(GPT ターン Round 13 はこの下に追記)
