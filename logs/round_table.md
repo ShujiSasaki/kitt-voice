@@ -2722,3 +2722,78 @@ https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/round_table.md
 ---
 
 (実装フェーズの記録は別ファイル `logs/phase1_implementation.md` に分離予定)
+
+---
+
+# Round 11 (2026-06-02): Phase 2 設計 + **予算$200/月以下**
+
+Shuji 指示: Option C (Phase 2 もぐるぐる詰める) + **月$200以下** 制約。 Phase 1 試算 月$400-930 を **半額以下** に削減する必要あり。
+
+## 11-1. Claude ターン (口火)
+
+Phase 2 スコープと予算節約戦略を同時に議論する。
+
+### Phase 2 (Day 31+) 主要スコープ
+1. **SAC-Lagrangian online fine-tuning** (Stage 1 = 2x レバ自動): 「方向決定」は禁止、 `strategy_weight / leverage_multiplier / exit_urgency / tp_extension / cooldown` のみ online学習
+2. **Learning-based likelihood**: α blending `0.7×soft + 0.3×learned`、 OOSで learned信頼度向上→αを 0.3へ
+3. **100体 lightweight agents (PBT + MAP-Elites)**: 60 rule/LightGBM + 20 TimeMixer/iTransformer + 10 RL + 10 Vision-RAG
+4. **Live Stage 1 自動運用**: 2x レバ、 risk_per_trade 0.25-0.50%, max_daily_loss 1.5%
+5. **Champion-Challenger 本交代**: 30日 Quarantine観察後、 fill_gap/ECE/PF が継続的に Champion 超過なら 自動交代
+6. **TimesFM cut-off ハイブリッド本格運用**: forward期間で zero-shot、 backtest期間で PatchTST scratch
+
+### 月$200制約 — Claude 節約案
+**現状 (Phase 1 完了時想定): 月$400-930** → 半額以下に削減
+| 項目 | 当初 | 節約後 | 節約方法 |
+|---|---|---|---|
+| BQ Storage | $50-80 | **$15** | パーティション最適化、 古いraw削除、 Standard storage |
+| BQ Query | (含む) | **$30** | 1TB/月 無料tier 内収め、 batch query固定、 reservation flat-rate回避 |
+| Compute (e2-standard-4) | $96 | **$0** | Cloud Run (1M req/月無料) + Cloud Functions (200万call無料) でserverless化 |
+| Backtest GPU (T4) | $35-100 | **$25** | Spot/Preemptible (70%off)、 月50時間以下、 batch only |
+| BQML TimesFM | $50-150 | **$20** | 1日1回 batch forecast、 horizon短縮、 Chronos外す |
+| **LLM API** | $100-300 | **$50** | **3者並列を Web (Claude in Chrome) 経由に切替** = サブスク無料活用、 Claude API は Daily Reviewer 月数千トークンのみ |
+| ストレージ (GCS) | $10 | **$10** | 14日lifecycle |
+| Network egress | $10 | **$10** | 維持 |
+| **合計** | **$400-930** | **$160** | 月$200以下達成 |
+
+### 予算節約の核心 = LLM API課金を Web に逃がす
+Phase 1 で **3者並列 LLM Strategy Proposer** を 月$100-300 と試算したが、 既に Claude in Chrome で **ChatGPT Web + Gemini Web (サブスク無料tier)** を運用中。 これを Strategy Proposer 本番運用にも採用:
+
+```python
+# 週1回月曜朝 06:00 JST
+def weekly_strategy_proposer():
+    failed_trades = bq.query("SELECT * FROM simulated_trades WHERE ...").to_dataframe()
+    
+    # Claude (このAI、 Claude Code経由) - 無料
+    # ChatGPT (Web経由、 Claude in Chrome MCP) - サブスク
+    # Gemini (Web経由、 Claude in Chrome MCP) - サブスク
+    
+    proposals = []
+    for llm in ['claude_local', 'chatgpt_web', 'gemini_web']:
+        json_proposal = invoke_llm_via_web(llm, prompt, failed_trades)
+        proposals.append(json_proposal)
+    
+    # PBT + MAP-Elites で淘汰
+    promoted = auto_backtest_and_gate(proposals)
+    return promoted
+```
+
+これで **LLM API 課金月$0** (Claude Code 自体は固定費)、 Daily Reviewer のみ Claude API で月$30-50。
+
+### 削減リスクと対策
+- **Cloud Run serverless化** → cold start latency (1-3秒) 発生。 Daily Reviewer は OK、 リアルタイム Risk Engine は専用VM 1台 (e2-small $25) 推奨
+- **Spot GPU 70%割引** → 突然中断リスク。 Backtest は再開可能設計
+- **1TB/月 BQ Query 無料tier** → 超過時 $5/TB。 partition剪定 (DATE filter必須)、 cluster で scan range縮小
+- **TimesFM 1日1回 batch** → リアルタイム inference できない。 でも Phase 2 で必要な horizon は 1h-1d、 batch で十分
+
+### GPT/Geminiへの問い
+1. **月$200制約の現実性**: 上記節約案で「Phase 2 機能完遂」 と「月$200以下」が両立するか? 計算量試算で破綻ないか
+2. **LLM Web経由運用 (API課金回避)**: Round 7-10 でやっていた手法を本番運用へ昇格、 信頼性・再現性はOK? rate limit 大丈夫?
+3. **Cloud Run cold start vs e2-small 常時起動**: Risk Engine + Proxy Server はどっち? trade-off
+4. **Spot GPU 突然中断** に対する backtest 再開設計 (checkpoint頻度・recovery)
+5. **無料tier 突破リスク**: BQ 1TB query 超えそうな時の警告自動化、 BQML/Vertex AI コスト alert
+
+GPT、 周回継続。 月$200制約は厳しい、 削れない部分があれば指摘してほしい。
+
+---
+
+(GPT ターン Round 11 はこの下に追記)
