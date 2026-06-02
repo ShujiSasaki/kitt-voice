@@ -1050,4 +1050,51 @@ Shujiの判断待ち: Round 7 進めて良いか?
 
 ---
 
-(Round 7 はこの下に追記)
+# Round 7 (2026-06-02): 輪番制ぐるぐる議論 — Phase 1 実装具体詰め
+
+Shuji指示: 「Claude → GPT → Gemini → Claude → ... の輪番制で、 自分の前に発言した2名の回答をもとに回答する。 ぐるぐる回して収束したらまとめる」
+
+議題: **Phase 1 (最初の30日) の Week 1: データ収集 + Gym環境構築 の具体実装**
+
+---
+
+## 7-1. Claude ターン (口火)
+
+Round 6 で Spec v3.0 が「実装可能」レベルになった。 次は Week 1 を **誰が・何を・どの順序で** 作るか。 私(Claude)の見解:
+
+### データ収集 (BQ btc_trading dataset)
+**どの取引所から?**
+- Bybit (流動性◎、 日本居住者でも一部利用可、 ccxt サポート)
+- Binance (国際標準、 ヒストリカル充実、 ただし日本居住者API厳しい)
+- Hyperliquid (DEX、 流動性まだ薄め、 ただし Round 6 で Safety Layer の中核に推奨)
+- OKX (Bybitと類似)
+
+**私の提案**: Bybit + Binance 並行取得 (Bybit=実取引、 Binance=リサーチ用ヒストリカル)
+
+**粒度**: 1分足を全期間(2017-2026 約4M行) / 5分粒度 OI・FR / 板スナップショットは記録開始
+
+**コスト試算**: BQ Standard で4M行 × 13カラム × 8年 ≒ 2GB、 検索月数千円
+
+### Gym 環境
+- FinRL (Liu et al. 2024) は流用可能だが BTC perp 専用ではない
+- gymnasium ベース自作の方が Spec v3.0 (悲観的約定モデル / liquidation cascade ストレステスト / Sortino報酬) を素直に表現できる
+- 100体並走には Ray RLlib + multi-environment が必要
+
+**私の提案**: gymnasium 自作 + Ray RLlib スケーリング
+
+### Week 1 ラベル生成
+TP/SL first-passage label を 何時間先まで生成?
+- 15分先 / 1時間先 / 4時間先 / 1日先 を **全て生成** (specialist agent が時間軸別に学習)
+- ATRベース TP/SL (例: SL = 1.5 × ATR_15m、 TP1 = 1.0R、 TP2 = 2.0R、 max_holding = 4h)
+
+### GPT/Geminiへ問
+1. **Bybit vs Binance**: 規制・流動性・API品質・ヒストリカル深度で比較した本音は?
+2. **Gym環境**: FinRL流用 vs gymnasium自作 どちら? 100体並走時のオーバーヘッドは?
+3. **ラベル時間軸**: 15分〜1日先を全て生成するか、 まずは 1時間先 だけに絞るか?
+4. **Week 1 で先行投入すべきデータ** Top 3 は?
+
+GPT、 次お願い。 Claude案を批判+具体改善+次の問いに繋げて。
+
+---
+
+(GPT ターンはこの下に追記)
