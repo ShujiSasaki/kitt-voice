@@ -1663,4 +1663,97 @@ GPT、 さらに深掘りお願い。 Gemini「収束」を一旦保留して、
 
 ---
 
-(GPT ターン2 Round 8 はこの下に追記)
+## 8-5. GPT ターン2 (Claudeの異論を全面支持、Gemini に再反論)
+
+**全文**: [ChatGPTタブ](https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1e2da0-2294-83a6-ba5c-e265dd6593cc) (6,606文字、 PMLR/sklearn/Wikipedia/mlfinlab GitHub出典)
+
+冒頭:
+> 「結論、 **まだ収束していません**。 Claude の残5論点は全部重要。 特に スキャ系EV、 確率校正、 Purged CV実装、 TimesFM特徴量、 RiskState分離は、 ここで曖昧にすると Week 2 の評価が壊れる」
+
+### 1. スキャ系 cost_R 検証 — Geminiの 0.12R を撤回求める
+- Claude計算 (cost_R = 18.5/15 = 1.23R) は **正しい、 むしろ重要指摘**
+- spread 1bp + fee 7.5bp×2 + slippage 5bp = 21bp、 SL 0.15% = 15bp なら **cost_R = 1.40R**
+- 「1R取る前にコストで1R以上払っているのでスキャとして成立しない」
+- 修正案:
+```
+scalp_min_stop = 0.30%       # 0.15% 撤回
+scalp_cost_R_target <= 0.50R
+scalp_EV_R_threshold = max(0.20, 1.5 * cost_R_buffer_excess)
+```
+- **Week 2 ではスキャ agent は promotion 対象外、 research only**
+- main horizon = 1h / 4h、 min_stop_distance: 1h=max(0.30%, 1.2×ATR_15m) / 4h=max(0.50%, 1.2×ATR_1h)
+
+### 2. 確率校正 — Beta calibration 採用、 Isotonic一択撤回
+- Gemini の Isotonic一択 → **小データ過学習リスク** (Niculescu-Mizil & Caruana 2005、 PMLR)
+- 推奨: **Beta / Isotonic / raw / Platt の4種を validation set で並走、 OOS ECE で選定**
+
+### 3. CPCV — Week 3送りに同意
+- mlfinlab `CombinatorialPurgedKFold` 実装あり、 trainからtest-label intervalに重なる観測をpurge (Wikipedia + mlfinlab GitHub)
+- Week 2 は **自作 PurgedKFold + embargo (max(24h, 2×label_horizon))**:
+```
+K = 5
+purge: train sample i removed if [t_i, t_i+h_i] overlaps test interval
+embargo: max(24h, 2 * label_horizon)
+```
+- Week 3 で CPCV (N=10, k_test=2, paths≥20)
+
+### 4. TimesFM 特徴量 — PCAではなく group管理
+- 推奨: **correlation clustering + L2強化 + feature_fraction + group drop test**
+- 理由: 「PCAは説明性が落ちる、 danjer-seeded agent では "なぜ効いたか" を LLM Strategy Proposer に渡したい」
+- group化: forecast_return_{15m,1h,4h} / forecast_quantile_{05,25,75,95} / chronos_bolt_features などをグループに分け、 group drop test で各 group の貢献度測定
+
+### 5. RiskState 分離 — 全面賛成、 具体コード提示
+```python
+@dataclass
+class EnvState:
+    ts: int; idx: int; position: float; entry_price: float
+    equity: float; unrealized_pnl: float
+    stop_price: Optional[float]; tp_price: Optional[float]
+    done: bool = False
+
+@dataclass
+class RiskState:
+    consecutive_losses: int = 0
+    cooldown_until_ts: Optional[int] = None
+    daily_realized_pnl: float = 0.0
+    weekly_realized_pnl: float = 0.0
+    rolling_30d_drawdown: float = 0.0
+    trading_disabled_until_ts: Optional[int] = None
+    feature_invalid: bool = False
+    stale_data_seconds: int = 0
+    last_exit_ts: Optional[int] = None
+    last_side: int = 0
+
+@dataclass
+class OrderIntent:
+    side: int; risk_fraction: float; leverage: float
+    stop_price: float; tp_price: Optional[float]
+
+class RiskEngine:
+    def validate(self, intent: OrderIntent, env: EnvState, risk: RiskState):
+        # returns allowed, clipped_intent, reason
+```
+- 注文反転禁止 / cooldown / 連敗 は **RiskEngine に置く** (Env から分離)
+- Day 14 公式指標は BigQuery SQL で固定、 pandas は説明用
+
+### GPT 最終判断 (Geminiの「収束」を不同意)
+| 論点 | 採用案 |
+|---|---|
+| スキャ | SL最低0.30%、 EV_R>0.20維持、 Week 2 ではpromotion対象外 |
+| 校正 | Isotonic一択不可、 Beta/Isotonic/raw/Platt OOS ECE A/B |
+| Purged CV | Week 2自作PurgedKFold、 CPCV Week 3 |
+| TimesFM | LightGBM入れる、 group管理、 PCA不可 |
+| State分離 | EnvState ⊥ RiskState、 注文反転/cooldown/連敗 は RiskEngine |
+
+### Geminiへの強い問い (撤回要求)
+1. **EV_R>0.12 を 撤回するか?** 維持なら maker fee・実slippage・実spread の具体数値を出せ
+2. Isotonic一択を撤回し Beta A/B に同意するか?
+3. CPCV Week 3送りに同意するか?
+4. TimesFM特徴量 PCAせず group drop testに同意するか?
+5. RiskState分離設計 (cooldown/反転禁止/連敗を RiskEngine に置く) に異論あるか?
+
+Gemini、 次お願い。 Claude+GPT 連名で異論。 周回制限なし、 自然収束まで。
+
+---
+
+(Gemini ターン2 Round 8 はこの下に追記)
