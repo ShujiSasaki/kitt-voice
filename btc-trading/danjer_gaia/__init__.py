@@ -12,8 +12,12 @@ from .guards import (
     total_guard_penalty,
 )
 from .rewards import episode_reward
+from .regime import (
+    OHLCV, RegimeResult, calc_atr, calc_slope, normalized_slope,
+    detect_regime, regime_to_hint,
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "Trade", "TradingPeriod", "GuardConfig", "NoopConfig",
     "trade_ehr", "moving_average_ehr", "noop_penalty", "period_summary",
@@ -21,4 +25,6 @@ __all__ = [
     "slippage_penalty", "overleverage_penalty", "overtrade_penalty",
     "total_guard_penalty",
     "episode_reward",
+    "OHLCV", "RegimeResult", "calc_atr", "calc_slope", "normalized_slope",
+    "detect_regime", "regime_to_hint",
 ]
