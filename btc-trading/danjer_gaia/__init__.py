@@ -25,8 +25,16 @@ from .ttl_manager import (
 from .fast_guard import (
     FastGuardSignal, FinalAction, FastGuardDecision, resolve_conflict,
 )
+from .order_gate import (
+    TradeIntent, GateContext, GateConfig, GateResult, GateDecision,
+    run_order_gate,
+)
+from .morning_summary import (
+    OvernightDecision, CurrentPosition, PendingApproval, RiskAlert,
+    MorningSummary, make_summary, to_markdown, to_dict,
+)
 
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 __all__ = [
     "Trade", "TradingPeriod", "GuardConfig", "NoopConfig",
     "trade_ehr", "moving_average_ehr", "noop_penalty", "period_summary",
