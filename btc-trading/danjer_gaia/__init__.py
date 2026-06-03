@@ -33,8 +33,14 @@ from .morning_summary import (
     OvernightDecision, CurrentPosition, PendingApproval, RiskAlert,
     MorningSummary, make_summary, to_markdown, to_dict,
 )
+from .exchange.base import (
+    ExchangeBase, OrderType, OrderSide, OrderResult,
+    Position as ExchangePosition, Balance, MarketSnapshot,
+    ExchangeError,
+)
+from .exchange.paper_client import PaperClient, PaperConfig
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __all__ = [
     "Trade", "TradingPeriod", "GuardConfig", "NoopConfig",
     "trade_ehr", "moving_average_ehr", "noop_penalty", "period_summary",
