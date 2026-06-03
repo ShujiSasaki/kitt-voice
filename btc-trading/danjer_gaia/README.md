@@ -25,7 +25,7 @@
 │   1. Trade Intent  2. Risk  3. Exchange  4. Cost  5. Pattern     │
 │   6. Explainability → APPROVE/REJECT                              │
 ├────────────────────────────────────────────────────────────────────┤
-│ Exchange (Bybit / Hyperliquid / paper)                            │
+│ Exchange (Hyperliquid主 / bitget副 / GMOコイン Tax / paper)       │
 │   └─ reduce_only stop 同時発注 + Mark Price 取引所別配線         │
 └────────────────────────────────────────────────────────────────────┘
 
@@ -52,8 +52,12 @@ btc-trading/danjer_gaia/
 ├── morning_summary.py   # 朝サマリー雛形 (Markdown+JSON)
 │
 ├── exchange/
-│   ├── base.py          # ExchangeBase 抽象 (Bybit/HL/paper共通IF)
-│   └── paper_client.py  # シミュレータ (R40 保守的slippage)
+│   ├── base.py             # ExchangeBase 抽象 (Hyperliquid/bitget/GMO/paper共通IF)
+│   ├── paper_client.py     # シミュレータ (R40 保守的slippage、 Hyperliquid手数料モデル)
+│   ├── hyperliquid_client.py  # Phase 2 主取引所 (公式Python SDK、 Round 30-33で選定)
+│   ├── bitget_client.py    # Phase 3後半-副取引所 (CCXT経由、 障害退避+板厚補完)
+│   ├── gmocoin_client.py   # Phase 5+ Tax-Engine連携 (確定申告CSV)
+│   └── exchange_router.py  # Phase 4 動的切替 (板厚・障害ステータスベース)
 │
 ├── paper_trading/
 │   ├── slippage_model.py
@@ -85,7 +89,18 @@ btc-trading/danjer_gaia/
 | **Phase 4 v2** | [PHASE4_DESIGN_v2.md](./PHASE4_DESIGN_v2.md) | マルチアセット 3レーン制 (Day 161-240) |
 | **Phase 5+ v2** | [PHASE5_DESIGN_v2.md](./PHASE5_DESIGN_v2.md) | 守りの永続 (Day 240+) |
 
-議事録: [round_table_v3.md](../../logs/round_table_v3.md) — Round 0-28、 約3,000行
+議事録: [round_table_v3.md](../../logs/round_table_v3.md) — **Round 0-33、 約4,000行**
+
+### 取引所構成 (Round 30-33 確定、 戦略Z 改訂版 v4)
+
+| 役割 | 取引所 | レバ | Phase |
+|---|---|---|---|
+| **主** | **Hyperliquid (DEX)** | 50x可、 Phase 2で2x / Phase 3で3x | Phase 2 から全期間 |
+| **副** | **bitget** | 125x可 | Phase 3後半 (Day 100前後) から |
+| Tax用 | GMOコイン | 2x | Phase 5+ (確定申告連携) |
+| Vacation用 | bitFlyer Lightning | 2x | Phase 5+ (緊急退避) |
+
+**選定理由**: Bybit日本撤退判明 → 3者会議Round 30-33 で 12取引所網羅評価 → DEX (規制リスクゼロ + 倒産リスクゼロ + maker rebate)。 Phase 0 (21日準備期) で Ledger Nano X + Wise USDC送金経路確立。
 
 ## 動作確認 (Day 7-8 類似検索)
 
@@ -150,15 +165,28 @@ Trade-EHR = NetProfit / (max(AvgEquity, ε) × max(ElapsedHours, ε))
 - **承認疲れ**: R36/R41
 - **マルチアセット**: R47/R55/R61
 
-## 月コスト見積もり
+## 月コスト見積もり (Round 30-33 v3 反映、 -$20-50/月 節約)
 
-| Phase | 月額 | 主構成 |
-|---|---|---|
-| Phase 1 (Day 1-14) | $0-7 | 開発・テスト、 free tier 内 |
-| Phase 2 v2 (Day 15-45) | $52-136 | + Cloud Run + Gemini Cache + GPU Spot |
-| Phase 3 v2 (Day 46-160) | $71-170 | + Vector Search 完全移行 |
-| Phase 4 v2 (Day 161-240) | $180-350 | + 3レーン制、 PBT Lite、 LLM分業 |
-| **Phase 5+ v2 (Day 240+)** | **$155-400 固定上限** | 利益関係なく超過で機能凍結 |
+| Phase | 月額 v2 (Bybit前提) | 月額 v3 (Hyperliquid前提) | 差分 |
+|---|---|---|---|
+| Phase 1 (Day 1-14) | $0-7 | $0-7 | 0 |
+| **Phase 2 v3 (Day 22-52)** | $52-136 | **$30-80** | -$30 |
+| **Phase 3 v3 (Day 53-167)** | $71-170 | **$50-120** | -$30 |
+| **Phase 4 v3 (Day 168-247)** | $180-350 | **$150-300** | -$50 |
+| **Phase 5+ v3 (Day 247+)** | $155-400 | **$140-380 固定上限** | -$20 |
+
+**節約効果**: maker rebate + Cobo MPC不採用 (Phase 2-3) で年 $240-600 (約3-9万円) 節約。
+
+## ハードウェア・サービス購入物 (Phase 0、 Round 30-33 反映)
+
+| 項目 | 価格 | 用途 | 購入タイミング |
+|---|---|---|---|
+| Ledger Nano X | 約23,000円 | Cold Wallet (秘密鍵物理保管) | Phase 0 Day -21 |
+| Cryptosteel Capsule | 約12,000円 | シードフレーズ金属保管 | Phase 0 Day -21 |
+| Wise アカウント | 無料 (送金時0.5%) | JPY→USDC直接送金 | Phase 0 Day -21 |
+| Cobo MPC Lite | $99/月 | Hot Wallet MPC管理 | **Phase 4 Cap 1到達後** |
+
+**Phase 2 着手前 一括コスト: 約35,000円**
 
 ## 3者会議の貢献
 

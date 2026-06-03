@@ -12,7 +12,7 @@
 | 1 | **合法ヘッジファンド化** | **「個人資産運用の永続化・税務整備・規模管理」** | GPT |
 | 2 | 年率+60-120% 攻め | **守り優先、 壊れずに続ける** | GPT |
 | 3 | CPA相談 Phase 5.3 前 | **Phase 4 終了時点で初回** | GPT |
-| 4 | OKX 本格Live | **接続済み待機系のみ** (Bybit+HLで足りるなら本格不要) | GPT |
+| 4 | OKX 本格Live | **採用せず** (OKX日本居住者完全禁止判明、 Round 31)、 代わりに bitFlyer Lightning Vacation用 | GPT |
 | 5 | 複利 50:50 → 30:70 → 20:80 | **資金増えるほど再投資比率を下げる** (逆方向) | GPT |
 | 6 | 拡大したくない時 不明 | **Maintain / Protect Mode 正式機能化** | GPT |
 | 7 | 旅行時 通常運用継続 | **Vacation Mode** (新規禁止、 SLのみ機能) | GPT |
@@ -37,7 +37,7 @@ Day 300-365 (Phase 5.2 規模管理):
 └─ 完全自律 Demotion (1事故即降格)
 
 Day 365-450 (Phase 5.3 多様化、 守り中心):
-├─ OKX 本格 Live (Bybit障害時の退避先として)
+├─ bitFlyer Lightning Vacation Mode 退避先確立 (OKXは日本居住者禁止のため不採用、 Round 31)
 ├─ BNB / SOL Stage 2 (拡大ではなく多様化)
 └─ CPA相談 + 確定申告自動化
 
@@ -106,7 +106,7 @@ def daily_allocation(monthly_profit, current_equity, target_caps):
 
 | # | リスク | 対策 |
 |---|---|---|
-| R64 | 3取引所同時障害 | Bybit+HL 主、 OKX 待機系。 全障害時は全閉+Shuji緊急通知 |
+| R64 | 取引所同時障害 (v3: Hyperliquid+bitget) | Hyperliquid主、 bitget副 (Phase 3後半から)、 GMOコイン Tax用、 bitFlyer Lightning Vacation退避用。 全障害時は全閉+Shuji緊急通知 |
 | R65 | 完全自律 Demotion 過剰反応 | 1事故即降格 (速さ優先)、 ただし取引所側障害は除外 (Gemini) |
 | R66 | 規模拡大で流動性影響 | 1注文サイズ上限「板厚 × 5%以下」維持 (R48継続)、 Cap 4以降は更に厳格化 |
 | R67 | 税務 大幅利益時の納税予測 | **Tax-Engine** で月次積立 (Gemini)、 年次 CPA確認 (GPT) |
@@ -141,7 +141,7 @@ def daily_allocation(monthly_profit, current_equity, target_caps):
     └─ Trade-EHR / TTL / Fast Guard / Order Gate / DNA移植
         ↓
 [Phase 2 v2] Stage 0/1 (Day 15-45) — BTC 2x、 $15-50
-    └─ 紙トレ + Bybit Live + デイリー承認制
+    └─ 紙トレ + Hyperliquid Live + デイリー承認制 (Round 30-33 反映、 v3)
         ↓
 [Phase 3 v2] BTC再現性検証 (Day 46-160) — BTC 3x、 $150-2,250
     └─ Stage 2 + PBT Lite + QR-DQN POC + ETH/SOL データ収集

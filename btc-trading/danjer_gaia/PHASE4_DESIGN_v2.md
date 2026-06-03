@@ -234,3 +234,33 @@ GPT + Gemini Round 26 監査を **全面採用**。 v2 で重要修正:
 - 相関リスク対策 (R61)
 
 **実装着手は Phase 3v2 達成後** (Day 161 以降)、 当面は概念設計止め。 Phase 5+ 設計叩き台は Phase 4 終盤に作成予定。
+
+## 12. Round 30-33 反映 (v3 取引所変更、 2026-06-04)
+
+主軸取引所が Bybit → **Hyperliquid (DEX)** に変更されたことに伴い、 Phase 4 設計に以下を反映:
+
+### Production レーンの取引所構成 (v3)
+
+```
+Production レーン (v3 取引所別):
+├─ BTC Stage 2 → Hyperliquid 主 (50xのうち3x使用、 maker rebate)
+├─ ETH Stage 0 → Hyperliquid 主 (Day 181-)
+└─ SOL paper → Hyperliquid testnet または paper_client simulator
+```
+
+### Cap 1 ($25k) 到達時の構成切替 (Day 200前後 想定)
+
+- **bitget 副取引所 本格化**: Hyperliquid 障害退避先として全アセット並走
+- **Cobo MPC Lite 契約検討**: 月$99、 Hot Wallet を MPC に移行 (Phase 4 から正式運用)
+- **exchange_router.py 動的切替**: Hyperliquid/bitget 板厚・障害ステータスで自動切替
+- **GMOコイン Tax-Engine接続**: 確定申告 CSV出力ロジック実装着手
+
+### 月コスト見直し (v3)
+
+Phase 4 月額: $180-350 → **$150-300** (-$30-50節約、 maker rebate効果)
+
+### リスク R70-R83 (Round 30-33) 反映
+
+- R71 (Bitget FSA撤退リスク): Cap 1到達時点での撤退発表があれば、 Hyperliquid単一系統で運用継続 (副なし)
+- R72 (Hyperliquid 流動性): Cap 2 ($50k) 到達時に板厚監視閾値発動、 bitget自動切替
+- R75-R83: Wallet管理・送金経路・出金遅延 関連は Phase 2-3 で確立済み (Phase 4 では運用継続のみ)
