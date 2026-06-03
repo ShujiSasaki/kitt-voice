@@ -91,16 +91,18 @@ btc-trading/danjer_gaia/
 
 議事録: [round_table_v3.md](../../logs/round_table_v3.md) — **Round 0-33、 約4,000行**
 
-### 取引所構成 (Round 30-33 確定、 戦略Z 改訂版 v4)
+### 取引所構成 (Round 30-37 確定、 戦略Z 改訂版 v7)
 
-| 役割 | 取引所 | レバ | Phase |
-|---|---|---|---|
-| **主** | **Hyperliquid (DEX)** | 50x可、 Phase 2で2x / Phase 3で3x | Phase 2 から全期間 |
-| **副** | **bitget** | 125x可 | Phase 3後半 (Day 100前後) から |
-| Tax用 | GMOコイン | 2x | Phase 5+ (確定申告連携) |
-| Vacation用 | bitFlyer Lightning | 2x | Phase 5+ (緊急退避) |
+| 役割 | 取引所 | レバ | Phase | 取引コスト |
+|---|---|---|---|---|
+| **主** | **Hyperliquid (DEX)** | 50x可、 Phase 2で2x / Phase 3で3x | Phase 2 から全期間 | maker -0.001% rebate |
+| **副並走** | **Exness MT5 + taritari** | 400x (3xのみ使用) | Phase 4 Cap 1から | スプ-CB 45.75% |
+| **副障害退避** | **bitget** | 125x可 | Phase 3後半 (Day 100前後) から | maker 0.02% / taker 0.06% |
+| Tax用 | GMOコイン | 2x | Phase 5+ Cap 2 (確定申告連携) | - |
+| Vacation用 | bitFlyer Lightning | 2x | Phase 5+ (緊急退避) | - |
+| **新興DEX 検証** | **Lighter (zkSync)** | (未確認) | Phase 5+ Cap 3 paper先行 12ヶ月 → Cap 5 Live並走候補 | retail fee zero |
 
-**選定理由**: Bybit日本撤退判明 → 3者会議Round 30-33 で 12取引所網羅評価 → DEX (規制リスクゼロ + 倒産リスクゼロ + maker rebate)。 Phase 0 (21日準備期) で Ledger Nano X + Wise USDC送金経路確立。
+**選定理由**: Bybit日本撤退判明 → 3者会議Round 30-37 で **30+候補網羅評価** → DEX (規制リスクゼロ + 倒産リスクゼロ + maker rebate) + 既登録Exness のtaritari CB (年$22k Cap 5想定)。 Phase 0 (21日準備期) で Ledger Nano X + Wise USDC送金経路確立。 FXGT は管理コスト視点で不採用 (Shuji判断、 Round 37)。
 
 ## 動作確認 (Day 7-8 類似検索)
 
