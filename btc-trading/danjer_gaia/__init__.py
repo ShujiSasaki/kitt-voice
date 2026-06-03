@@ -16,8 +16,17 @@ from .regime import (
     OHLCV, RegimeResult, calc_atr, calc_slope, normalized_slope,
     detect_regime, regime_to_hint,
 )
+from .stance import (
+    Stance, STANCE_JSON_SCHEMA, parse_stance, decay_stance,
+)
+from .ttl_manager import (
+    TTLManager, TTLConfig, TTLAction, TTLState,
+)
+from .fast_guard import (
+    FastGuardSignal, FinalAction, FastGuardDecision, resolve_conflict,
+)
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "Trade", "TradingPeriod", "GuardConfig", "NoopConfig",
     "trade_ehr", "moving_average_ehr", "noop_penalty", "period_summary",
