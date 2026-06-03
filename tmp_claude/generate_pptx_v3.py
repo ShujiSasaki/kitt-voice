@@ -658,6 +658,292 @@ for i, (num, head, body, note, col) in enumerate(decisions):
 
 add_slide_footer(s, 9)
 
+
+# ============================================================
+# Appendix Slides (S10-S12): 専門用語フル解禁版 + 右側に用語辞書
+# ============================================================
+
+# 共通: 用語辞書サイドバーを描画するヘルパー
+def add_glossary_sidebar(slide, glossary_items, x_px=1320, y_px=130, w_px=520, h_px=870):
+    """右側 用語辞書"""
+    add_card(slide, x_px, y_px, w_px, h_px, bg=BORDER_GRAY_RGB, line_color=ACCENT_GOLD_RGB)
+    # ヘッダ
+    add_text(slide, '用語辞書', x_px + 20, y_px + 15, w_px - 40, 45,
+             size=18, color=ACCENT_GOLD_RGB, bold=True)
+    # 項目を整形
+    lines = []
+    for term, desc in glossary_items:
+        lines.append({'text': term, 'size': 13, 'color': ACCENT_GOLD_RGB, 'bold': True})
+        lines.append({'text': desc, 'size': 11, 'color': TEXT_WHITE_RGB})
+    add_multiline(slide, lines, x_px + 20, y_px + 65, w_px - 40, h_px - 80, line_spacing=1.2)
+
+
+# ---------- S10: v1/v2/v3 戦略比較表 ----------
+print('S10...')
+s = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(s)
+add_text(s, 'v1 / v2 / v3 戦略比較 — 何が変わったか', 80, 80, 1760, 60,
+         size=32, color=TEXT_WHITE_RGB, bold=True)
+
+# 比較表 (左コンテンツ領域 80-1280 px)
+# テーブル: 行=戦略軸、列=v1/v2/v3
+table_data = [
+    ('軸',           'v1 (14ラウンド)',       'v2 (徹夜)',                'v3 (本気3者)'),
+    ('議論方式',     '14ラウンド',            '7ラウンド',                '20ラウンド ぐるぐる無制限'),
+    ('投資効率指標', 'SAC-Lagrangian + 月コスト目標', 'ProfitPerHour (バグ含)',      'Trade-EHR (分母ガード+MA30)'),
+    ('danjer移植',   'DNA-0〜3段階, BC試験',  'RAG+常駐 49,667件全件',    '質ベース絞り込み (投資判断のみ常駐)'),
+    ('アーキ',       '10エージェント + Particle Filter', '3つの魂 (攻め/守り/師匠)',     'GAIA-Triad 2.0 (4ノード)'),
+    ('右側予測',     'Scenario DSL 述語25', 'Probabilistic Deep Hedging', '3軸 (方向/確信度/危険度)'),
+    ('レバ',         'Half-Kelly',           'Half-Kelly + 制約',         'Half-Kelly × Confidence × Vol'),
+    ('リスク',       'Risk Engine 6層',       '注文前検問 6step',           'Fast Guard / Risk Engine 二層'),
+    ('デッドロック', '未検討',                '未検討',                    'TTL + 階層化スタンス (15分)'),
+    ('検証',         'CPCV N=10 / DSR / PSR / PBO', 'CPCV + EVT 併用案',          'CPCV + 動的閾値 + EVT'),
+    ('多取引所',     'Bybit + Hyperliquid + OKX', '同',                        '同 + Rate Limit 対策'),
+    ('月コスト',     '$135-400 (Phase別)',    '$50-100 (Cache想定)',       '$25-200 (POC後確定)'),
+    ('Phase',        'Phase 1-5+ 8ヶ月',     '同',                       'Day 1-14 動く土台7つ → Phase以降'),
+    ('議事録',       'round_table.md',       'round_table_v2.md',        'round_table_v3.md (Live)'),
+    ('Shuji評価',    '10年前の新人レベル',    'プロ品質、 ただし2人会議',   '本気3者、 動線改善、 質ベース反映'),
+]
+
+# テーブル幅: 1200 / 各列: 軸250 + v1 310 + v2 310 + v3 320
+COL_W = [250, 310, 310, 330]
+COL_X = [80]
+for w in COL_W[:-1]:
+    COL_X.append(COL_X[-1] + w)
+
+# ヘッダ
+header_y = 165
+for i, (header, w) in enumerate(zip(table_data[0], COL_W)):
+    add_card(s, COL_X[i], header_y, w - 4, 50, bg=BORDER_GRAY_RGB, line_color=ACCENT_GOLD_RGB)
+    add_text(s, header, COL_X[i] + 10, header_y + 5, w - 24, 40,
+             size=13, color=ACCENT_GOLD_RGB, bold=True, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+
+# 行
+for ri, row in enumerate(table_data[1:]):
+    y = header_y + 60 + ri * 50
+    # 行 stripe
+    for ci, (cell, w) in enumerate(zip(row, COL_W)):
+        bg_col = BORDER_GRAY_RGB if ri % 2 == 0 else hex_to_rgb('#1a2238')
+        line_col = None
+        if ci == 0:
+            text_col = ACCENT_GOLD_RGB if ri == len(table_data) - 2 else TEXT_WHITE_RGB
+            font_size = 11
+            font_bold = True
+        else:
+            text_col = ALERT_RED_RGB if (ri == len(table_data) - 2 and ci == 1) else (ACCENT_GOLD_RGB if (ri == len(table_data) - 2 and ci >= 2) else TEXT_WHITE_RGB)
+            font_size = 10
+            font_bold = (ri == len(table_data) - 2)
+        add_card(s, COL_X[ci], y, w - 4, 45, bg=bg_col, line_color=None)
+        add_text(s, cell, COL_X[ci] + 10, y + 4, w - 24, 38,
+                 size=font_size, color=text_col, bold=font_bold, anchor=MSO_ANCHOR.MIDDLE)
+
+# 右: 用語辞書
+glossary_s10 = [
+    ('SAC-Lagrangian', '制約付きSoft Actor-Critic。リスク制約を満たしつつ報酬最大化する強化学習。'),
+    ('Trade-EHR', 'Equity-Hours Return = NetProfit/(AvgEquity×ElapsedHours)。 時給×元手効率。'),
+    ('MA30', '直近30トレードの移動平均。EHRの揺らぎを平準化。'),
+    ('RAG', 'Retrieval-Augmented Generation。 検索拡張生成。 過去ポストを類似検索。'),
+    ('GAIA-Triad 2.0', 'Slow Brain+Risk Engine+Fast Guard+Order Gate の4ノード。'),
+    ('Particle Filter', '粒子フィルタ。 複数シナリオを並走させ観測で確率を更新。'),
+    ('Half-Kelly', 'ケリー基準の半分。 安全側にレバを抑える。 p-(1-p)/b の半分。'),
+    ('TTL', 'Time-To-Live。 判断の賞味期限。 v3 では15分。'),
+    ('CPCV', 'Combinatorial Purged Cross-Validation。 過学習検出BT。'),
+    ('DSR/PSR/PBO', 'Deflated/Probabilistic Sharpe Ratio / Probability of Backtest Overfitting。 偶然勝ち検出。'),
+    ('EVT', 'Extreme Value Theory。 極値統計。 ファットテール対策。'),
+    ('Probabilistic Deep Hedging', '複数シナリオに確率分布と最適ヘッジ比率を同時最適化。'),
+]
+add_glossary_sidebar(s, glossary_s10, x_px=1320, y_px=165, w_px=540, h_px=870)
+add_slide_footer(s, 10)
+
+
+# ---------- S11: v3 仕様書 (システム全体像) ----------
+print('S11...')
+s = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(s)
+add_text(s, 'v3 仕様書 — システム全体像 / 担当 / 使用ツール', 80, 80, 1760, 60,
+         size=30, color=TEXT_WHITE_RGB, bold=True)
+
+# 左コンテンツ領域 (80-1280)
+# システム全体図 (matplotlib で描画)
+def fig_s11_arch():
+    fig, ax = plt.subplots(figsize=(13, 7))
+    ax.set_xlim(0, 13)
+    ax.set_ylim(0, 9)
+    ax.axis('off')
+
+    # データ層 (下)
+    ax.add_patch(FancyBboxPatch((0.5, 0.5), 12, 1.3, boxstyle='round,pad=0.05',
+                                 facecolor=BORDER_GRAY, edgecolor=TEXT_MUTED, linewidth=1.5))
+    ax.text(6.5, 1.5, 'データ層', ha='center', va='center', color=TEXT_MUTED, fontsize=12, weight='bold')
+    ax.text(2.5, 0.9, 'BigQuery btc_trading', ha='center', va='center', color=TEXT_WHITE, fontsize=11, weight='bold')
+    ax.text(2.5, 0.6, 'OHLCV/OI/FR/清算/LS/danjer DNA', ha='center', va='center', color=TEXT_MUTED, fontsize=9)
+    ax.text(6.5, 0.9, 'Cloud Storage', ha='center', va='center', color=TEXT_WHITE, fontsize=11, weight='bold')
+    ax.text(6.5, 0.6, '画像/ログ 14日', ha='center', va='center', color=TEXT_MUTED, fontsize=9)
+    ax.text(10.5, 0.9, 'Bybit / Hyperliquid API', ha='center', va='center', color=TEXT_WHITE, fontsize=11, weight='bold')
+    ax.text(10.5, 0.6, '価格・板・注文', ha='center', va='center', color=TEXT_MUTED, fontsize=9)
+
+    # 推論層 (中央)
+    boxes = [
+        (0.5, 'Slow Brain',    'Gemini 3.1 Pro\nContext Cache (15分)', ACCENT_GOLD),
+        (3.4, 'Risk Engine',   '静的検問\nEVT/MaxDD/PF',                TEXT_WHITE),
+        (6.3, 'Fast Guard',    'ルールベース\nms単位ブレーキ',          ALERT_RED),
+        (9.2, 'Order Gate',    '6ステップ検問\nSL/レバ/流動性',          ACCENT_GOLD),
+    ]
+    for x, name, body, col in boxes:
+        ax.add_patch(FancyBboxPatch((x, 3.5), 2.8, 2.0, boxstyle='round,pad=0.05',
+                                     facecolor=BG_NAVY, edgecolor=col, linewidth=2))
+        ax.text(x + 1.4, 4.9, name, ha='center', va='center', color=col, fontsize=13, weight='bold')
+        ax.text(x + 1.4, 4.0, body, ha='center', va='center', color=TEXT_WHITE, fontsize=10)
+
+    # 矢印 (Slow Brain → Risk Engine → Fast Guard → Order Gate → 取引所)
+    for x_start in [3.3, 6.2, 9.1]:
+        ax.add_patch(FancyArrowPatch((x_start, 4.5), (x_start + 0.1, 4.5),
+                                      arrowstyle='->', mutation_scale=20, color=TEXT_WHITE, linewidth=2))
+    # 下から上へ (データ → 推論)
+    ax.add_patch(FancyArrowPatch((6.5, 1.85), (6.5, 3.45), arrowstyle='->', mutation_scale=20, color=TEXT_MUTED, linewidth=1.5))
+    # 上から下へ (Order Gate → 取引所)
+    ax.add_patch(FancyArrowPatch((10.6, 3.45), (10.6, 1.85), arrowstyle='->', mutation_scale=20, color=ACCENT_GOLD, linewidth=2))
+
+    # オペレータ層 (上)
+    ax.add_patch(FancyBboxPatch((0.5, 6.5), 12, 1.8, boxstyle='round,pad=0.05',
+                                 facecolor=BORDER_GRAY, edgecolor=TEXT_MUTED, linewidth=1.5))
+    ax.text(6.5, 8.0, 'オペレータ層', ha='center', va='center', color=TEXT_MUTED, fontsize=12, weight='bold')
+    ops = [
+        (1.5, 7.0, 'Shujiさん',    '最終判断・観察・仕様変更', ACCENT_GOLD),
+        (4.5, 7.0, 'Claude Code', '実装・BQ・デプロイ・議事録', TEXT_WHITE),
+        (7.5, 7.0, 'GPT (Web)',   '司会・戦略統合', TEXT_WHITE),
+        (10.5, 7.0, 'Gemini (Web)', '監査・常駐LLM・ビジュアル', ACCENT_GOLD),
+    ]
+    for x, y, name, role, col in ops:
+        ax.text(x, y, name, ha='center', va='center', color=col, fontsize=12, weight='bold')
+        ax.text(x, y - 0.4, role, ha='center', va='center', color=TEXT_WHITE, fontsize=9)
+
+    return save_fig('s11_arch.png', w=13, h=7)
+
+fig_s11_arch()
+s.shapes.add_picture(os.path.join(OUTDIR, 's11_arch.png'),
+                      px_to_in(80), px_to_in(160), width=px_to_in(1200))
+
+# 下: 担当×ツール表
+add_text(s, '担当 × 使用ツール', 80, 760, 1200, 40,
+         size=16, color=ACCENT_GOLD_RGB, bold=True)
+tool_table = [
+    ('Shujiさん', 'iPhone Safari / Keynote / GitHub', '最終判断 / 仕様変更指示 / pptx確認'),
+    ('Claude Code', 'Bash / Python / python-pptx / BigQuery / gcloud / git', '実装全般 / BQ DDL / Cloud Run デプロイ / 議事録'),
+    ('GPT (ChatGPT Web)', 'ChatGPT (gemini-2.0-flashとは別)', '司会 / 戦略統合 / 整合性監査'),
+    ('Gemini (Gemini Web + 3.1 Pro Context Cache)', 'Gemini Web (常駐LLM) / Imagen 3', '監査 / Slow Brain本番運用 / ビジュアル設計'),
+]
+for i, (who, tool, role) in enumerate(tool_table):
+    y = 805 + i * 50
+    add_text(s, who, 80, y, 350, 40, size=11, color=ACCENT_GOLD_RGB, bold=True)
+    add_text(s, tool, 430, y, 400, 40, size=10, color=TEXT_WHITE_RGB)
+    add_text(s, role, 830, y, 450, 40, size=10, color=TEXT_MUTED_RGB)
+
+# 右: 用語辞書
+glossary_s11 = [
+    ('BigQuery (BQ)', 'Google大規模データウェアハウス。1TiB free tier。'),
+    ('Context Cache', 'Gemini API のトークン常駐機能。 通常入力の1/4料金。'),
+    ('Cloud Run', 'GCPのステートレスコンテナ実行サービス。 e2-microは無料tier。'),
+    ('Slow Brain', '15分間隔で戦略 (スタンスJSON) を出力する 「頭脳」 ノード。 Gemini 3.1 Pro Context Cache。'),
+    ('Risk Engine', '発注前に静的ルールで危険注文を止める検問所。'),
+    ('Fast Guard', 'ms単位で異常を検知し、 ブレーキのみ独自判断するルールベース層。'),
+    ('Order Gate', '注文前 6ステップ最終検問。 SL/レバ/流動性/コスト/類似Pattern/Explainability。'),
+    ('OHLCV', 'Open/High/Low/Close/Volume。 ローソク足の基本データ。'),
+    ('OI', 'Open Interest。 未決済建玉。'),
+    ('FR', 'Funding Rate。 永久先物の資金調達率。'),
+    ('LS比', 'Long/Short ratio。 ポジション偏り指標。'),
+    ('Imagen 3', 'Google画像生成AI (Geminiパイプライン)。'),
+]
+add_glossary_sidebar(s, glossary_s11, x_px=1320, y_px=160, w_px=540, h_px=870)
+add_slide_footer(s, 11)
+
+
+# ---------- S12: コスト見積り明細 ----------
+print('S12...')
+s = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(s)
+add_text(s, 'コスト見積り明細 — 固定費 / 変動費', 80, 80, 1760, 60,
+         size=32, color=TEXT_WHITE_RGB, bold=True)
+add_text(s, 'Phase 1-2 POC段階 / Phase 3-5 拡大時 で 2フェーズ提示', 80, 150, 1200, 40,
+         size=14, color=TEXT_MUTED_RGB)
+
+# 固定費テーブル (Phase 1-2)
+add_text(s, '【固定費】(毎月発生、 利用量に依らず)', 80, 200, 600, 40,
+         size=16, color=ACCENT_GOLD_RGB, bold=True)
+fixed = [
+    ('GitHub',          '無料',        '議事録/コード/pptx ホスト'),
+    ('BigQuery',        '$0 (1TiB free)', 'クエリ1TiB/月まで無料'),
+    ('Cloud Run (e2-micro)', '$0-5',   '常時稼働分。 free tier 内なら$0'),
+    ('Cloud Storage',   '$0-2',        '画像/ログ 14日ライフサイクル、 ~10GB想定'),
+    ('Cloud Scheduler', '$0',          '5ジョブまで無料'),
+]
+header_y2 = 245
+add_card(s, 80, header_y2, 1200, 36, bg=BORDER_GRAY_RGB, line_color=ACCENT_GOLD_RGB)
+add_text(s, 'サービス', 90, header_y2 + 4, 300, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+add_text(s, '月額',    400, header_y2 + 4, 200, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+add_text(s, '内訳',    610, header_y2 + 4, 660, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+for i, (svc, cost, body) in enumerate(fixed):
+    y = header_y2 + 40 + i * 36
+    add_card(s, 80, y, 1200, 32, bg=hex_to_rgb('#1a2238') if i % 2 else BORDER_GRAY_RGB, line_color=None)
+    add_text(s, svc, 90, y + 2, 300, 28, size=11, color=TEXT_WHITE_RGB, bold=True)
+    add_text(s, cost, 400, y + 2, 200, 28, size=11, color=ACCENT_GOLD_RGB)
+    add_text(s, body, 610, y + 2, 660, 28, size=10, color=TEXT_MUTED_RGB)
+add_text(s, '固定費合計 (Phase 1-2): 月 $0-7',
+         80, header_y2 + 40 + len(fixed) * 36 + 8, 1200, 32,
+         size=14, color=ACCENT_GOLD_RGB, bold=True)
+
+# 変動費テーブル
+var_y = 480
+add_text(s, '【変動費】(利用量に応じて、 取引活動・モデル学習量に比例)', 80, var_y, 1200, 40,
+         size=16, color=ACCENT_GOLD_RGB, bold=True)
+variable = [
+    ('Gemini 3.1 Pro Context Cache 常駐', '$10-20',      '49,667ポストの30-40% (~300K tokens) を24/7常駐'),
+    ('Gemini クエリ (15分間隔)',       '$5-30',          '日96クエリ × 30日 = 2,880回/月、 出力tokens変動'),
+    ('Gemini Embedding API (DNA初期化)', '$2-5 (一回限り)', '49,667ポスト × 1024dim embedding。 Phase 1で1回'),
+    ('GPU Spot (A100 1h/週)',           '$6-15',          '週1回 RL/PBT 学習。 Spot価格変動あり'),
+    ('Bybit/Hyperliquid API',           '$0',             '読取無料、 取引手数料は別'),
+    ('取引手数料 (Phase 5以降)',          '別途',           'Maker -0.025% / Taker 0.075% × 取引量'),
+]
+add_card(s, 80, var_y + 45, 1200, 36, bg=BORDER_GRAY_RGB, line_color=ACCENT_GOLD_RGB)
+add_text(s, 'サービス', 90, var_y + 49, 380, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+add_text(s, '月額',    480, var_y + 49, 180, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+add_text(s, '内訳',    670, var_y + 49, 600, 28, size=12, color=ACCENT_GOLD_RGB, bold=True)
+for i, (svc, cost, body) in enumerate(variable):
+    y = var_y + 85 + i * 36
+    add_card(s, 80, y, 1200, 32, bg=hex_to_rgb('#1a2238') if i % 2 else BORDER_GRAY_RGB, line_color=None)
+    add_text(s, svc, 90, y + 2, 380, 28, size=10, color=TEXT_WHITE_RGB, bold=True)
+    add_text(s, cost, 480, y + 2, 180, 28, size=10, color=ACCENT_GOLD_RGB)
+    add_text(s, body, 670, y + 2, 600, 28, size=9, color=TEXT_MUTED_RGB)
+
+add_text(s, '変動費合計 (Phase 1-2): 月 $25-65  /  Phase 3-5 拡大時: 月 $50-200',
+         80, var_y + 85 + len(variable) * 36 + 8, 1200, 32,
+         size=14, color=ACCENT_GOLD_RGB, bold=True)
+
+# 合計バナー
+add_card(s, 80, 950, 1200, 70, bg=BORDER_GRAY_RGB, line_color=ACCENT_GOLD_RGB)
+add_text(s, '【総額】 Phase 1-2 POC: 月 $25-72  /  Phase 3-5 本格運用: 月 $50-207',
+         80, 950, 1200, 70, size=18, color=ACCENT_GOLD_RGB, bold=True,
+         align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+
+# 右: 用語辞書
+glossary_s12 = [
+    ('POC', 'Proof of Concept。 概念実証。 実コストや実機能を最小実装で測る段階。'),
+    ('Free Tier', 'GCPの無料利用枠。 BigQuery 1TiB/月、 Cloud Run e2-micro 等。'),
+    ('Context Cache', 'Gemini入力tokenを24時間キャッシュ。 通常料金の1/4。'),
+    ('Embedding API', 'テキスト/画像をベクトル化するAPI。 類似検索の前処理。'),
+    ('GPU Spot', '中断可能だが安価なGPUインスタンス。 A100 で 約 $1.5/h。'),
+    ('A100', 'NVIDIA データセンターGPU。 RL学習で主流。'),
+    ('PBT', 'Population Based Training。 個体並走進化学習。'),
+    ('Maker / Taker', '指値約定 (Maker、 流動性提供) / 成行約定 (Taker、 流動性消費) の手数料区分。'),
+    ('Funding Rate', '永久先物の資金調達料。 ロングが多いとロングがショートに支払う。'),
+    ('OHLCV取得', 'ローソク足データ。 Bybit/Hyperliquid REST APIで無料取得可。'),
+    ('Cloud Scheduler', 'GCPのcron代替。 5ジョブまで無料。'),
+    ('Cloud Run', 'コンテナ実行サービス。 リクエスト時のみ起動で課金最小化。'),
+]
+add_glossary_sidebar(s, glossary_s12, x_px=1320, y_px=160, w_px=540, h_px=870)
+add_slide_footer(s, 12)
+
+
 # 保存
 OUT = '/Users/shuji/Desktop/kitt-voice/btc_ai_master_plan_v3.pptx'
 prs.save(OUT)
