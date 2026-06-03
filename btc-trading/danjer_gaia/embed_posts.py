@@ -79,12 +79,16 @@ def make_embedding_text(record: dict) -> str:
     full_text = record.get('full_text', '')
     parts.append(f"POST: {full_text}")
 
-    mc = record.get('market_context', {})
+    mc = record.get('market_context')
     if mc:
-        ctx_str = ' / '.join(f"{k}={v}" for k, v in mc.items()
-                            if v is not None and k in ('btc_price', 'ma_50', 'ma_200', 'rsi', 'funding_rate'))
-        if ctx_str:
-            parts.append(f"MARKET: {ctx_str}")
+        # market_context は str (テキスト形式) または dict のどちらか
+        if isinstance(mc, str):
+            parts.append(f"MARKET: {mc[:300]}")
+        elif isinstance(mc, dict):
+            ctx_str = ' / '.join(f"{k}={v}" for k, v in mc.items()
+                                if v is not None and k in ('btc_price', 'ma_50', 'ma_200', 'rsi', 'funding_rate'))
+            if ctx_str:
+                parts.append(f"MARKET: {ctx_str}")
 
     # 読解要旨 (anthropic_new > gpt > claude_old の優先順)
     readings = record.get('readings', {})
@@ -119,7 +123,7 @@ def embed_batch(texts: list[str], model: str = 'text-multilingual-embedding-002'
     for text in texts:
         try:
             r = genai.embed_content(
-                model='models/text-embedding-004',
+                model='models/gemini-embedding-001',
                 content=text,
                 task_type='RETRIEVAL_DOCUMENT',
             )

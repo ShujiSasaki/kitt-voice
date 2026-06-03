@@ -83,7 +83,7 @@ class SimilarSearcher:
             api_key = os.environ.get('GEMINI_API_KEY')
         genai.configure(api_key=api_key)
         r = genai.embed_content(
-            model='models/text-embedding-004',
+            model='models/gemini-embedding-001',
             content=text,
             task_type='RETRIEVAL_QUERY',
         )

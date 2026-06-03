@@ -39,8 +39,15 @@ from .exchange.base import (
     ExchangeError,
 )
 from .exchange.paper_client import PaperClient, PaperConfig
+from .monitoring.slack_daily_approval import (
+    ApprovalCandidate, DailyApprovalRequest, ApprovalResponse,
+    build_slack_message, resolve_approval, is_request_expired,
+)
+from .live.keep_alive import (
+    KeepAliveThread, run_keep_alive_loop, keep_alive_ping,
+)
 
-__version__ = "0.6.0"
+__version__ = "0.8.0"
 __all__ = [
     "Trade", "TradingPeriod", "GuardConfig", "NoopConfig",
     "trade_ehr", "moving_average_ehr", "noop_penalty", "period_summary",
