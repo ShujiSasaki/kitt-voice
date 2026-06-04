@@ -28,11 +28,21 @@ from .base import (
 
 @dataclass
 class PaperConfig:
-    """Paper Trading 設定"""
+    """Paper Trading 設定 (Round 38 v8反映、 Hyperliquidモデル)"""
     pessimistic_slippage_pct: float = 0.0005  # 0.05% (R40対策)
-    maker_fee_pct: float = -0.00025  # Bybit Maker -0.025% (リベート)
-    taker_fee_pct: float = 0.00075   # Bybit Taker 0.075%
+    maker_fee_pct: float = -0.00001  # Hyperliquid Maker -0.001% (rebate)
+    taker_fee_pct: float = 0.00035   # Hyperliquid Taker 0.035%
     min_size: float = 0.0001         # 最小0.0001 BTC
+    base_currency: str = "USDC"      # Hyperliquid は USDC建て (旧Bybitは USDT)
+
+
+@dataclass
+class BybitLegacyConfig:
+    """旧Bybitモデル (テスト互換性維持、 v8 で正式運用は廃止)"""
+    pessimistic_slippage_pct: float = 0.0005
+    maker_fee_pct: float = -0.00025
+    taker_fee_pct: float = 0.00075
+    min_size: float = 0.0001
     base_currency: str = "USDT"
 
 
