@@ -21,3 +21,23 @@ node_modules/
 
 # Claude
 .claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Large data files (regenerable)
+btc-trading/danjer_gaia/data/danjer_posts_unified.jsonl
+btc-trading/danjer_gaia/data/danjer_embeddings.npz
+btc-trading/danjer_gaia/data/danjer_embeddings_meta.jsonl
+btc-trading/danjer_gaia/batch_input/
+
+# Env / secrets
+.env
+*.db
+accounts.db
+
+# Logs
+logs/
+*.log

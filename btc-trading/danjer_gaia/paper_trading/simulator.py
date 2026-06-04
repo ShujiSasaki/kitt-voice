@@ -148,16 +148,21 @@ class PaperSimulator:
         """Slow Brain が新しいスタンスを出した時に呼ぶ"""
         self.ttl_mgr.on_stance_received(stance)
 
-    def step(self, market: MarketSnapshot, api_latency_ms: float = 50.0) -> TickEvent:
-        """1tick処理 (Cloud Run でも同じ関数を呼べる)"""
+    def step(self, market: MarketSnapshot, api_latency_ms: float = 50.0,
+             now: Optional[datetime] = None) -> TickEvent:
+        """1tick処理 (Cloud Run でも同じ関数を呼べる)
+
+        now: テスト時に固定時刻を inject 可能。 省略時は datetime.now(timezone.utc)
+        """
         decision_trace_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        if now is None:
+            now = datetime.now(timezone.utc)
 
         # 1. 市場更新
         self.exchange.update_market(market) if hasattr(self.exchange, 'update_market') else None
 
-        # 2. TTL → action
-        ttl_action, stance = self.ttl_mgr.decide_action(now)
+        # 2. TTL → action (now を inject)
+        ttl_action, stance = self.ttl_mgr.decide_action(now=now)
 
         # 3. position
         pos = self.exchange.get_position(market.symbol)

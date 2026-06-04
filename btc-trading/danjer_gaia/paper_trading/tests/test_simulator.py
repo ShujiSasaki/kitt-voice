@@ -80,8 +80,9 @@ class TestSimulatorIntegration(unittest.TestCase):
 
     def test_stance_received_long_executes(self):
         """long_bias スタンス + normal market → NEW_LONG → order placed"""
-        self.sim.on_stance(make_stance(stance="long_bias", confidence=0.85))
-        ev = self.sim.step(make_market(60100.0))
+        now = datetime(2026, 6, 3, 12, 0, tzinfo=timezone.utc)
+        self.sim.on_stance(make_stance(now=now, stance="long_bias", confidence=0.85))
+        ev = self.sim.step(make_market(60100.0), now=now + timedelta(seconds=30))
         self.assertEqual(ev.ttl_action, "use_stance")
         self.assertEqual(ev.final_action, "new_long")
         # order_result があるか
@@ -93,11 +94,12 @@ class TestSimulatorIntegration(unittest.TestCase):
 
     def test_price_spike_skips_new_entry(self):
         """急変時は新規エントリーをスキップ"""
-        self.sim.on_stance(make_stance(stance="long_bias", confidence=0.85))
+        now = datetime(2026, 6, 3, 12, 0, tzinfo=timezone.utc)
+        self.sim.on_stance(make_stance(now=now, stance="long_bias", confidence=0.85))
         # 1tick目で prev 設定
-        self.sim.step(make_market(60000.0))
+        self.sim.step(make_market(60000.0), now=now + timedelta(seconds=30))
         # 急変 +5%
-        ev = self.sim.step(make_market(63000.0))
+        ev = self.sim.step(make_market(63000.0), now=now + timedelta(seconds=60))
         # SKIP_THIS_BAR or HOLD
         self.assertIn(ev.final_action, ["skip_this_bar", "hold"])
 
