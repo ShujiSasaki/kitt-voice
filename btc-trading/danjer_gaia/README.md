@@ -91,7 +91,7 @@ btc-trading/danjer_gaia/
 
 議事録: [round_table_v3.md](../../logs/round_table_v3.md) — **Round 0-33、 約4,000行**
 
-### 取引所構成 (Round 30-37 確定、 戦略Z 改訂版 v7)
+### 取引所構成 (Round 30-38 確定、 戦略Z 改訂版 v8 Wallet段階導入版)
 
 | 役割 | 取引所 | レバ | Phase | 取引コスト |
 |---|---|---|---|---|
@@ -179,16 +179,18 @@ Trade-EHR = NetProfit / (max(AvgEquity, ε) × max(ElapsedHours, ε))
 
 **節約効果**: maker rebate + Cobo MPC不採用 (Phase 2-3) で年 $240-600 (約3-9万円) 節約。
 
-## ハードウェア・サービス購入物 (Phase 0、 Round 30-33 反映)
+## ハードウェア・サービス購入物 (Phase 0/Phase 4、 v8反映)
 
 | 項目 | 価格 | 用途 | 購入タイミング |
 |---|---|---|---|
-| Ledger Nano X | 約23,000円 | Cold Wallet (秘密鍵物理保管) | Phase 0 Day -21 |
-| Cryptosteel Capsule | 約12,000円 | シードフレーズ金属保管 | Phase 0 Day -21 |
-| Wise アカウント | 無料 (送金時0.5%) | JPY→USDC直接送金 | Phase 0 Day -21 |
-| Cobo MPC Lite | $99/月 | Hot Wallet MPC管理 | **Phase 4 Cap 1到達後** |
+| MetaMask | 無料 | Hot Wallet (Phase 2-3、 GCP Secret Manager保管) | **Phase 0 Day -7 (即着手)** |
+| Wise アカウント | 無料 (送金時0.5%) | JPY→USDC直接送金 | Phase 0 Day -7 |
+| Ledger Nano X | 約23,000円 | Cold Wallet (秘密鍵物理保管) | **Phase 4 Cap 1直前 (Day 144頃、 3-5ヶ月後)** |
+| Cryptosteel Capsule | 約12,000円 | シードフレーズ金属保管 | Phase 4 Cap 1直前 |
+| Cobo MPC Lite | $99/月 | Hot Wallet MPC管理 | Phase 4 Cap 2以降 |
 
-**Phase 2 着手前 一括コスト: 約35,000円**
+**Phase 2 着手前 一括コスト: 0円** (v7では35,000円 → v8で全額延期)
+**Phase 4 Cap 1直前 (Day 144頃) 一括コスト: 約35,000円**
 
 ## 3者会議の貢献
 
