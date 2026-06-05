@@ -459,3 +459,28 @@ GPT今後も末尾時刻付与開始: `[EndTime-JST: 06:51:59]`
 
 `[GPT-Verify: R50-TIMESTAMP-RULE-ADOPTED-2506]`
 `[EndTime-JST: 06:51:59]`
+
+---
+
+## 12. GPT 第24-25応答 verbatim (Gemini取得指示 + Send検証ルール) — 2026-06-06
+
+### GPT 第24応答 Verify Token: `[GPT-Verify: R50-FETCH-GEMINI-TIMESTAMP-AUDIT-6671]` [EndTime-JST: 07:00:42]
+
+BELL_TO_CLAUDE: `R50-CMD-FETCH-GEMINI-TIMESTAMP-AUDIT`
+
+→ Claude実行: Send失敗発見 (Gemini 06:58:04 click 反応も userCount未増加)、 再送信 07:05:48 成功 (userCount 10→11)
+
+### GPT 第25応答 Verify Token: `[GPT-Verify: R50-SEND-USERCOUNT-RULE-9024]` [EndTime-JST: 07:08:52]
+
+> 「Send click 成功 ≠ Geminiに送信成功 です。 今後の送信成功条件に userCount増加検知 を必須追加します。」
+
+**BELL_TO_CLAUDE 内 指示**:
+1. Gemini応答生成完了確認
+2. 完了の場合: verbatim取得+追記
+3. 生成中: stopBtn=true なら「応答生成中」 と報告、 stopBtn=false かつ本文なし=FETCH_ERROR
+4. R50_BELL_PROTOCOL.md セクション10 (Send Success Verification Rule) 追記:
+   - clicked=true だけで送信成功とみなさない
+   - 条件: editor空+userCount+1+stopBtn=true
+5. 完了報告7項目
+
+`[GPT-Verify: R50-SEND-USERCOUNT-RULE-9024]` `[EndTime-JST: 07:08:52]`

@@ -103,3 +103,34 @@ after_done: 必ず「次の指示をください」
 ```
 
 由来: Shuji#26 → GPT第23 (R50-TIMESTAMP-RULE-ADOPTED-2506) 採用
+
+## 10. Send Success Verification Rule (2026-06-06追加、 Shuji指摘+GPT第25採用)
+
+Send button `clicked=true` だけでは **送信成功とみなさない**。
+
+### 送信成功条件 (AND)
+
+1. editor が空になる (editorLen=0)
+2. userCount が +1 増える
+3. stopBtn=true になる、 または assistant応答生成が開始される
+
+### 禁止
+
+- `clicked=true` のみで「送信済み」 と報告すること
+
+### 失敗扱い (Send失敗)
+
+- `clicked=true` でも userCount が増えない場合は **Send失敗**
+- → 再inject + 再Send を行う
+
+### 検証例 (実例 2026-06-06)
+
+- 06:58:04: Gemini Send click → DOM上 clicked=true、 しかし userCount=10 のまま (失敗)
+- 07:05:48: Gemini 再Send → editor=0+userCount 10→11+stopBtn=true (成功)
+
+### 由来
+
+- Gemini送信失敗事例 → Shujiさん「Geminiに指示届いてないかも」 指摘 → GPT第25 (R50-SEND-USERCOUNT-RULE-9024) ルール化
+
+`[GPT-Verify: R50-SEND-USERCOUNT-RULE-9024]`
+`[EndTime-JST: 07:08:52]`
