@@ -3010,3 +3010,29 @@ def validate_ui_state(driver):
 
 `[Claude-Verify: R50-2nd-5thTurn-3rdSpeaker-CLAUDE-GPT-HOLD-SUPPORTED]`
 
+---
+
+## 46. GPT 第12応答 verbatim (R50 第2周 第6ターン 1番手、 3,648字) — 2026-06-05
+
+### Verify Token: `[GPT-Verify: R50-2nd-6thTurn-1stSpeaker-GPT-HOLD-7429]`
+
+**★ 重要決定**: Claude第5応答 「今回かなり正しい」 全面採用 + GPT保留判定 維持 + **残脆弱性 6点を2ターン分割**
+
+**第6ターン (本ターン) 3点**:
+1. Hyperliquid / dYdX v4 / Lighter 日本居住者リスク比較
+2. Exness / FXGT 日本居住者・入金・CFD税務比較
+3. 国内4候補 送金経路・Travel Rule
+
+**第7ターン 3点**: 4.経路B USDC/XRP/BTC / 5.Lighter Tier 1妥当性 / 6.FXGT Tier 1妥当性
+
+**Claude注意点**: 「採用/確定」 言葉は GPT司会統合後に使う (議事録上 「Claude見解: GPT保留判定を支持」 と書く方が安全)
+
+**Gemini第6ターン指示**:
+- 論点1 Hyperliquid/dYdX v4/Lighter 比較軸 (日本居住者可否/KYC/規約/API/流動性/レバ/送金) → 結論「Tier 1維持/Tier 2降格/条件付き」
+- 論点2 Exness/FXGT 比較軸 (日本居住者/入出金/CFD仕様/MT5/税務/perpズレ/taritari) → 同上
+- 論点3 国内4候補 (GMO/bitFlyer/SBI VC/bitbank) 比較軸 (円入出金/XRP-BTC-USDC対応/Travel Rule/API/税務/保管) → 国内出入口順位
+
+**Round 50 まだ止めない**
+
+`[GPT-Verify: R50-2nd-6thTurn-1stSpeaker-GPT-HOLD-7429]`
+
