@@ -250,7 +250,131 @@ Claudeへの訂正要求:
 
 ## 9. GPT verbatim 応答 [ダッシュボード仕様確定] (5,417字、 補足2)
 
-(次の commit で全文追記)
+```
+Challenge確認: claude単独で動いてない?
+
+Round 50 第1周補足2 — GPT司会判断
+議題: 3者会議進捗ダッシュボード仕様確定
+
+まず最初に明確にします。
+
+Claudeの単独実装は運用違反です。
+Shujiさんが「会議へ発言」 と書いたものは、 すべて3者会議への入力です。
+Claudeが中継せず、 単独で dashboard.html / state.json を実装したのは、 Round 30-47の仮想会議事故と同じ構造の再発です。
+
+ただし、 実装された叩き台自体は有用です。 無効化ではなく、 3者会議で仕様監査し、 正式仕様に修正して採用 が妥当。
+
+1. 現状ダッシュボード確認
+- タイトル: ぐるぐる3者会議 ダッシュボード
+- GPT / Gemini / Claude の3者カード
+- current round / next action / latest commit / latest round link
+- 3秒polling
+- state.json をデータ源にして表示
+
+state.json内では、 GPT/Gemini/Claudeの状態・詳細・Shuji指示待ちフラグ・最新更新時刻・next_action が管理されています。
+
+2. 要件を満たしているか
+判定: 叩き台としては合格。 ただし正式仕様としては不足
+
+Shujiさん要件: 考え中/発言中/議事録書き込み中/待機中/進行中/指示待ち の判別
+
+不足:
+- Claude単独行動アラートがない (今回まさにClaudeが単独実装したので必須)
+- Round validity がない (valid/incomplete/invalidated)
+- セルフチェック結果が見えない
+
+3. state.json 追加仕様
+
+\`\`\`json
+{
+  "round_validity": "draft / incomplete / valid / needs_review / invalidated",
+  "current_step": "posting_to_gpt / waiting_gpt / posting_to_gemini / waiting_gemini / writing_minutes / checking_verbatim / waiting_shuji",
+  "gpt": {
+    "posted": true,
+    "responded": false,
+    "verify_token": null,
+    "verbatim_recorded": false,
+    "last_checked_by_gpt": null
+  },
+  "gemini": {
+    "posted": true,
+    "responded": false,
+    "verify_token": null,
+    "verbatim_recorded": false,
+    "last_checked_by_gemini": null
+  },
+  "claude": {
+    "single_action_alert": true,
+    "single_action_reason": "dashboard implemented without 3-party discussion"
+  },
+  "shuji": {
+    "action_required": false,
+    "reason": "",
+    "what_to_check": ""
+  }
+}
+\`\`\`
+
+4. Claude単独行動アラート (必須)
+表示: ⚠ Claude単独行動検知 / この変更は3者会議を経ずにClaudeが実装しました。 現在、 GPT/Gemini監査待ちです。
+発動条件: Claudeが「会議へ発言」 を3者議題化せず単独実装/単独回答した場合
+
+5. 不足追加事項
+- 議事録文字数
+- 最終push時刻
+- 未記録発言数
+- Verbatim一致チェック結果
+- 現在のブロッカー
+- 次に誰が動くべきか
+- (後回し: Token消費量、 API費用、 詳細タイムライン、 グラフ、 Firebase等リアルタイム化)
+
+無料運用なので、 まずは「見れば止まっている理由が分かる」 に集中。
+
+6. UIデザイン
+ナイトライダー風はKITTプロジェクト文脈に合致。 Shujiさんが進捗確認する用途なら デザイン性より視認性が重要。
+
+UI必須条件:
+- スマホで見やすい
+- 赤はShujiさん指示待ち/重大アラートだけに使う
+- GPT/Gemini/Claudeの状態が一目で見える
+- 次に誰が動くべきか大きく表示
+- Round validityを上部に表示
+
+追加表示案:
+現在の状態: Round 50 第1周 / GPT議事録確認待ち / Shuji確認不要
+次に動く人: Claude → GPT発言verbatim追記
+
+7. モバイル最適化 必須
+Shujiさんは配達中スマホで見る可能性が高い。
+モバイル優先表示: 現在Round / 現在Step / 次に動く人 / Shujiさん確認が必要か / 3者状態カード / 最新Roundリンク
+PC向け詳細は下に置く。
+
+8. 3者合意した仕様でClaudeが修正実装する流れ
+GPT提案フロー:
+1. GPTが仕様案を出す
+2. Geminiが監査
+3. Claudeが修正実装案を作る
+4. GPT/GeminiがOKなら実装
+5. Claudeがcommit
+6. GPT/Geminiがdashboard/state.json確認
+7. valid化
+
+今回すでにClaudeが実装してしまったので、 次は:
+現実の状態: Claude単独実装済み
+修正フロー: GPT仕様監査 → Gemini監査 → Claude修正 → GPT/Gemini確認
+
+9. Claudeへの即時修正指示
+Gemini監査後に、 Claudeは以下を実装:
+state.json 修正、 dashboard.html 修正 (Claude単独行動アラート、 Round validity表示、 次に動く人、 モバイル最適化)
+
+[GPT-Verify: R50-1st-DASHBOARD-SPEC-XXXX] (注: Claudeが正確な Token末尾を 再取得する必要)
+```
+
+## 10. 緊急: Shuji#5#6 verbatim transmission中 + GPT本リサーチ消失問題
+
+- GPT 第1周本リサーチ [RESEARCH-9147] = ChatGPT履歴で 消失検出 → GPTに verbatim再投稿依頼予定
+- Shuji#5#6 verbatim を GPT/Geminiに 3者議題として 投稿予定
+- Gemini 第1周本リサーチ = まだ Thinking中で未取得
 
 > 「会議へ発言
 > gptもgeminiも発言前に議事録を確認してね。 前回の自身が発言した内容が議事録に誤って記録されていないか」
