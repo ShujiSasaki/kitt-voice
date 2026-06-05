@@ -74,6 +74,25 @@ def extract_last_verify_token(round_md: str) -> Optional[str]:
     return last_match
 
 
+MAX_RETRIES = 5
+
+
+def check_with_retries(fetch_fn, url: str, *, name: str) -> dict:
+    """Gemini第11応答指示 Race Condition対策:
+    Max Retries=5 + UIエラー要素検知 + CRITICAL_ERROR_SHUTDOWN + Human-in-the-loop
+    """
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        result = fetch_fn(url) if fetch_fn is fetch_text else fetch_fn(url)
+        if isinstance(result, dict) and result.get("_status") == "FETCH_ERROR":
+            last_error = result["_fetch_error"]
+            continue
+        if isinstance(result, str) and ("text-red-500" in result or "CRITICAL_ERROR" in result):
+            return {"status": "CRITICAL_ERROR_SHUTDOWN", "human_in_loop_required": True, "name": name, "attempt": attempt}
+        return {"status": "OK", "data": result, "name": name, "attempt": attempt}
+    return {"status": "MAX_RETRIES_EXCEEDED", "human_in_loop_required": True, "name": name, "last_error": last_error}
+
+
 def main() -> int:
     state = fetch_json(STATE_URL)
     queue = fetch_json(QUEUE_URL)
