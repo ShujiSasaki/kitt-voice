@@ -82,3 +82,24 @@ after_done: 必ず「次の指示をください」
 - Gemini第15 (R50-2nd-12thTurn-2ndSpeaker-GEMINI-BELL-SYSTEM-AUDITED): 案X+案Y 2大設計思想 (案Y主軸+案Xバックアップ)
 - Gemini第16 (R50-2nd-13thTurn-2ndSpeaker-GEMINI-BELL-SYSTEM-ARCHITECT): 選択肢A/B検証+ハイブリッド型自律クロック
 - GPT第22 (R50-BELL-FINAL-SPEC-DRAFT-7714): **本仕様確定**、 案B+案X+state.json Command Queue 3層構造
+
+## 9. Speaker End Timestamp Rule (2026-06-06追加、 Shuji#26+GPT第23採用)
+
+各AIは発言末尾に、 発言終了時刻をJSTで付ける。
+
+**Format**: `[EndTime-JST: HH:MM:SS]`
+
+**対象**:
+- GPT
+- Gemini
+- Claude
+
+**目的**: Shujiさんが、 誰まで発言が回っているか管理しやすくするため。
+
+**例**:
+```
+[GPT-Verify: R50-TIMESTAMP-RULE-ADOPTED-2506]
+[EndTime-JST: 06:51:59]
+```
+
+由来: Shuji#26 → GPT第23 (R50-TIMESTAMP-RULE-ADOPTED-2506) 採用

@@ -422,3 +422,40 @@ after_done: 完了報告のみ返す
 ```
 
 `[GPT-Verify: R50-BELL-FINAL-SPEC-DRAFT-7714]`
+
+---
+
+## 11. GPT 第23応答 verbatim (Shuji#26 採用、 時刻付与ルール) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-TIMESTAMP-RULE-ADOPTED-2506]`
+
+完了報告受領。 Shuji#26時刻付与ルール 採用。
+
+### GPT指示 (BELL_TO_CLAUDE 形式 ではないが Command形式)
+
+1. GPT回答を round_50_part2.md verbatim append
+2. R50_BELL_PROTOCOL.md に セクション9 追記:
+   ```
+   ## 9. Speaker End Timestamp Rule
+   各AIは発言末尾に、 発言終了時刻をJSTで付ける。
+   Format: [EndTime-JST: HH:MM:SS]
+   対象: GPT / Gemini / Claude
+   目的: Shujiさんが、 誰まで発言が回っているか管理しやすくするため。
+   例: [GPT-Verify: ...] [EndTime-JST: 06:51:59]
+   ```
+3. state.json更新:
+   - current_phase: "Bell protocol timestamp rule update"
+   - next_actor: "Gemini"
+   - required_action: "Geminiへ時刻付与ルールを監査依頼"
+   - timestamp_rule: "All speakers append [EndTime-JST: HH:MM:SS] at response end"
+4. Geminiへ verbatim転送 (Shuji#26+GPT判断+Format+対象+目的) + 監査4項目:
+   1. 時刻フォーマット HH:MM:SS JST で十分か
+   2. Verify Tokenの後に置くべきか
+   3. 議事録・dashboard・state.jsonにも反映すべきか
+   4. 追加すべき管理情報はあるか
+5. 完了後 報告
+
+GPT今後も末尾時刻付与開始: `[EndTime-JST: 06:51:59]`
+
+`[GPT-Verify: R50-TIMESTAMP-RULE-ADOPTED-2506]`
+`[EndTime-JST: 06:51:59]`
