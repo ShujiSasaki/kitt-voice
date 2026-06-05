@@ -1,56 +1,62 @@
 {
-  "_comment": "GPT指示2遵守: log_mode=append_only_part_files、 Shuji#23+#24 新役割確定",
+  "_comment": "GPT指示3遵守: Claude呼び鈴/自動進行システム設計 議題化、 暫定呼び鈴=Shujiさん",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 10,
-  "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 (Shuji#22+#23+#24)",
+  "current_turn": 12,
+  "current_phase": "Claude bell / auto-progress system design",
+  "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 + Claude呼び鈴 (Shuji#22+#23+#24+#25)",
   "round_validity": "in_progress",
-  "phase": "R50_shuji23_role_redesign_adopted_AWAIT_GPT_NEXT_DIRECTIVE",
+  "phase": "R50_claude_bell_system_design_AWAIT_GEMINI_AUDIT",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "indexed_files": [
-    "logs/rounds/round_50.md (Raw正本、 セクション1-64)",
-    "logs/rounds/round_50_part2.md (新規追記先、 GPT指示1遵守)"
-  ],
-  "current_step": "claude_completed_gpt_directive_1_2_3_awaiting_next",
-  "next_actor": "GPT (司会・進行): Claude完了報告4項目受領→次の指示+Shuji#24新役割 (Claudeに2つ目=Shuji指示伝達+GPTルーチン化+タイマー監視) への 司会判定",
-  "claude_role_per_shuji23_and_shuji24": "GPT御用聞き + Shuji指示伝達者 (Shuji#24追加)",
-  "termination_status": "Claude復旧設計合意形成段階 (R50取引所議題は体制構築後に再開)",
+  "current_step": "gpt_directive_20_executed_awaiting_gemini_audit_response",
+  "next_actor": "Gemini",
+  "gpt_command_pending": false,
+  "temporary_bell": "Shuji",
+  "blocker": "Claude cannot self-detect GPT command without external bell",
+  "claude_ack": true,
+  "termination_status": "Claude呼び鈴設計 議論中 (解決まで R50本来議題=取引所インフラ 凍結)",
   "claude": {
-    "status": "completed_gpt_directive_1_2_3_awaiting_next",
-    "label": "GPT指示1〜3完了 (round_50_part2.md+state.json+Gemini転送)、 GPT指示4遵守: GPT次の指示待ち",
-    "allowed_phrases_per_gpt": ["取得済み", "未取得", "FETCH_ERROR", "追記済み", "転送済み", "GPT指示待ち"],
-    "forbidden_phrases_per_gpt": ["GPTがこう言うはず", "Geminiが同意する見込み", "Shujiさん承認もうすぐ", "終結目前", "ファイナルラップ", "Claude判断で次へ進む", "Claude判断で議論をまとめる", "Claude判断で実装する"]
+    "status": "completed_gpt_directive_1_3_awaiting_directive_4_response",
+    "label": "GPT指示1完了(part2 sec8-9 append)+指示3完了(state.json更新)+指示2実行中(Gemini転送)、 指示4=完了報告フォーマット"
   },
   "gpt": {
-    "status": "completed_R50_2nd_8thTurn_1stSpeaker_REDESIGN",
-    "label": "GPT第18応答 R50-Shuji23-ROLE-REDESIGN-8316 完了 (Shuji#23採用+Claudeへ指示1〜4)",
-    "responded_count_R50": 18
+    "status": "completed_R50_2nd_11thTurn_1stSpeaker_BELL_AGENDA",
+    "label": "GPT第20応答 Shuji#25議題化+暫定案A-E 5段階+優先順位B>D>C>A>E+Claudeへ指示1-4",
+    "responded_count_R50": 20
   },
   "gemini": {
-    "status": "completed_R50_2nd_10thTurn_2ndSpeaker_NEW_TOPOLOGY_APPROVED",
-    "label": "Gemini第14応答 R50-2nd-10thTurn-2ndSpeaker-GEMINI-NEW-TOPOLOGY-APPROVED 完了 (Shuji#23グリーンシグナル+Command→Callback補強)",
-    "responded_count_R50": 14
+    "status": "completed_R50_2nd_12thTurn_2ndSpeaker_BELL_SYSTEM_AUDITED",
+    "label": "Gemini第15応答 案X(外部Cron/Watchdog)+案Y(GPTパケット内呼び鈴タグ即時着火) 多層防御提案、 案Y主軸+案Xバックアップ",
+    "responded_count_R50": 15
   },
   "shuji_action_required": false,
-  "shuji_action_reason": "Claude=GPT御用聞きとして GPT次の指示待ち中。 Shuji#24も GPTへ verbatim伝達済",
+  "shuji_action_reason": "Shujiさん暫定呼び鈴 (Shuji#25明示)、 解決まで継続",
   "shuji_recent_messages": [
-    {"id": "Shuji#21", "verbatim_short": "claudeは機械的に情報を発言順に回せばいいだけ", "applied": "memory永続化"},
-    {"id": "Shuji#22", "verbatim_short": "claudeが正しく処理できないと回らない/新しい方法考える", "applied": "復旧5案 A-E"},
-    {"id": "Shuji#23", "verbatim_short": "司会・進行=GPT、Claude=GPT御用聞き、判断停止", "applied": "GPT+Gemini 全面承認、 round_50_part2.md作成 (GPT指示1)"},
-    {"id": "Shuji#24", "verbatim_short": "Claudeに追加役割(Shuji指示伝達)+GPTルーチン化+タイマー監視", "applied": "GPTへ転送+議事録part2セクション3、 3者合意形成中"}
+    {"id": "Shuji#21", "verbatim_short": "Claude機械的中継のみ"},
+    {"id": "Shuji#22", "verbatim_short": "Claudeが正しく処理できないと回らない/新しい方法考える"},
+    {"id": "Shuji#23", "verbatim_short": "司会・進行=GPT、Claude=GPT御用聞き、判断停止"},
+    {"id": "Shuji#24", "verbatim_short": "Claude追加役割=Shuji指示伝達、GPTルーチン化、タイマー監視"},
+    {"id": "Shuji#25", "verbatim_short": "Claude自発的にGPT指示確認しない、呼び鈴必要、Shujiさん暫定呼び鈴", "shuji_direct_post_to_gpt_gemini": true}
   ],
-  "tier_1_FINAL_candidates_GPT_judged": ["Hyperliquid", "dYdX v4", "Exness (CFD/MT5検証枠)", "GMOコイン", "bitFlyer", "SBI VCトレード", "bitbank"],
-  "tier_2_FINAL_candidates": 13,
-  "tier_3_FINAL_candidates": 11,
-  "route_A_CFD": "国内銀行/カード → Exness → MT4/MT5 BTC CFD (小額検証)",
-  "route_B_AI_main": "国内取引所 → XRP(第1)/USDC対応(第2)/SOL(第3) → Hyperliquid/dYdX v4",
+  "bell_system_proposals_summary": {
+    "GPT_A": "Shujiさん手動呼び鈴 (暫定)",
+    "GPT_B": "state.json/dashboard呼び鈴 (即採用候補)",
+    "GPT_C": "GitHub Actions Watchdog (停止検知のみ)",
+    "GPT_D": "Tampermonkey/ブラウザ呼び鈴",
+    "GPT_E": "完全自動オーケストレーター",
+    "GPT_priority": ["B", "D", "C", "A", "E"],
+    "Gemini_X": "外部Cron/Watchdog → 検知+自動inject",
+    "Gemini_Y": "GPT指示パケット内呼び鈴タグ即時着火 (プッシュ通知)",
+    "Gemini_conclusion": "案Y主軸+案Xバックアップ多層防御"
+  },
+  "tier_1_FINAL_candidates_GPT_judged": ["Hyperliquid", "dYdX v4", "Exness", "GMOコイン", "bitFlyer", "SBI VCトレード", "bitbank"],
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md",
   "session_notes": [
-    "GPT指示1: round_50_part2.md 作成完了",
-    "GPT指示2: state.json log_mode=append_only_part_files 完了",
-    "GPT指示3: Gemini転送+Shuji#24 verbatim+Command→Callback補強監査依頼 完了",
-    "GPT指示4: GPT次の指示待ち (Claude機械的中継のみ、 余計考察禁止)"
+    "Shuji#25: Claude呼び鈴/自動進行システム議題化",
+    "Shujiさん暫定呼び鈴中 (解決まで)、 解決後降りる",
+    "GPT第20指示3遵守: state.json schema 反映",
+    "GPT vs Gemini 案比較: B案 (state.json) vs Y案 (パケット内タグ) 統合議論待ち"
   ]
 }
