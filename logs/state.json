@@ -1,33 +1,37 @@
 {
-  "_comment": "GPT指示R50-SEND-USERCOUNT-RULE-9024遵守: Send検証ルール記録、 Gemini応答待ち",
+  "_comment": "GPT指示R50-FETCH-GEMINI17-COMPLETE: Gemini第17ストール中断検知",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 17,
-  "current_phase": "Send verification rule + Gemini timestamp audit response pending",
+  "current_turn": 18,
+  "current_phase": "Gemini17 stall/abort detected",
   "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 + Claude呼び鈴",
   "round_validity": "in_progress",
-  "phase": "R50_send_verification_rule_added_gemini_response_in_progress",
+  "phase": "R50_gemini17_stall_awaiting_gpt_directive",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
+  "next_actor": "GPT",
   "gpt_command_pending": false,
   "claude_ack": true,
   "temporary_bell": "Shuji",
   "timestamp_rule": "All speakers append [EndTime-JST: HH:MM:SS] at response end",
   "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "claude": {
-    "status": "completed_directive_awaiting_gemini_response",
-    "label": "GPT指示4(R50_BELL_PROTOCOL.md sec10追記)完了、 Gemini応答待ち (応答生成中)"
+    "status": "completed_gemini17_stall_check_awaiting_directive",
+    "label": "GPT指示遵守: Gemini第17 reload後の状態確認 (ストール中断)、 ChatGPT完了報告へ"
   },
   "gpt": {
-    "status": "completed_R50_SEND_USERCOUNT_RULE_9024",
-    "label": "GPT第25 Send検証ルール (clicked=true ≠ 送信成功) 採用、 R50_BELL_PROTOCOL.md セクション10ルール提供",
-    "responded_count_R50": 25
+    "status": "completed_R50_FETCH_GEMINI17_COMPLETE_4472",
+    "label": "GPT第26 Gemini第17応答完了確認指示 (BELL_TO_CLAUDE R50-CMD-FETCH-GEMINI17-COMPLETE)",
+    "responded_count_R50": 26
   },
   "gemini": {
-    "status": "response_in_progress",
-    "label": "Gemini第17応答生成中 (stopBtn=true、 lastLen=1757)、 時刻ルール監査",
-    "responded_count_R50": 16
+    "status": "RESPONSE_STALL_ABORTED",
+    "label": "Gemini第17ストール中断 (reload後: respCount 11→10、 lastLen=1758 5分間変化なし、 stopBtn=false、 Verify Tokenなし)",
+    "responded_count_R50": 16,
+    "stall_evidence": {
+      "before_reload": {"respCount": 11, "lastLen": 1757, "stopBtn": true},
+      "after_reload": {"respCount": 10, "lastLen": 1758, "stopBtn": false}
+    }
   },
   "bell_protocol_files": {
     "spec_file": "logs/rounds/R50_BELL_PROTOCOL.md (10セクション)",
