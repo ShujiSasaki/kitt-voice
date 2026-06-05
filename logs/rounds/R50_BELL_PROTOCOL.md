@@ -134,3 +134,36 @@ Send button `clicked=true` だけでは **送信成功とみなさない**。
 
 `[GPT-Verify: R50-SEND-USERCOUNT-RULE-9024]`
 `[EndTime-JST: 07:08:52]`
+
+## 11. NextActor Tag Rule (2026-06-06追加、 Gemini第17提案+GPT第29採用)
+
+各AIは発言末尾に、 次に誰が動くかを明示する。
+
+**Format**:
+- `[NextActor: GPT]`
+- `[NextActor: Gemini]`
+- `[NextActor: Claude]`
+- `[NextActor: Shuji]`
+
+**配置順序** (発言末尾 標準形式、 セクション9 timestamp ruleと統合):
+```
+[Verify Token]
+[NextActor: <next actor>]
+[EndTime-JST: HH:MM:SS]
+```
+
+**Example**:
+```
+[GPT-Verify: R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624]
+[NextActor: Claude]
+[EndTime-JST: 07:26:04]
+```
+
+**目的**:
+- 誰まで発言が回ったかを Shujiさんが確認しやすくする
+- Claude の宛先迷子バグを防ぐ
+- dashboard/state.json の next_actor と照合しやすくする
+
+由来: Gemini第17 (R50-2nd-15thTurn-2ndSpeaker-GEMINI-TIMESTAMP-RETRY) 提案 → GPT第29 (R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624) 採用
+
+`[GPT-Verify: R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624]`

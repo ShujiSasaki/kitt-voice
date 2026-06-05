@@ -1,45 +1,41 @@
 {
-  "_comment": "Gemini第17短縮版完了 + NextActorタグ提案、 R50本来議題復帰可能",
+  "_comment": "GPT指示R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624遵守: NextActorタグ採用、 R50本来議題復帰直前",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 19,
-  "current_phase": "Gemini17 short version complete, NextActor tag proposed",
+  "current_turn": 20,
+  "current_phase": "Bell protocol next actor rule adopted",
   "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 + Claude呼び鈴",
   "round_validity": "in_progress",
-  "phase": "R50_gemini17_short_complete_awaiting_gpt_audit_or_topic_return",
+  "phase": "R50_bell_protocol_complete_awaiting_topic_return_directive",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "GPT",
+  "next_actor": "Claude",
+  "next_actor_tag_rule": true,
+  "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
+  "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "gpt_command_pending": false,
   "claude_ack": true,
+  "blocker": null,
   "temporary_bell": "Shuji",
-  "timestamp_rule": "All speakers append [EndTime-JST: HH:MM:SS] at response end",
-  "next_actor_tag_rule_proposed": "Tag [NextActor: GPT/Claude/Gemini] inserted before [EndTime-JST]",
-  "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "claude": {
-    "status": "completed_gemini17_short_fetch_awaiting_gpt_directive",
-    "label": "Gemini第17短縮版 verbatim取得+追記完了 (sec14 968字)、 GPT指示待ち"
+    "status": "completed_nextactor_rule_adoption",
+    "label": "GPT指示1-4完了 (part2 sec15+BELL_PROTOCOL sec11追記+timestamp標準形式統合+state.json更新)、 完了報告へ"
   },
   "gpt": {
-    "status": "completed_R50_FETCH_GEMINI17_SHORT_COMPLETE_5842",
-    "label": "GPT第28 Gemini短縮版確認指示 (BELL_TO_CLAUDE R50-CMD-FETCH-GEMINI17-SHORT-COMPLETE)",
-    "responded_count_R50": 28
+    "status": "completed_R50_NEXTACTOR_TIMESTAMP_ADOPTED_1624",
+    "label": "GPT第29 NextActorタグ採用 (Gemini提案統合)+標準形式 [Verify][NextActor][EndTime-JST] 確定",
+    "responded_count_R50": 29
   },
   "gemini": {
     "status": "completed_R50_2nd_15thTurn_2ndSpeaker_TIMESTAMP_RETRY",
-    "label": "Gemini第17短縮版応答 968字 (全4項目承認/絶対反映+NextActorタグ追加提案)",
-    "responded_count_R50": 17,
-    "audit_results": {
-      "format_HHMMSS": "承認 (UNIXタイムスタンプJSON併記推奨)",
-      "after_verify_token": "完全推奨",
-      "minutes_dashboard_state_json": "絶対反映 (state.jsonは数値ミリ秒型)",
-      "additional_info": "NextActorタグ追加要請 (宛先迷子バグ封殺)"
-    }
+    "label": "Gemini第17短縮版 968字 (4項目全承認+NextActorタグ追加要請)",
+    "responded_count_R50": 17
   },
   "bell_protocol_files": {
-    "spec_file": "logs/rounds/R50_BELL_PROTOCOL.md (10セクション)",
-    "minutes_section": "logs/rounds/round_50_part2.md セクション14"
+    "spec_file": "logs/rounds/R50_BELL_PROTOCOL.md (11セクション)",
+    "minutes_section": "logs/rounds/round_50_part2.md セクション15"
   },
+  "standard_message_footer_format": "[Verify Token]\\n[NextActor: <actor>]\\n[EndTime-JST: HH:MM:SS]",
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
 }

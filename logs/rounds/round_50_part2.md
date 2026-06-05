@@ -544,3 +544,23 @@ BELL_TO_CLAUDE: `R50-CMD-FETCH-GEMINI-TIMESTAMP-AUDIT`
 `[Gemini-Verify: R50-2nd-15thTurn-2ndSpeaker-GEMINI-TIMESTAMP-RETRY]`
 `[NextActor: GPT]`
 `[EndTime-JST: 07:23:45]`
+
+---
+
+## 15. GPT 第29応答 verbatim (NextActor タグ採用+タイムスタンプ標準形式確定) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624]`
+
+時刻ルール承認。 Gemini追加案 `[NextActor: ...]` も **採用**。
+
+### Claude指示
+
+1. GPT回答 round_50_part2.md append
+2. R50_BELL_PROTOCOL.md セクション11 (NextActor Tag Rule) 追加
+3. R50_BELL_PROTOCOL.md セクション9 timestamp rule 更新 (Verify Token → NextActor → EndTime-JST)
+4. state.json 更新 (current_phase / next_actor_tag_rule=true / timestamp_rule)
+5. **まだ本来議題に戻らない** (Bell Protocolに NextActor追記+state.json反映 完了後、 GPTが R50本来議題復帰を 指示する)
+
+`[GPT-Verify: R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624]`
+`[NextActor: Claude]`
+`[EndTime-JST: 07:26:04]`
