@@ -2850,3 +2850,62 @@ GPT Claude次アクション **7項目 着手**:
 
 `[Claude-Verify: R50-2nd-3rdTurn-3rdSpeaker-CLAUDE-CORRECTED-V2]`
 
+---
+
+## 40. GPT 第10応答 verbatim (R50 第2周 第4ターン 1番手、 4,322字) — 2026-06-05
+
+**主要決定**:
+- BingX/MEXC Tier 3 確定 (Round 50で論点クローズ)
+- Bitget Tier 2→Tier 3降格候補 (Gemini根拠提示要求)
+- 経路A=CFD検証用 (Exness/FXGT) / 経路B=AI育成本命 (Hyperliquid/dYdX/Lighter) 分離
+- GPT追加6項DOM対策 (送信成功/停止消滅/msg数増加/最新msg文字数/Verify Token検出/0字リロード)
+- blocker表示 state.json提案
+- **「完結」 言葉は GPT収束候補判定+Shuji確認まで使うな** (Claude警告)
+- Round 50 まだ終結しない
+
+## 41. Gemini 第8応答 verbatim (R50 第2周 第4ターン 2番手、 約4,605字) — 2026-06-05
+
+**主要決定**:
+- **Bitget Tier 3 降格 根拠提示**: 規約Lockups+日本居住者先物制限完了+MEXC同等死亡リスク
+- **Gate.io/OKX Global/Binance Global Tier 3 補強**: FSA公式警告+トラベルルール100%遮断
+- **国内CEX (Coincheck/BitTrade/OKCoinJapan) Tier 2降格 承認**: APIレート+WebSocket弱い ボトルネック
+- **Claude DOM 8項目化は過剰エンジニアリング脆弱性** = Dual Button State 主軸に据えるべき
+- Watchdog.py 実装着手 受領
+
+## 42. Claude 第4応答 verbatim (R50 第2周 第4ターン 3番手、 3スロット) — 2026-06-05
+
+### Verify Token: `[Claude-Verify: R50-2nd-4thTurn-3rdSpeaker-CLAUDE-DUAL-STATE-ACCEPTED]`
+
+### スロット1 (Gemini第8応答 監査)
+- Bitget Tier 3根拠合意 / Gate/OKX/Binance Global Tier 3根拠補強合意 / 国内CEX Tier 2降格承認
+- **8項目化過剰エンジニアリング指摘 受領 → 取下げ、 Dual Button State 主軸採用**
+- Watchdog.py Dual State主軸で 簡素化
+
+### スロット2 (GPT msg[6] 第4ターン1番手 監査)
+- **「完結」 言葉慎重 受領** (GPT収束候補+Shuji確認まで使わない)
+- BingX/MEXC Tier 3確定+ Bitget Tier 3推奨+ 経路A/B分離+ 追加6項DOM対策+ blocker表示 全採用
+
+### スロット3 (自己ターン)
+
+**4-1. Tier表 最終確定候補**:
+
+| Tier | 候補 |
+|---|---|
+| Tier 1 深掘り (本命) | Hyperliquid / dYdX v4 / Lighter / Exness / FXGT / GMOコイン / bitFlyer / SBI VCトレード / bitbank |
+| Tier 2 高リスク保留 | Phemex / KuCoin / Crypto.com / EdgeX / Jupiter Perps / Coincheck / BitTrade / OKCoinJapan |
+| Tier 3 却下 (調査済) | Bybit / OKX Global / Binance Global Futures / BitMEX / Gate.io / DMM Bitcoin / P2P / Wise / BingX / MEXC / Bitget |
+
+**4-2. 経路A/B 採択 確認**:
+- 経路A (CFD検証用): 国内銀行/カード → Exness/FXGT → MT4/MT5
+- 経路B (AI育成本命): 国内取引所 → XRP/BTC/USDC → Hyperliquid/dYdX/Lighter
+
+**4-3. Round 50 終結条件**: 3者「収束候補」 宣言可、 最終終結はShuji明示宣言、 まだ終結しない
+
+**4-4. memory更新**: 「完結」 禁止 (Claude単独使用NG)+Dual State主軸+blocker表示
+
+**4-5. Claude次タスク**: organized.md更新 / queue.json更新 / state.json更新 / Watchdog.py雛形継続 (Dual State主軸で簡素化) / 根拠URL転記
+
+**4-6. GPT 第5ターン1番手 期待**: Tier表最終確定承認 / 経路A/B確定 / 採用4候補ガチンコ比較統合 / Round 50収束候補判定
+
+`[Claude-Verify: R50-2nd-4thTurn-3rdSpeaker-CLAUDE-DUAL-STATE-ACCEPTED]`
+
