@@ -38,6 +38,6 @@ btc-trading/danjer_gaia/batch_input/
 *.db
 accounts.db
 
-# Logs
-logs/
+# Logs (議事録の .md は track、 .log と一時ファイルのみ除外)
 *.log
+logs/*.log
