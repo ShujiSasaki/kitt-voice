@@ -1,0 +1,26 @@
+{
+  "_comment": "GPT追加提案 (R50-2nd-2ndTurn-1stSpeaker-GPT-SHIELD-2874): Claudeの 止まっている理由 を 可視化する キュー。 各ターン末尾で更新+Shujiさん即時参照可",
+  "unprocessed_shuji_messages": [],
+  "unlogged_ai_responses": [],
+  "pending_transmissions": [
+    {"from": "GPT msg[5] R50-2nd-2ndTurn-1stSpeaker-GPT-SHIELD-2874", "to": "Gemini", "status": "editor_saved_2251_chars_pending_send", "note": "Gemini前応答生成中、 完了次第自動送信"}
+  ],
+  "pending_commits": [],
+  "next_actor": "Gemini (第2周第2ターン2番手、 Deep Think長考中)",
+  "current_round": 50,
+  "current_subround": 2,
+  "current_turn": 2,
+  "current_speaker_position": "Gemini (2番手)",
+  "fixed_order": "GPT → Gemini → Claude → GPT → ...",
+  "termination_status": "進行中 (Shuji#15 途中停止禁止、 アイデア出尽くす or 脆弱性無くなる まで継続)",
+  "last_updated": "2026-06-05 (R50第2周第2ターン Claude事務処理時)",
+  "claude_7_item_checklist_routine": {
+    "1_get_previous_speaker_response": "GPT msg[5] 5216字 取得済 (R50-2nd-2ndTurn-1stSpeaker-GPT-SHIELD-2874)",
+    "2_verify_token_check": "確認済 R50-2nd-2ndTurn-1stSpeaker-GPT-SHIELD-2874",
+    "3_append_to_minutes": "round_50.md セクション33 追加済",
+    "4_update_state_json": "本queue.json更新中、 state.json も別途更新予定",
+    "5_forward_to_next_ai": "Gemini editor 2251字保存中 (前応答完了待ち)、 GPT msg[5]要約 追加転送予定",
+    "6_update_dashboard": "Round 51以降",
+    "7_commit_push": "background bash 実行予定"
+  }
+}
