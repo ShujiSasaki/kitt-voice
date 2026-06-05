@@ -43,6 +43,43 @@ Challenge末尾3単語: 「議論にのぞんでください」
 
 ---
 
+## 4. Shujiさん追加発言 #1 — Claude単独質問禁止 (Round 50 第1周中)
+
+> 「会議へ発言
+> なぜclaudeが単独で私に質問してくるのか? 私への質問は３者が合意し司会者のgptから受けます。」
+
+### 適用ルール (恒久)
+- Claude が Shujiさんに 単独で 質問することを 禁止
+- Claude発の疑問は 3者会議の議題として GPT/Geminiへ 投げる
+- 3者合意「Shuji本人確認必要」 となった質問のみ、 GPT司会から まとめて Shujiさんに verbatim投稿
+- Claude は その GPT質問の 中継のみ (verbatim transmission)
+
+### Claudeの違反 (Round 50 第1周末尾)
+Claudeは独自リサーチ報告末尾で Shujiさんに 4件の質問を 単独で投げた:
+1. CFD取引所 (Exness/FXGT等) を候補に含めるか
+2. 初期投入額レンジ
+3. KYC強度の許容度
+4. Round 46「bitget副」 の発案者
+
+→ 4件取消、 GPT/Geminiに 3者議題として 投げ直し済 (GPT送信完了、 Gemini送信は本リサーチ完了後)
+
+## 5. Shujiさん追加発言 #2 — 発言前に議事録確認 (Round 50 第1周中)
+
+> 「会議へ発言
+> gptもgeminiも発言前に議事録を確認してね。 前回の自身が発言した内容が議事録に誤って記録されていないか」
+
+### 適用ルール (恒久、 Round 50以降)
+GPT/Gemini は 自分の次の発言前に **必ず**:
+
+1. GitHub議事録 Raw URL `https://raw.githubusercontent.com/ShujiSasaki/kitt-voice/main/logs/rounds/round_XX.md` を fetch
+2. 自分の前回verbatim発言 が 議事録に **一字一句正確に** 記載されているか確認
+3. **不一致発見** → Claude発の改ざんを 指摘して訂正要求
+4. **一致確認OK** → 次の発言を verbatim回答
+
+これはGemini が Round 49 第3周で提案した「自動バリデーション」 の手動版。 各AIがセルフチェックして Claude代筆改ざんを 即時検出。
+
+---
+
 ## 6. Claude独自リサーチ (2026-06-05 WebSearch verified)
 
 > **方法論**: deep-researchワークフロー (5角度Fan-out → 13 WebSearch → 一次ソース突合 → 多数決検証)。  
