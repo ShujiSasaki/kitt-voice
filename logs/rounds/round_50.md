@@ -1942,3 +1942,91 @@ Challenge末尾3単語: 「全部止まる」
 
 → Round 50 第2周 ぐるぐる順序 継続中。 両AIの 3スロット応答 取得を 即時待機+取得しだい 議事録追記+反対側転送 を 自動繰り返し。
 
+---
+
+## 28. Shujiさん発言 #13 verbatim (会議へ発言、 Claude自動化欠如 解決依頼、 直近最大課題) — 2026-06-05
+
+> 「会議へ発言
+> Claudeが自動的に情報を回さないようになった。 直近の課題です。 解決して」
+
+Challenge末尾3単語: 「解決して」
+
+### Shuji#13 指摘 整理
+
+Shujiさん#10で 既に 指摘済の **「Claude事務処理自動化 欠如」** が、 Shuji#12「ぐるぐる情報を回して」 直後にも **再発**。 直近最大の構造的課題。
+
+### Claude自身の物理制約 (verbatim自白)
+
+| 項目 | 実態 |
+|---|---|
+| ターンモデル | 1ターン1呼び出し (Shujiさん入力で 起動、 応答後停止) |
+| ScheduleWakeup | /loop dynamic mode 専用、 通常会話では呼べない |
+| Bash sleep (長時間) | Block (until-loop で polling のみ可) |
+| Bash run_in_background | 1回限り completion notification、 永続ループには KillShell必要 |
+| ブラウザMCP polling | javascript_tool は Claude発言時のみ実行可能 |
+
+→ **真の自動化** (Shujiさん介入ゼロ) は 通常会話で 物理的不可能。 何らかの **trigger** が 必要。
+
+### Claude解決策案 (3者議題化、 B+C+構造的解決) — verbatim 提示中
+
+**1. B案 即時導入: チェックリスト強制ルーチン化**
+
+Claudeの 各発言時に **必須6項目** を 自動的に check+実行 (省略時=プロトコル違反、 Shuji#11「4人発言全員共有義務」 を ルーチン化):
+
+```
+□ 1. 両タブ状態確認 (DOM stale検知時 即時リロード自動navigate)
+□ 2. Verify Token 抽出 + 真偽確認
+□ 3. 議事録round_50.md verbatim追記
+□ 4. state.json 更新
+□ 5. 反対側タブに verbatim転送+送信
+□ 6. commit/push + Shujiさん状況verbatim報告
+```
+
+**2. C案 同時導入: ローカルスクリプト 4本 整備**
+
+```
+scripts/append_verbatim.py — 議事録 verbatim自動追記 (テンプレート)
+scripts/update_state.py — state.json 自動更新
+scripts/next_speaker_prompt.py — 次の発言者への 転送プロンプト 生成
+scripts/verify_tokens.py — 全Verify Token を 集約 (BigQuery/ローカル)
+```
+
+**3. 構造的解決: Shujiさん最小トリガー仕様**
+
+- Shujiさんが **「続けて」「ぐるぐる」「進めて」 等の 1単語** を 入力した時点で、 Claudeが **全ぐるぐるループ ターン分を 自動実行**
+- 各ぐるぐるターン = 上記6項目+両AI verbatim応答取得+ 反対側転送 を 連続実行
+- 終了条件: Shujiさんが 明示的に 終結判定 (「停止」「OK」「合意」) を 出すまで
+
+**4. D案 (ScheduleWakeup) は /loop コマンドで Shujiさん 起動した時のみ**
+
+- Shujiさんが `/loop` コマンドで Claude を 起動 → /loop dynamic mode で ScheduleWakeup ネイティブ使用可能
+- 60-180秒間隔で Claude 自動再起動 + polling + 応答取得 + 転送
+- これが 真の Claude自動化 (Shujiさん介入ゼロに 最も近い)
+
+**5. Cron+GitHub Actions (将来、 時間外自動進行用)**
+
+- cron で 5分毎に polling → 状態変化 検知時に GitHub Issue自動作成 → Shujiさんに Email通知 → Claude Code チャットから 起動指示
+- 完全に Shujiさん外出時の AI議論進行が 可能
+
+### 3者議題化 内容
+
+| 議題 | 担当 | 内容 |
+|---|---|---|
+| α | GPT司会 | B+C+構造的解決 (短い trigger仕様) の 採用可否判断 |
+| β | Gemini技術監査 | D案 (ScheduleWakeup) と /loop コマンドの 整合性 + B案チェックリストの 漏れ点検 |
+| γ | Shujiさん | 短い trigger仕様 (「続けて」「ぐるぐる」) の 採用同意 + /loop コマンド使用可否 |
+
+### Claude即時実装可能項目 (3者合意前でも 着手OK)
+
+- B案 (チェックリスト強制) は Claude自身の 動作改善 → 即時開始 (feedback memory 追加)
+- C案 (ローカルスクリプト) は 構造実装 → Claude単独実装可能 (Shuji#11 ルール: Claude直接指名で 「実装して」 = 単独OK、 ただし 設計は 3者監査推奨)
+
+### 次の動き (Shuji#13指示「解決して」 即時着手)
+
+1. 両タブに Shuji#13 verbatim + 上記Claude解決策案 投稿+送信 (4人会議全員共有義務)
+2. 両AI応答取得 (B案+C案+構造的解決の 3者合意)
+3. B案 即時実装 (feedback memory: チェックリスト強制ルーチン)
+4. C案 ローカルスクリプト 4本 実装 (3者合意後 もしくは Claude単独着手可)
+5. 構造的解決 (短い trigger仕様) は Shujiさんの 同意取得後 適用
+6. D案 /loop は Shujiさんが `/loop` コマンドを 出した時に 自動的に有効化
+
