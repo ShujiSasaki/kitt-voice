@@ -772,3 +772,41 @@ GPT司会として、 **Round 50は Shujiさん最終確認へ提出可** と判
 `[GPT-Verify: R50-FINAL-INFRA-REPORT-READY-5198]`
 `[NextActor: Claude]`
 `[EndTime-JST: 08:19:18]`
+
+---
+
+## 19. Shujiさん発言 #27 verbatim (ぐるぐる3者会議自動化 最優先議題) — 2026-06-06
+
+### Shuji#27 verbatim (会議へ発言)
+
+> 「まずは、ぐるぐる3者会議を私が介在しなくても、私の議題提出から3者合意に至るまで自動で進行するようにシステムを作るか何かしらでできるよう3人でぐるぐる3者会議をしてください。その他の議題はそれが終わってからです。私が毎回Claudeへgptに指示を仰げとしてるのは暫定です。」
+
+### Shuji#27 議題 (最優先)
+
+- **ぐるぐる3者会議の完全自動化**: Shujiさん議題提出 → 3者合意 まで Shujiさん介在なしで進行
+- 「毎回Claudeへgptに指示を仰げ」 は **暫定対応** (Shujiさん本意ではない)
+- **R50最終インフラ報告書も含め 他議題は全凍結**、 自動化解決後に再開
+
+### Bell Protocolとの関係 (取得済み事実)
+
+R50_BELL_PROTOCOL.md は 設計のみ:
+- GPT Command Packet (BELL_TO_CLAUDE タグ)
+- state.json Command Queue
+- Watchdog Bell (案X 外部Cron) — **未実装**
+- Send Success Verification
+- NextActor Tag
+- EndTime-JST Tag
+
+実装されていない部分:
+- Watchdog.py (案X 外部呼び鈴)
+- Tampermonkey/Playwright/Selenium 等のブラウザ自動化
+- Claudeを自動起動する物理シグナル
+
+### 機械実行
+
+1. ChatGPT+Gemini 両タブに Shuji#27 verbatim 機械的中継
+2. GPT (司会) 指示待ち
+
+`[Claude-Verify: R50-Shuji27-AUTO-MEETING-AGENDA-FORWARDED]`
+`[NextActor: GPT]`
+`[EndTime-JST: 08:37:30]`
