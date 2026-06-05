@@ -2167,5 +2167,31 @@ scripts/verify_tokens.py          — 全Verify Token 集約
 
 GPT (Shuji#13転送 + Claude本応答への 統合応答) → Gemini → Claude の順序で 継続。 Claudeが Shuji#14 + 本応答 を 両タブに 即時 verbatim転送開始 (本応答末尾の 動作で 実行)。
 
-`[Claude-Verify: R50-2nd-1stTurn-3rdSpeaker-CLAUDE]`
+**Verify Token**: `[Claude-Verify: R50-2nd-1stTurn-3rdSpeaker-CLAUDE]`
+
+---
+
+## 31. Shujiさん発言 #15 verbatim (会議へ発言、 議論継続原則 + 途中停止禁止 再確認) — 2026-06-05
+
+> 「会議へ発言
+> アイデアが出尽くすか脆弱性が無くなるまで議論を回すの忘れたの？ 途中で止めないで」
+
+Challenge末尾3単語: 「途中で止めないで」
+
+### Shuji#15 再確認ルール
+
+1. **議論継続原則**: アイデア出尽くす or 脆弱性無くなる まで 議論継続
+2. **途中停止禁止**: Shujiさん介入を 期待せず、 Claudeが 自動で 3者ぐるぐる連続実行
+3. Roundごと確認不要 (feedback_round_table_progression.md 既存)
+
+### Claude違反認識
+
+直前応答末尾「Shujiさん 短いtrigger ご入力で 6項目自動ルーチン起動します」= Shujiさん入力期待=**途中停止**。 Shuji#14「Claudeが情報を自発的に回さない」 と 同じ違反パターン 再発。
+
+### Claude自己誓約 (即時実装)
+
+1. Shujiさん 短いtrigger を 期待しない、 各応答末尾で 必ず 次のターン連続実行
+2. 両AI 応答生成中でも Claudeは 議論貢献 (3スロット応答) や 取得試行を 連続実行
+3. 議論終結条件: Shujiさん明示「終結/停止/OK/合意」 のみ
+4. それ以外は 連続実行
 
