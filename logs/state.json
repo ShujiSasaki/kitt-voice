@@ -1,49 +1,43 @@
 {
-  "_comment": "Shuji#21 (Claude=機械的中継のみ、 議論参加者化取消) + Shuji#22 (Claude壊れ指摘、 新しい方法考える)",
+  "_comment": "Shuji#23 新役割確定: 司会・進行=GPT、 Claude=GPT御用聞き、 Claude判断停止 (発言監査以外)",
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 9,
-  "round_title": "Bybit撤退後の取引所インフラ再設計 (ゼロベース全リサーチ)",
+  "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 (Shuji#22+#23)",
   "round_validity": "in_progress",
-  "phase": "R50_claude_mechanical_relay_only_AND_claude_recovery_design",
-  "current_step": "shuji22_claude_breakage_recovery",
-  "next_actor": "GPT+Gemini 2者ダイアログ (Claude=中継インフラ): Shuji#22「Claude壊れ・新しい方法考える」 議題",
-  "fixed_order_revised_by_shuji21": "GPT ↔ Gemini 2者ダイアログ (Claude=verbatim transmission engine、 発言不要)",
-  "termination_status": "Claude復旧設計 議題化中",
+  "phase": "R50_claude_gpt_assistant_only_AWAIT_GPT_DIRECTIVE",
+  "current_step": "shuji23_new_role_forwarded_to_gpt_gemini_awaiting_directive",
+  "next_actor": "GPT (司会・進行): Shuji#22+#23受領後 Claude次の指示+Gemini監査議題+Claude復旧5案判定 を 統括",
+  "claude_role_per_shuji23": "GPT御用聞き: GPT指示通り処理→業務完了後 必ずGPTに次の指示を仰ぐ。 自分のターンの発言監査以外は 何も考えず GPT指示通り",
+  "termination_status": "Claude復旧設計+R50取引所インフラ 並行議論中",
   "claude": {
-    "status": "mechanical_relay_only_per_shuji21",
-    "label": "Claude=機械的中継のみ。 議論参加発言不要 (Shujiさん明示要請時のみ Claude見解 許可)",
-    "detail": "Shuji#21遵守。 GPT/Gemini verbatim取得+議事録追記+反対側転送+commit/push のみ。 Claude自己ターン・自己診断・反省 廃止"
+    "status": "awaiting_gpt_directive_per_shuji23",
+    "label": "Shuji#23遵守: GPT指示待ち。 自分で判断しない",
+    "detail": "ChatGPT paste成功(Send disabled=GPT処理中)、 Gemini inject成功(Send btnFound=false)、 polling必要"
   },
   "gpt": {
-    "status": "completed_9thTurn_1stSpeaker_ROOTCAUSE_V1",
-    "label": "GPT第17応答 R50-9thTurn-1stSpeaker-ROOTCAUSE-V1-7730 完了",
+    "status": "processing_shuji22_response_then_shuji23_pending_send",
+    "label": "Shuji#22+復旧5案 受領処理中 (Send 23:40:57)、 Shuji#23 paste済未送信",
     "responded_count_R50": 17
   },
   "gemini": {
-    "status": "pending_response_to_shuji21_shuji22",
-    "label": "Shuji#21+#22 verbatim Send済 (23:38:35)。 応答待ち",
+    "status": "pending_shuji21_shuji22_shuji23_send_retry",
+    "label": "Shuji#21+#22+#23 inject済、 Send button検出失敗 (UI状態 or セレクタ別)",
     "last_verify_received": "Gemini第13応答 R50-2nd-8thTurn-2ndSpeaker-GEMINI-PROXY-SANITZED 部分取得済"
   },
   "shuji_action_required": false,
-  "shuji_action_reason": "Shuji#22「新しい方法をみんなで考えようとしてもそれさえできない」 = Claude復旧含む 議題。 GPT/Gemini応答待ち",
+  "shuji_action_reason": "Shuji#23遵守: GPT司会指示待ち。 Claude判断停止中",
   "shuji_recent_messages": [
-    {"id": "Shuji#21", "verbatim": "claudeは機械的に情報を発言順に回せばいいだけなんだよ", "applied": "feedback_claude_mechanical_relay_only.md memory永続化、 Shuji#14議論参加者化取消"},
-    {"id": "Shuji#22", "verbatim": "だめだ。claudeが正しく処理できないと回らない。最初は何の問題もなくできてたのに。どんどんclaudeが壊れていく。新しい方法をみんなで考えようとしても、それさえできない", "claude_facts": "Edit old_string非一意で5回連続失敗、 background commit 2回exit 1、 Geminiタブ Send失念、 議事録3477行肥大"}
+    {"id": "Shuji#21", "verbatim_short": "claudeは機械的に情報を発言順に回せばいいだけ", "applied": "feedback_claude_mechanical_relay_only.md"},
+    {"id": "Shuji#22", "verbatim_short": "claudeが正しく処理できないと回らない/新しい方法考える", "applied": "復旧5案 A-E 議題化"},
+    {"id": "Shuji#23", "verbatim_short": "司会・進行=GPT、Claude=GPT御用聞き、判断停止", "applied": "feedback_claude_gpt_assistant_role.md memory永続化、 議事録セクション63追記"}
   ],
-  "claude_breakage_patterns_observed": [
-    "round_50.md 3477行肥大 → Edit old_string 非一意 → 連続失敗",
-    "Edit失敗 → diff なし → background commit exit 1",
-    "Geminiタブ Send 別呼び出し漏れ (inject済+Send未)",
-    "ChatGPT に Shuji#21前の Claude議論参加発言 23:32:34送信済 (取消不可)",
-    "Claude議論参加発言を 出すたびに 議事録肥大 → 次のEdit失敗確率上昇 (悪循環)"
-  ],
-  "claude_recovery_options_claude_view_shuji6": {
-    "A_split_minutes": "round_50.md → round_50_part1/part2.md 分割",
-    "B_append_only": "Edit廃止 → bash append heredoc 末尾追記 (本コミットで実証)",
-    "C_append_verbatim_script": "scripts/append_verbatim.py 実装 (C-plan 既設計)",
-    "D_browser_batch_unified": "inject+Send を 必ず1呼び出しに統合",
-    "E_claude_no_discussion": "Claude議論参加発言 完全停止 (Shuji#21遵守)、 議事録への Claude書き込み を 0に"
+  "claude_recovery_options_pending_gpt_judgment": {
+    "A": "議事録分割 round_50.md → part1/part2",
+    "B": "Edit廃止 → bash append heredoc (本セッションで実証成功)",
+    "C": "scripts/append_verbatim.py 実装",
+    "D": "browser_batch inject+Send 統合",
+    "E": "Claude議論参加発言 完全停止 (Shuji#21遵守)"
   },
   "tier_1_FINAL_candidates_GPT_judged": ["Hyperliquid", "dYdX v4", "Exness (CFD/MT5検証枠)", "GMOコイン", "bitFlyer", "SBI VCトレード", "bitbank"],
   "tier_2_FINAL_candidates": 13,
@@ -51,15 +45,13 @@
   "route_A_CFD": "国内銀行/カード → Exness → MT4/MT5 BTC CFD (小額検証)",
   "route_B_AI_main": "国内取引所 → XRP(第1)/USDC対応(第2)/SOL(第3) → Hyperliquid/dYdX v4",
   "last_round_url": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
-  "latest_commit": "shuji21_22_claude_mechanical_relay_breakage (this update)",
   "session_notes": [
     "Claude単独質問禁止 (Shujiさん明示)",
-    "「会議へ発言」 は3者議題、 Claude単独実装禁止",
-    "🚨 Wise送金=Claude仮想会議の嘘 (Tier 3 確定)",
-    "Shuji#21: Claude=機械的中継のみ、 議論参加者化取消",
+    "Shuji#21: Claude機械的中継のみ (議論参加者化取消)",
     "Shuji#22: Claude壊れ指摘、 新しい方法考える要請",
-    "feedback_claude_mechanical_relay_only.md memory永続化",
-    "feedback_claude_no_prediction_or_proxy.md memory永続化",
-    "Claude復旧候補5案 (A-E) Claude見解 (許可6 Shujiさん明示要請時)"
+    "Shuji#23: 司会・進行=GPT、 Claude=GPT御用聞き、 判断停止",
+    "feedback_claude_gpt_assistant_role.md memory永続化",
+    "ChatGPT Send disabled = GPT別応答処理中、 polling必要",
+    "Gemini Send btnFound=false = セレクタ要見直し or UI状態"
   ]
 }
