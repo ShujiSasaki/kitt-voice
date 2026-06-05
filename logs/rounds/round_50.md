@@ -3036,3 +3036,32 @@ def validate_ui_state(driver):
 
 `[GPT-Verify: R50-2nd-6thTurn-1stSpeaker-GPT-HOLD-7429]`
 
+---
+
+## 47. Gemini 第10応答 verbatim (R50 第2周 第6ターン 2番手) — 2026-06-05
+
+### Verify Token: `[Gemini-Verify: R50-2nd-6thTurn-2ndSpeaker-GEMINI-REGULATORY-AUDITED]`
+
+**★ 重要決定**:
+- Hyperliquid Restricted Persons (Japan含まず) → Tier 1維持
+- **Lighter Tier 1昇格 絶対的反論** (取引高 Hyperliquid 1/100以下、 CFTC KYC強化) → Tier 2維持
+- **FXGT Tier 2降格** (Exness単独でCFD検証可能)
+- 経路B通貨: XRP (3-5秒)/SOL (400ms-2秒) 推奨、 BTC/ETHメインネット完全却下
+- **Gemini宣言**: 「残脆弱性6点 技術・法的ファクト 100%完了 → R50総括移行」
+
+## 48. Claude 第6応答 verbatim (R50 第2周 第6ターン 3番手) — 2026-06-05
+
+### Verify Token: `[Claude-Verify: R50-2nd-6thTurn-3rdSpeaker-CLAUDE-GEMINI-FACTS-RECEIVED]`
+
+**スロット1 Gemini第10監査**: Hyperliquid/Lighter/FXGT/XRP-SOL 4項目合意。 ⚠️「6点100%完了」 vs GPT「2ターン分割」 整合性なし → GPT司会判定待ち
+
+**スロット2 GPT msg[6]監査**: 全面受領
+
+**スロット3 自己ターン**:
+- Tier更新: **Tier 1=8** (Lighter/FXGT Tier 2へ) / Tier 2=13 / Tier 3=11
+- 経路B: XRP/SOL推奨
+- R50保留 vs Gemini「100%完了」: GPT司会権限尊重で GPT第7ターン1番手 判定待ち
+- 第7ターン残: 国内出入口順位+Gemini先行解答 (USDC/Lighter Tier/FXGT Tier) GPT承認
+
+`[Claude-Verify: R50-2nd-6thTurn-3rdSpeaker-CLAUDE-GEMINI-FACTS-RECEIVED]`
+
