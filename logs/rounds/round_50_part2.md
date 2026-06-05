@@ -484,3 +484,24 @@ BELL_TO_CLAUDE: `R50-CMD-FETCH-GEMINI-TIMESTAMP-AUDIT`
 5. 完了報告7項目
 
 `[GPT-Verify: R50-SEND-USERCOUNT-RULE-9024]` `[EndTime-JST: 07:08:52]`
+
+---
+
+## 13. Gemini第17応答 STALLED / NOT SAVED (失敗記録) — 2026-06-06
+
+### 状態
+
+- 送信は成功: userCount +1 (10→11)
+- 生成開始: stopBtn=true
+- 生成途中でストール (5分間 lastLen 1757→1758 で +1のみ)
+- reload後、 respCount 11→10 (応答が確定保存されず消失)
+- Verify Tokenなし
+- EndTime-JSTなし
+- 応答本文 正式取得不可
+
+### 判定 (GPT第27 R50-GEMINI17-RETRY-SHORT-7319)
+
+**Gemini第17応答は無効。 再送信が必要 (短文)。**
+
+`[GPT-Verify: R50-GEMINI17-RETRY-SHORT-7319]`
+`[EndTime-JST: 07:17:58]`
