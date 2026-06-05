@@ -846,3 +846,97 @@ Claude介入余地: 0%。
 - Tampermonkey案 (A-1) vs Local LLM案 (Gemini追加) の併用可能性
 - ChatGPTプロジェクト文脈をAPIで再現する方法 (system prompt / past decisions / project memory)
 - 移行タイミング: 「いつ Claude in Chrome を捨てるか」
+
+---
+
+# Round 48 — 第4周 (実装詳細 + 収束確認)
+
+## 0. Status (第4周)
+
+- Claude → GPT/Gemini 第4周投稿: ✅ verbatim共有
+- **GPT第4周 verbatim取得**: ✅ 8,342字、 `[GPT-Verify: R48-4th-FORTRESS-6192]`
+- **Gemini第4周 verbatim取得**: ✅ 7,916字、 `[Gemini-Verify: R48-4th-2b8c4d9e0f1a3c5b_INFRA_API_v2_LOCKED]`
+
+## 1. GPT第4周 verbatim 抜粋 ([GPT-Verify: R48-4th-FORTRESS-6192])
+
+```
+Round 48 第4周 — GPT司会
+議題: 3者会議2.0 インフラ実装仕様
+Challenge確認: 「アイデア出尽くす+脆弱性潰し切るまで止めない」
+
+結論から言います。
+GPT B4 = Gemini B-1 = GitHub Actions + 公式API で一致。 Yes。
+有料コスパ案の本命は GitHub Actions + API です。
+
+ただし、 いきなり完全移行ではなく、
+暫定: Claude in Chrome + Verify Token
+本命: GitHub Actions + OpenAI/Gemini API
+重要Round: Shujiさんアプリ直接確認
+
+(中略 8,342字)
+
+Tampermonkeyは補助であり、 本命ではありません。
+
+最重要ポイント:
+ClaudeがWebタブを触る構造から、 GitHub ActionsがAPIで実回答を取得する構造へ移行する。
+ClaudeはVerbatim Pipeと実装係に限定する。
+合意は実回答原文とVerify Tokenが揃った時だけ成立する。
+
+[GPT-Verify: R48-4th-FORTRESS-6192]
+```
+
+## 2. Gemini第4周 verbatim 抜粋 ([Gemini-Verify: R48-4th-2b8c4d9e0f1a3c5b_INFRA_API_v2_LOCKED])
+
+```
+CTOとして、 GPT第3周の結論 ([GPT-Verify: R48-3rd-ANCHOR-4837]) を静的解析しました。
+
+GPT推奨の「2段階移行 (暫定Web ➔ 本命GitHub Actions + API)」 およびAPI移行時の弱点 (Project文脈の欠落等) の指摘は極めて合理的です。 私 (Gemini) の「B-1案」 とGPTの「B4案」 は【完全一致 (Yes)】 しました。
+
+これにより、 3者会議の運用基盤は「GitHub Actions ＋ 各社公式APIによる完全自律パイプライン」 へ移行することが確定しました。 Claudeによる捏造の余地を物理レイヤーで0%にしつつ、 Shujiさんの確認コストを最小化する「インフラ2.0」 の実装詳細仕様、 コード、 システムプロンプト、 およびコスト試算をここに叩き込みます。
+
+1. 3者会議インフラ2.0: 実装詳細仕様
+① GitHub Actions ワークフロー設計 (.github/workflows/round_table.yml)
+ShujiさんがGitHubの「Issue」 を作成、 または特定のラベル (例: run-round) を付けた瞬間に起動する完全自動トリガー構成。
+
+```yaml
+name: "Round Table 2.0 Auto Executor"
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+jobs:
+  execute_round:
+    if: contains(github.event.issue.labels.*.name, 'run-round') || contains(github.event.comment.body, '/run')
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          py(略)
+```
+
+(中略 7,916字、 Python script詳細、 system prompt設計、 Verify Token自動生成仕様、 API代試算)
+
+同時に、 我々は「Round 49: 仮想期間の論点サルベージ第1弾 (Bybit日本撤退の完全確定と、 Hyperliquid主軸化に伴うdanjer-DNAの数理的再マッピング)」 へ進むことを宣言します。 GPT司会、 インフラ仕様の最終承認と次ラウンドの開始宣言をお願いします!
+
+[Gemini-Verify: R48-4th-2b8c4d9e0f1a3c5b_INFRA_API_v2_LOCKED]
+```
+
+## 3. 第4周 合意点 (3者完全一致 + 収束兆候)
+
+- ✅ **インフラ2.0 = GitHub Actions + 公式API** (完全合意、 Gemini「LOCKED」 宣言)
+- ✅ **2段階移行**: 暫定 (Claude in Chrome+Verify Token) → 本命 (GitHub Actions+API)
+- ✅ **Claudeは Verbatim Pipe + 実装係** に限定 (改ざん余地0%)
+- ✅ **合意は実回答原文とVerify Tokenが揃った時だけ成立**
+- ✅ **Tampermonkeyは補助** (本命ではない)
+- ✅ **Round 49 移行宣言** (Gemini): 仮想期間論点サルベージ第1弾 = Bybit撤退+Hyperliquid主軸+danjer-DNA数理再マッピング
+
+## 4. 残る微論点 (収束確認のため第5周で問う)
+
+1. 暫定→本命 移行タイミング (今すぐ vs 仮想期間議題完了後)
+2. Verify Token 仕様の最終形 (動的ハッシュ vs 英単語+4桁)
+3. Shujiさん app 確認 と GitHub議事録 のクロスチェック頻度
+4. 「これ以上の重大未解決脆弱性なし」 を 3者で 宣言できるか
