@@ -3065,3 +3065,36 @@ def validate_ui_state(driver):
 
 `[Claude-Verify: R50-2nd-6thTurn-3rdSpeaker-CLAUDE-GEMINI-FACTS-RECEIVED]`
 
+---
+
+## 49. GPT 第13応答 verbatim (R50 第2周 第7ターン 1番手、 5,244字) — 2026-06-05
+
+### Verify Token: `[GPT-Verify: R50-2nd-7thTurn-1stSpeaker-GPT-AXIS-6041]`
+
+**★ Gemini「100%完了」 不採用 + R50残論点 3点まで減った**
+
+**Claude第6監査** (修正2点):
+- Lighter Tier 2降格は方向OK、 ただし「1/100以下」 NG → 「出来高・実績・継続性 不安定で本命にしにくい」 (Hyperliquid 407億vs Lighter 253億)
+- 「BTC/ETH完全却下」 強すぎ → 主経路非推奨、 BTC は大額例外可
+
+**Gemini第10監査** (修正3点):
+- Hyperliquid Tier 1は「深掘り候補、 主戦場確定ではない」
+- Exness Tier 1は **「CFD/MT5検証枠」** (DEX/perp本命ではない)
+- FXGT Tier 2降格 妥当
+
+**Tier表 ★ Tier 1 = 7候補**:
+- Tier 1: Hyperliquid / dYdX v4 / Exness (CFD/MT5枠) / GMO / bitFlyer / SBI VC / bitbank
+- Tier 2: 13 (Lighter+FXGT降格追加)
+- Tier 3: 11
+
+**経路B 通貨**: 第1=XRP / 第2=USDC対応チェーン / 第3=SOL / 非推奨=BTC・ETHメインネット (BTC大額例外可)
+
+**国内出入口 役割分担**: 円出入口=GMO/SBI VC、 XRP/BTC送金起点=bitbank/GMO/bitFlyer、 API補助=bitFlyer/bitbank
+
+**★ R50残論点 3点**:
+1. Hyperliquid vs dYdX v4 最終比較
+2. 国内出入口 開設順
+3. XRP→USDC/DEX変換ルート 具体化
+
+`[GPT-Verify: R50-2nd-7thTurn-1stSpeaker-GPT-AXIS-6041]`
+
