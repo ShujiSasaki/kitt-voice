@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>3者会議ダッシュボード — KITT</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000;
+    --red: #ff3333;
+    --green: #00ff7f;
+    --amber: #ffb000;
+    --cyan: #00d4ff;
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --card-bg: #0a0a0a;
+    --border: #1a1a1a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Orbitron', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 16px;
+    background-image: linear-gradient(180deg, #050505 0%, #0a0505 100%);
+  }
+  header {
+    border-bottom: 2px solid var(--red);
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: var(--red);
+    letter-spacing: 0.15em;
+    text-shadow: 0 0 10px var(--red);
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  .updated {
+    color: var(--amber);
+    font-size: 0.7rem;
+    margin-top: 4px;
+  }
+  .round-banner {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--cyan);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+  }
+  .round-banner .label {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+  }
+  .round-banner .value {
+    color: var(--cyan);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .round-banner .title {
+    color: var(--text);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card.thinking { border-left: 4px solid var(--amber); }
+  .card.writing { border-left: 4px solid var(--cyan); }
+  .card.speaking { border-left: 4px solid var(--green); }
+  .card.waiting { border-left: 4px solid var(--text-dim); }
+  .card.shuji-waiting { border-left: 4px solid var(--red); animation: pulse 1.5s ease-in-out infinite; }
+  .card .who {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+  .card .icon {
+    font-size: 2rem;
+    margin: 8px 0;
+  }
+  .card .status {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .card.thinking .status { color: var(--amber); }
+  .card.writing .status { color: var(--cyan); }
+  .card.speaking .status { color: var(--green); }
+  .card.waiting .status { color: var(--text-dim); }
+  .card.shuji-waiting .status { color: var(--red); }
+  .card .detail {
+    color: var(--text);
+    font-size: 0.78rem;
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+  .shuji-alert {
+    background: linear-gradient(90deg, #2a0000 0%, #1a0000 100%);
+    border: 2px solid var(--red);
+    border-radius: 6px;
+    padding: 18px;
+    text-align: center;
+    margin-bottom: 20px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .shuji-alert .icon {
+    font-size: 2.5rem;
+  }
+  .shuji-alert .title {
+    color: var(--red);
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    margin-top: 6px;
+    text-shadow: 0 0 10px var(--red);
+  }
+  .shuji-alert .body {
+    color: var(--text);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.005); }
+  }
+  .info-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .info-card h2 {
+    color: var(--cyan);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+  .info-card .item {
+    font-size: 0.8rem;
+    color: var(--text);
+    padding: 3px 0;
+    line-height: 1.4;
+  }
+  .info-card .item .lbl {
+    color: var(--text-dim);
+    width: 110px;
+    display: inline-block;
+  }
+  .info-card a {
+    color: var(--green);
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .info-card a:hover { text-decoration: underline; }
+  .notes {
+    list-style: none;
+    padding: 0;
+  }
+  .notes li {
+    padding: 4px 0;
+    border-bottom: 1px dotted var(--border);
+    color: var(--text);
+    font-size: 0.8rem;
+  }
+  .notes li:before {
+    content: "▸ ";
+    color: var(--amber);
+  }
+  footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    margin-top: 30px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .error {
+    background: #1a0000;
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+  }
+  .refresh-info {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🟥 ぐるぐる3者会議 ダッシュボード</h1>
+  <div class="subtitle">GPT (司会) × Gemini (技術監査) × Claude (窓口・実装)</div>
+  <div class="updated" id="updated">読込中...</div>
+  <div class="refresh-info">3秒ごと自動更新 / Last poll: <span id="pollTime">-</span></div>
+</header>
+
+<div id="error-area"></div>
+<div id="alert-area"></div>
+
+<div class="round-banner" id="round-banner">
+  <div class="label">CURRENT ROUND</div>
+  <div class="value" id="round-value">-</div>
+  <div class="title" id="round-title">-</div>
+</div>
+
+<div class="grid">
+  <div class="card" id="gpt-card">
+    <div class="who">🎯 GPT (司会)</div>
+    <div class="icon" id="gpt-icon">-</div>
+    <div class="status" id="gpt-status">-</div>
+    <div class="detail" id="gpt-detail">-</div>
+  </div>
+  <div class="card" id="gemini-card">
+    <div class="who">🔬 Gemini (技術監査)</div>
+    <div class="icon" id="gemini-icon">-</div>
+    <div class="status" id="gemini-status">-</div>
+    <div class="detail" id="gemini-detail">-</div>
+  </div>
+  <div class="card" id="claude-card">
+    <div class="who">📋 Claude (窓口・実装)</div>
+    <div class="icon" id="claude-icon">-</div>
+    <div class="status" id="claude-status">-</div>
+    <div class="detail" id="claude-detail">-</div>
+  </div>
+</div>
+
+<div class="info-card">
+  <h2>📌 NEXT ACTION</h2>
+  <div class="item" id="next-action">-</div>
+</div>
+
+<div class="info-card">
+  <h2>📂 議事録・リソース</h2>
+  <div class="item"><span class="lbl">最新Round:</span> <a id="round-url" href="#" target="_blank">-</a></div>
+  <div class="item"><span class="lbl">最新Commit:</span> <span id="latest-commit">-</span></div>
+  <div class="item"><span class="lbl">INDEX:</span> <a href="https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/round_table_v3.md" target="_blank">全Round一覧</a></div>
+  <div class="item"><span class="lbl">Repo:</span> <a href="https://github.com/ShujiSasaki/kitt-voice" target="_blank">ShujiSasaki/kitt-voice</a></div>
+</div>
+
+<div class="info-card">
+  <h2>📝 SESSION NOTES</h2>
+  <ul class="notes" id="session-notes"></ul>
+</div>
+
+<footer>
+  KITT v2.x — 3者会議ダッシュボード / Source: <code>logs/state.json</code> (auto-refresh 3s)<br>
+  状態は Claudeが Bashで state.json を逐次push、 ダッシュボードがpolling表示
+</footer>
+
+<script>
+const STATE_URL = 'https://raw.githubusercontent.com/ShujiSasaki/kitt-voice/main/logs/state.json';
+const ICONS = {
+  thinking: '🧠',
+  writing: '📝',
+  speaking: '🎤',
+  waiting: '💤',
+  shuji_waiting: '🚨'
+};
+const STATUS_CLASS = {
+  thinking: 'thinking',
+  writing: 'writing',
+  speaking: 'speaking',
+  waiting: 'waiting',
+  shuji_waiting: 'shuji-waiting'
+};
+
+async function loadState() {
+  try {
+    const t = Date.now();
+    const r = await fetch(STATE_URL + '?t=' + t, {cache: 'no-store'});
+    if (!r.ok) throw new Error('Fetch failed: ' + r.status);
+    const s = await r.json();
+    render(s);
+    document.getElementById('error-area').innerHTML = '';
+  } catch (e) {
+    document.getElementById('error-area').innerHTML =
+      '<div class="error">⚠️ state.json取得失敗: ' + e.message + ' / 再試行中</div>';
+  } finally {
+    document.getElementById('pollTime').textContent = new Date().toLocaleTimeString('ja-JP');
+  }
+}
+
+function render(s) {
+  document.getElementById('updated').textContent = 'Updated: ' + (s.last_update || '-');
+  document.getElementById('round-value').textContent = 'Round ' + s.current_round + (s.current_subround ? ' 第' + s.current_subround + '周' : '');
+  document.getElementById('round-title').textContent = s.round_title || '';
+
+  // Shuji alert
+  const alertArea = document.getElementById('alert-area');
+  if (s.shuji_action_required) {
+    alertArea.innerHTML = `
+      <div class="shuji-alert">
+        <div class="icon">🚨</div>
+        <div class="title">SHUJIさん 確認・指示待ち</div>
+        <div class="body">${escapeHTML(s.next_action || '議事録を確認してください')}</div>
+      </div>`;
+  } else {
+    alertArea.innerHTML = '';
+  }
+
+  ['gpt', 'gemini', 'claude'].forEach(who => {
+    const data = s[who] || {};
+    const status = data.status || 'waiting';
+    const card = document.getElementById(who + '-card');
+    card.className = 'card ' + (STATUS_CLASS[status] || 'waiting');
+    document.getElementById(who + '-icon').textContent = ICONS[status] || '?';
+    document.getElementById(who + '-status').textContent = data.label || '-';
+    document.getElementById(who + '-detail').textContent = data.detail || '';
+  });
+
+  document.getElementById('next-action').textContent = s.next_action || '-';
+  const url = s.latest_round_url || '#';
+  const link = document.getElementById('round-url');
+  link.href = url;
+  link.textContent = url;
+  document.getElementById('latest-commit').textContent = s.latest_commit || '-';
+
+  const notesEl = document.getElementById('session-notes');
+  notesEl.innerHTML = '';
+  (s.session_notes || []).forEach(note => {
+    const li = document.createElement('li');
+    li.textContent = note;
+    notesEl.appendChild(li);
+  });
+}
+
+function escapeHTML(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadState();
+setInterval(loadState, 3000);
+</script>
+</body>
+</html>
