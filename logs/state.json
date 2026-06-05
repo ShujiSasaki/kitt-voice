@@ -1,41 +1,51 @@
 {
-  "_comment": "GPT指示R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624遵守: NextActorタグ採用、 R50本来議題復帰直前",
+  "_comment": "GPT指示R50-RETURN-EXCHANGE-FINAL-AUDIT-7391: R50本来議題=取引所インフラ最終確定 復帰",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 20,
-  "current_phase": "Bell protocol next actor rule adopted",
-  "round_title": "Bybit撤退後の取引所インフラ再設計 + Claude復旧設計 + Claude呼び鈴",
+  "current_turn": 21,
+  "current_phase": "R50 exchange infrastructure final audit",
+  "round_title": "Bybit撤退後の取引所インフラ再設計 (本来議題復帰)",
   "round_validity": "in_progress",
-  "phase": "R50_bell_protocol_complete_awaiting_topic_return_directive",
+  "phase": "R50_topic_returned_to_exchange_infra_awaiting_gemini_audit",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Claude",
-  "next_actor_tag_rule": true,
+  "next_actor": "Gemini",
+  "blocker": null,
+  "bell_protocol_status": "minimum viable protocol adopted",
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
+  "next_actor_tag_rule": true,
   "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "gpt_command_pending": false,
   "claude_ack": true,
-  "blocker": null,
   "temporary_bell": "Shuji",
+  "claude_active_command": "R50-CMD-RETURN-EXCHANGE-INFRA-FINAL-AUDIT",
   "claude": {
-    "status": "completed_nextactor_rule_adoption",
-    "label": "GPT指示1-4完了 (part2 sec15+BELL_PROTOCOL sec11追記+timestamp標準形式統合+state.json更新)、 完了報告へ"
+    "status": "executing_topic_return_gpt_directive",
+    "label": "GPT指示1-2完了 (part2 sec16+state.json更新)、 指示3=Gemini転送+完了報告"
   },
   "gpt": {
-    "status": "completed_R50_NEXTACTOR_TIMESTAMP_ADOPTED_1624",
-    "label": "GPT第29 NextActorタグ採用 (Gemini提案統合)+標準形式 [Verify][NextActor][EndTime-JST] 確定",
-    "responded_count_R50": 29
+    "status": "completed_R50_RETURN_EXCHANGE_FINAL_AUDIT_7391",
+    "label": "GPT第30 Bell精緻化停止+R50本来議題復帰+Tier1-3最終整理+経路A/B+Gemini監査7項目",
+    "responded_count_R50": 30
   },
   "gemini": {
-    "status": "completed_R50_2nd_15thTurn_2ndSpeaker_TIMESTAMP_RETRY",
-    "label": "Gemini第17短縮版 968字 (4項目全承認+NextActorタグ追加要請)",
+    "status": "pending_R50_topic_return_audit_request",
+    "label": "GPT指示3 verbatim+監査7項目 転送待ち",
     "responded_count_R50": 17
   },
-  "bell_protocol_files": {
-    "spec_file": "logs/rounds/R50_BELL_PROTOCOL.md (11セクション)",
-    "minutes_section": "logs/rounds/round_50_part2.md セクション15"
-  },
-  "standard_message_footer_format": "[Verify Token]\\n[NextActor: <actor>]\\n[EndTime-JST: HH:MM:SS]",
+  "tier_1_FINAL_GPT_judged": ["Hyperliquid", "dYdX v4", "Exness (CFD/MT5検証枠)", "GMOコイン", "bitbank", "bitFlyer", "SBI VCトレード"],
+  "tier_2_FINAL_GPT_judged": ["Lighter", "FXGT", "EdgeX", "Jupiter Perps", "Vertex", "Drift", "GMX", "Phemex", "KuCoin", "Crypto.com Exchange", "Coincheck", "BitTrade", "OKCoinJapan"],
+  "tier_3_FINAL_GPT_judged": ["Bybit", "BitMEX", "Binance Global Futures", "OKX Global", "Gate.io", "BingX", "MEXC", "Bitget", "DMM Bitcoin", "P2P常用", "Wise"],
+  "route_A_CFD": "日本円/銀行/カード → Exness → MT5/BTC CFD検証",
+  "route_B_AI_main": "国内取引所 → XRP / USDC対応チェーン / SOL → Hyperliquid / dYdX v4",
+  "policies": [
+    "Hyperliquidは主候補だが既定路線ではない",
+    "Wise既定路線は却下",
+    "Exness は CFD検証枠 (perp本命ではない)",
+    "国内取引所 = 円出入口・税務・保管・送金起点",
+    "LighterとFXGTはTier 2へ降格",
+    "BingX/MEXC/Bitgetは却下 (Tier 3)"
+  ],
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
 }

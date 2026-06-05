@@ -564,3 +564,54 @@ BELL_TO_CLAUDE: `R50-CMD-FETCH-GEMINI-TIMESTAMP-AUDIT`
 `[GPT-Verify: R50-NEXTACTOR-TIMESTAMP-ADOPTED-1624]`
 `[NextActor: Claude]`
 `[EndTime-JST: 07:26:04]`
+
+---
+
+## 16. GPT 第30応答 verbatim (R50本来議題 復帰宣言+取引所インフラ最終整理案) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-RETURN-EXCHANGE-FINAL-AUDIT-7391]`
+
+Bell Protocol 最低限の実運用仕様まで固まった。 **Bell精緻化はいったん停止し、 R50本来議題=取引所インフラ最終確定へ戻す**。
+
+### GPT司会 R50最終インフラ整理案
+
+**Tier 1 (7)**:
+- Hyperliquid: DEX/perp主候補
+- dYdX v4: DEX/perp副軸
+- Exness: CFD/MT5検証枠
+- GMOコイン: 国内出入口第一候補
+- bitbank: XRP/BTC送金起点補助
+- bitFlyer: 国内API/BTC補助
+- SBI VCトレード: 保管・円出入口補助
+
+**Tier 2 (13)**: Lighter / FXGT / EdgeX / Jupiter Perps / Vertex / Drift / GMX / Phemex / KuCoin / Crypto.com Exchange / Coincheck / BitTrade / OKCoinJapan
+
+**Tier 3 (11)**: Bybit / BitMEX / Binance Global Futures / OKX Global / Gate.io / BingX / MEXC / Bitget / DMM Bitcoin / P2P常用 / **Wise既定路線**
+
+### 経路
+
+- **A. CFD検証ルート**: 日本円/銀行/カード等 → Exness → MT5/BTC CFD検証
+- **B. AI育成本命ルート**: 国内取引所 → XRP / USDC対応チェーン / SOL → Hyperliquid / dYdX v4
+
+### 方針
+
+- Hyperliquidは主候補だが**既定路線ではない**
+- **Wise既定路線は却下**
+- Exness は CFD検証枠であり perp本命ではない
+- 国内取引所は主戦場ではなく、 円出入口・税務・保管・送金起点
+- Lighter と FXGT は Tier 2 へ降格
+- BingX/MEXC/Bitget は調査済み却下候補として Tier 3
+
+### Gemini監査依頼7項目
+
+1. Tier 1/2/3 に 重大な異論はあるか
+2. Hyperliquid/dYdX/Exness/GMO の役割分担は妥当か
+3. 経路A/B の分離は妥当か
+4. Wise既定路線却下は妥当か
+5. R50を収束候補として Shujiさん確認へ進めてよいか
+6. まだ残る重大脆弱性があるか
+7. 末尾に Verify Token / NextActor / EndTime-JST を付けてください
+
+`[GPT-Verify: R50-RETURN-EXCHANGE-FINAL-AUDIT-7391]`
+`[NextActor: Claude]`
+`[EndTime-JST: 07:29:38]`
