@@ -151,7 +151,7 @@ Day 31+ (Live移行、 ゲート達成次第):
 ### 新 (v2): デイリー承認制
 
 ```
-朝7:00 (JST、 Shuji起床想定): 自動 Slack DM
+朝7:00 (JST、 Shuji起床想定): 自動通知 (KITT音声 + Email、 Slackは不使用)
 ========================================
 📋 本日の発注候補 (10件)
 
@@ -189,7 +189,7 @@ Day 31+ (Live移行、 ゲート達成次第):
 |---|---|---|
 | **R37** | APIキー漏洩・権限過大 | 出金権限なし / IP制限 / サブアカウント / Secret Manager / ローカル.envに本番キー禁止 / 90日定期ローテーション |
 | **R38** | Cloud Run / GCP障害 | 異常時新規注文停止 / **取引所側SL必須 (Cloud死んでもSL残る設計)** / 緊急手動決済手順 |
-| **R39** | 通知遅延・未達 | Slack+iPhone Push+メール 3系統並列 / L2承認通知確認ログ必須 / 通知未達なら自律停止 |
+| **R39** | 通知遅延・未達 | KITT音声+iPhone Push+Email 3系統並列 / L2承認通知確認ログ必須 / 通知未達なら自律停止 (Round 46で Slack→KITT+Email に変更、 Shujiはslack不使用) |
 | **R40** | Paper過剰最適化 | paper約定保守的に / **paper約定価格は実Markより 0.05% 不利に設定** / Live rehearsalを Day 26-28 に挿入 |
 | **R41** | 承認疲れ | デイリー承認制 (上記) / 高品質候補だけ通知 / 承認画面短く / 却下も学習データ |
 | **R42** | Cache 自然死 (Gemini指摘) | Cloud Run Min Instances=1 / 5分 keep-alive ダミークエリ |
@@ -226,7 +226,7 @@ Day 31+ (Live移行、 ゲート達成次第):
 | Gemini クエリ (15分毎) | $5-30 |
 | Vertex AI Vector Search (Day 30+) | $20-40 |
 | BigQuery query | $2-10 |
-| Slack/通知 | $0 |
+| 通知 (KITT音声+Email、 Slack不使用) | $0 |
 | Egress | $1-3 |
 | **変動費合計** | **$38-103** |
 
