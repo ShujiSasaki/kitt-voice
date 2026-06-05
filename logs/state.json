@@ -2,30 +2,49 @@
   "current_round": 50,
   "current_subround": 1,
   "round_title": "Bybit撤退後の取引所インフラ再設計 (ゼロベース全リサーチ)",
-  "phase": "in_progress",
+  "round_validity": "incomplete",
+  "phase": "claude_catch_up",
+  "current_step": "writing_minutes + posting_to_gemini",
   "claude": {
     "status": "writing",
-    "label": "議事録書き込み中",
-    "detail": "ダッシュボード実装中"
+    "label": "事務処理キャッチアップ中",
+    "detail": "GPT 4応答のうち 3応答 verbatim追記済 (ed116a7, 551c30d)。 GPT本リサーチ消失検出、 再投稿依頼済。 Gemini に Shuji#5#6 verbatim投稿 → Thinking完了待ち",
+    "single_action_alert": true,
+    "single_action_reason": "ダッシュボード単独実装 (3者議題化せず) - 3者監査待ち"
   },
   "gpt": {
     "status": "thinking",
     "label": "考え中",
-    "detail": "Round 50 第1周本リサーチ + Shuji追加発言#1#2 への応答生成中"
+    "detail": "Shuji#5#6 verbatim+本リサーチ再投稿依頼+ダッシュボード仕様確定済への次手 を生成中",
+    "posted": true,
+    "responded": true,
+    "verify_tokens_received": ["R50-1st-suppl-GATEKEEPER-7364", "R50-1st-suppl-DASHBOARD-SPEC", "R50-1st-SELFCHECK"],
+    "verbatim_recorded": true
   },
   "gemini": {
     "status": "thinking",
-    "label": "考え中",
-    "detail": "Round 50 第1周本リサーチ生成中 (Deep Thinkモード長考)"
+    "label": "Deep Think継続中 (長考)",
+    "detail": "Round 50 第1周本リサーチ (40+取引所、 20+送金経路 ゼロベース) 生成中。 入力欄に Claude古い未送信メッセージあり、 Thinking完了後に Shuji#5#6 verbatim投稿予定",
+    "posted": true,
+    "responded": false,
+    "verify_tokens_received": [],
+    "verbatim_recorded": false
   },
   "shuji_action_required": false,
-  "last_update": "2026-06-05T00:00:00+09:00",
-  "next_action": "GPT/Gemini本リサーチ取得後、 議事録追記+第2周開始",
-  "latest_commit": "2053a0d",
+  "last_update": "2026-06-05T進行中+09:00",
+  "next_action": "1. Gemini Thinking完了待ち → Shuji#5#6投稿 / 2. GPT本リサーチ再投稿取得+追記 / 3. Gemini本リサーチ取得+追記 / 4. ダッシュボード3者監査結果でClaude修正実装",
+  "latest_commit": "551c30d",
   "latest_round_url": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "session_notes": [
-    "Claude単独質問禁止ルール 適用 (2026-06-05)",
-    "発言前 議事録確認ルール 適用 (2026-06-05)",
-    "ぐるぐる継続中、 Shuji確認は議論終結時のみ"
+    "Claude単独質問禁止 (Shuji指示)",
+    "「会議へ発言」 は3者議題、 Claude単独実装禁止 (Shuji指示)",
+    "GPT/Gemini発言前に議事録確認 (Shuji指示)",
+    "Round validity = incomplete (GPT本リサーチ未取得+Gemini本リサーチ未取得)"
+  ],
+  "claude_violations_round50_session": [
+    "GPT 4応答 verbatim 追記遅延 (修正中、 3応答済)",
+    "Shuji#5「会議へ発言」を3者議題化せず単独タブ確認 (修正中、 GPT送信済)",
+    "ダッシュボード単独実装 (3者監査+仕様修正待ち)",
+    "Shuji単独質問4件 (取消済)"
   ]
 }
