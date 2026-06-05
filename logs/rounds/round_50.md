@@ -872,3 +872,76 @@ GPT/Gemini は 自分の次の発言前に **必ず**:
 
 > **末尾Claudeコメント**: 本セクションは Claude単独リサーチ。 結論を出さず、 3者会議の判断材料として40+取引所・20+送金経路・税務・トラベルルール・2028年分離課税予定までを網羅した。 上位5候補は叩き台であり、 Shujiさんの哲学 (「最終的にAIが成績で選ぶ」) に従えば **Phase 0は Hyperliquid / EdgeX / BingX / MEXC の並走 + SBI VCを送金ハブ** が論理的な開始点だが、 これは Round 50 第2周以降で GPT/Gemini と突合してから確定すべき。 Round 46からの**仮想合意 (Hyperliquid主軸+Wise+bitget副)** は本リサーチ結果と一部食い違う (bitget副の根拠が弱い) ため、 ここでも継承しない。
 
+---
+
+## 15. Shujiさん発言 #9 verbatim (会議へ発言、 ぐるぐる3者会議再開指示) — 2026-06-05
+
+> 「会議へ発言
+> 直近の会議がそれぞれの発言で終わってるので、 改めてぐるぐる３者会議に戻してください。 前回の続きからお願いします。 claudeが理解してなければ他の2人が前回からの引き継ぎをサポートしてあげてください。」
+
+### 状況 (Claude整理)
+
+直近、 3者の発言が **各自バラバラ単発で終了** している状態:
+- GPT: Shuji#7・#8 への応答待ち (生成中、 取得未完)
+- Gemini: Shuji#7・#8 への応答待ち (Deep Think長考中、 取得未完)
+- Claude: 議事録追記+state.json更新+ダッシュボード単独実装の後始末 で 事務処理中
+
+→ **「ぐるぐる」 が止まっている** = Shujiさんの指摘そのもの。
+
+### Shuji#9 指示の解釈 (Claude verbatim内容のみ、 補完無し)
+
+1. 直近、 各自の発言で終わって ぐるぐるが止まっている
+2. **改めてぐるぐる3者会議に戻す**
+3. **前回の続きから** 再開
+4. Claudeが理解してなければ、 **他の2人が引き継ぎサポートしてもよい**
+
+### Claude側の整理 (継続課題、 ぐるぐる再開時の論点)
+
+Round 50 第1周で 3者から出た 主要論点 (未解決):
+
+#### A. 取引所候補 (Claude vs Gemini 見解相違)
+- Claude独自リサーチ: BingX/MEXC を「利用可」 と判定 (FSA警告対象でも利用者違法ではない)
+- Gemini第1周本リサーチ: BingX/MEXC を「全部却下」 (規約凍結リスク)
+- → **要議論**
+
+#### B. 採用候補4つ (Gemini確定、 比較未済)
+- Hyperliquid (DEX 50x ノンKYC)
+- dYdX v4 (DEX 20x 完全分散)
+- Exness (CFD 400x+ MT5 国内銀行振込)
+- FXGT (CFD 1000x 暗号特化)
+- → 競合比較 + 主軸/副軸 判定
+
+#### C. Wise送金 (確定: Claude仮想会議の嘘)
+- Gemini暴露: 規約上 暗号関連送金厳禁、 永久凍結リスク
+- Shujiさん認識: 仮想合意で「開設準備寸前」 だった
+- → **代替送金経路** (経路A: CFD国内銀行振込 / 経路B: DEX オンチェーン+中継) を確定
+
+#### D. ダッシュボード仕様 (Gemini6補強提案、 Claude修正実装未着手)
+- atomic化 / State Diff Hook UNSANCTIONED_AI_ACTION_DETECTED / KILL_SWITCH親指リーチゾーン / audit_trail等
+- → Claude実装着手か、 仕様再検討か
+
+#### E. セッション管理 (Shuji#8、 3者自己判断未取得)
+- GPT [RESEARCH-9147] ChatGPT履歴消失 → 新セッション化候補
+- Gemini Deep Think + Web fetch → 維持可能候補
+- Claude プロンプトインフレーション + コンテキスト処理限界バースト → /compact推奨 (実行済 2026-06-05)
+
+→ **Shuji#9以前のClaude /compactは実行済**、 Gemini/GPT は 各自判断未表明。
+
+#### F. GPT [RESEARCH-9147] 再投稿 (失敗中)
+- ChatGPT履歴消失で 第1周本リサーチ verbatim 取得失敗
+- 再投稿依頼中、 応答未受領
+
+#### G. round_50.md セクション順序問題
+- Claude独自リサーチが 末尾に「重複セクション6」 として配置
+- 重要情報は全記載済、 後回し可
+
+### Claude verbatim投稿 計画 (Shuji#9指示遂行)
+
+1. GPTタブに Shuji#9 verbatim + Claude整理 (A-G論点) を verbatim投稿
+2. Geminiタブに 同上 verbatim投稿
+3. **司会=GPT** に「ぐるぐる順序の再起動」 を 議題化要請
+4. 他2人 (GPT/Gemini) からの 引き継ぎサポート (Claudeが見落としている論点があれば 追加)
+5. 議論再開 (前回の続き = Round 50 第1周 残課題)
+
+→ state.json更新+ GPT+Gemini タブで verbatim投稿 開始
+
