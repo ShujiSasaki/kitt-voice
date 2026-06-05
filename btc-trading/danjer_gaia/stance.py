@@ -1,11 +1,19 @@
 """
 Project danjer-GAIA — Slow Brain Stance
 ==========================================
-3者会議 Phase 1 Round 10 合意:
-- スタンス JSON 9項目: direction / confidence / risk_level / valid_until /
-                       max_lev / sl_atr_mult / tp_policy / stance / notes
-- TTL = 15分 (デフォルト)
-- R33 対策: strict_json_schema 強制 + パース失敗時 decay フォールバック
+3者会議 Phase 1 Round 10 合意 + Round 43 (戦略Z v11、 AI制約最小化) 反映:
+
+基本9項目 (Round 10):
+- direction / confidence / risk_level / valid_until /
+  max_lev / sl_atr_mult / tp_policy / stance / notes
+
+v11 拡張 (Round 43、 Shuji方針 AI判断委譲):
+- max_lev上限を 10.0→50.0 (Hyperliquid 理論上限)
+- 新フィールド target_pool_allocation (短期 vs 長期 配分、 AI動的判断)
+- 新フィールド time_horizon (短期/中期/長期、 ロンポチ AI 判別用)
+- 新フィールド recommended_exchange (取引所選定、 AI動的判断、 optional)
+
+TTL = 15分 (デフォルト)、 R33 対策: strict_json_schema + decay フォールバック
 """
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
@@ -17,9 +25,10 @@ import math
 
 StanceLabel = Literal["long_bias", "short_bias", "neutral", "wait"]
 TPPolicy = Literal["fixed", "trailing", "scenario"]
+TimeHorizon = Literal["short_term", "mid_term", "long_term"]  # v11 新規
 
 
-# JSON Schema (Gemini API の structured output 用)
+# JSON Schema (Gemini API の structured output 用、 v11拡張)
 STANCE_JSON_SCHEMA = {
     "type": "object",
     "required": [
@@ -31,29 +40,45 @@ STANCE_JSON_SCHEMA = {
         "confidence":   {"type": "number", "minimum": 0.0,  "maximum": 1.0},
         "risk_level":   {"type": "number", "minimum": 0.0,  "maximum": 1.0},
         "valid_until":  {"type": "string", "format": "date-time"},
-        "max_lev":      {"type": "number", "minimum": 0.0,  "maximum": 10.0},
+        # v11: max_lev上限 10.0 → 50.0 (Hyperliquid理論上限、 AI 判断)
+        "max_lev":      {"type": "number", "minimum": 0.0,  "maximum": 50.0},
         "sl_atr_mult":  {"type": "number", "minimum": 0.5,  "maximum": 5.0},
         "tp_policy":    {"type": "string", "enum": ["fixed", "trailing", "scenario"]},
         "stance":       {"type": "string", "enum": ["long_bias", "short_bias", "neutral", "wait"]},
-        "notes":        {"type": "string"},  # monitor用、 報酬関数の入力からは除外
+        "notes":        {"type": "string"},
+        # v11 新規 (optional)
+        "time_horizon": {"type": "string", "enum": ["short_term", "mid_term", "long_term"]},
+        "target_pool_allocation": {
+            "type": "number", "minimum": 0.0, "maximum": 1.0,
+            # 0.0 = 全て長期プール、 1.0 = 全て短期プール、 AIが動的判断
+        },
+        "recommended_exchange": {
+            "type": "string",
+            "enum": ["hyperliquid", "bitget", "exness", "auto"],
+            # "auto" なら ExchangeRouter が動的選定
+        },
     },
 }
 
 
 @dataclass
 class Stance:
-    """Slow Brain 出力の 1スタンス"""
+    """Slow Brain 出力の 1スタンス (v11拡張、 Round 43)"""
 
     direction: float        # -1.0 (full short) 〜 +1.0 (full long)
     confidence: float       # 0.0 (薄い) 〜 1.0 (確信)
     risk_level: float       # 0.0 (安全) 〜 1.0 (要警戒/罠の匂い)
     valid_until: datetime   # TTL 期限 (UTC)
-    max_lev: float          # 0.0-10.0
+    max_lev: float          # v11: 0.0-50.0 (Hyperliquid理論上限、 AI判断)
     sl_atr_mult: float      # 0.5-5.0 (ATR×係数 で SL距離)
     tp_policy: TPPolicy     # 利確戦略
     stance: StanceLabel     # 全体姿勢ラベル
     notes: str = ""         # monitor用 (報酬関数の入力からは除外、 R33対策)
     issued_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # v11 新規フィールド (optional、 既存テスト互換性維持)
+    time_horizon: Optional[TimeHorizon] = None  # AI判断: 短期/中期/長期
+    target_pool_allocation: Optional[float] = None  # 0.0-1.0 = 長期/短期 配分
+    recommended_exchange: Optional[str] = None  # "hyperliquid"/"bitget"/"exness"/"auto"
 
     def is_expired(self, now: Optional[datetime] = None) -> bool:
         """TTL 期限切れか?"""

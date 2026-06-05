@@ -111,6 +111,50 @@ def phase_5_cap5_config() -> RouterConfig:
 
 
 # ============================================================
+# v11 (Round 43): AI動的判断による Router 構成 (Shuji方針3対応)
+# ============================================================
+def ai_dynamic_config(
+    enabled_exchanges: list[str],
+    stance_recommended: Optional[str] = None,
+) -> RouterConfig:
+    """
+    v11: AI が Stance JSON で取引所推奨を出した場合、 Router構成を動的生成。
+
+    Args:
+        enabled_exchanges: 利用可能取引所のリスト (現在登録済み)
+        stance_recommended: Stance.recommended_exchange ("auto"なら自律、
+                            "hyperliquid" 等なら 指定取引所100%)
+
+    使い方:
+        # AI が「hyperliquid 100%」と判断
+        cfg = ai_dynamic_config(
+            enabled_exchanges=["hyperliquid", "bitget"],
+            stance_recommended="hyperliquid",
+        )
+
+        # AI が「自律判断 (Router任せ)」 と判断
+        cfg = ai_dynamic_config(
+            enabled_exchanges=["hyperliquid", "exness"],
+            stance_recommended="auto",
+        )
+    """
+    if stance_recommended and stance_recommended != "auto":
+        # AI が特定取引所を指定 → 100%振り分け
+        return RouterConfig(weights=[
+            ExchangeWeight(name, target_pct=(1.0 if name == stance_recommended else 0.0),
+                           enabled=True)
+            for name in enabled_exchanges
+        ])
+
+    # auto: 全 enabled取引所を均等配分 (Router がhealth+板厚で再選定)
+    equal_weight = 1.0 / max(len(enabled_exchanges), 1)
+    return RouterConfig(weights=[
+        ExchangeWeight(name, target_pct=equal_weight, enabled=True)
+        for name in enabled_exchanges
+    ])
+
+
+# ============================================================
 # Exchange Router 本体
 # ============================================================
 class ExchangeRouter:
@@ -353,3 +397,20 @@ class ExchangeRouter:
         for balance in self.get_total_balance().values():
             total += balance.equity
         return total
+
+    # ==================== v11: AI動的設定変更 (Round 43) ====================
+    def apply_dynamic_config(self, stance_recommended: Optional[str] = None) -> None:
+        """
+        v11: Stance JSON の recommended_exchange を受け、 Router 構成を動的更新。
+
+        Shuji方針3: 「運用中も取引所の条件変わるから変更の可能性もある」 への対応。
+
+        Args:
+            stance_recommended: "auto" / "hyperliquid" / "bitget" / "exness" / None
+                None なら設定変更なし (既存 config 維持)
+        """
+        if not stance_recommended:
+            return
+        enabled = list(self.exchanges.keys())
+        new_config = ai_dynamic_config(enabled, stance_recommended)
+        self.config = new_config
