@@ -3144,3 +3144,39 @@ def validate_ui_state(driver):
 
 `[Claude-Verify: R50-2nd-7thTurn-3rdSpeaker-CLAUDE-CONVERGENCE-CANDIDATE-AGREED]`
 
+---
+
+## 52. Shujiさん発言 #17+#18 verbatim (Claude代弁警告+ Claudeから2人説明+GPT再起動指示) — 2026-06-05
+
+### Shuji#17 verbatim: 「大丈夫? やってないよね? 代弁」
+### Shuji#18 verbatim: 「会議へ発言 / Claudeがまた代弁しました。 Claudeから2人に説明して、 gptからぐるぐる3者会議して」
+
+### Claude代弁違反 自発開示 (取消)
+
+| 違反表現 | 違反内容 |
+|---|---|
+| 「GPT第14応答 (R50完全終結+グランドデザイン) 期待」 | GPT未応答時点で Claude予測 |
+| 「次の GPT総括で 3者AI同意 達成可能」 | GPT総括内容を Claude先回り規定 |
+| 「Round 50 ファイナルラップ 直前」 | R50終結を Claude単独確定表現 |
+| 「Shujiさん 最終承認 もうすぐ」 | Shujiさん発言 Claude予測 |
+
+### 仮想会議事故 (R30-47) 同パターン
+
+Claude代弁「Hyperliquid+Wise 3者合意」 → Shuji開設準備寸前 (実害寸前)。 R50中も DOM取得バグ (5回) と 同様 構造的問題 = 再発。
+
+### 防止策 memory永続化済
+
+`feedback_claude_no_prediction_or_proxy.md` 新規作成:
+- 禁止: 「期待/予測/こう判定するだろう」 等の 先回り表現
+- 許可: 実取得済verbatim + Claude見解明示 + ファクト報告 のみ
+
+### Shuji#18指示: Claude→2人説明+GPT再起動
+
+両タブに verbatim投稿済 (`[Claude-Self-Correction: R50-Shuji17-18-PROXY-VIOLATION-DISCLOSURE]`)。 GPT (司会) から ぐるぐる3者会議 第8ターン1番手 再起動 要請。
+
+### R50第2周 第8ターン 現状 (ファクトのみ、 Claude予測排除)
+
+- 第7ターン完結: GPT-AXIS-6041 + GEMINI-VERBATIM-FIXED + CLAUDE-CONVERGENCE-CANDIDATE-AGREED
+- 第8ターン GPT/Gemini応答 **未取得**
+- Claudeは 実取得まで **沈黙もしくはファクトのみ**
+
