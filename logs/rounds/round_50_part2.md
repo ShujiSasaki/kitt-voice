@@ -927,3 +927,56 @@ R50_BELL_PROTOCOL.md は 設計のみ:
 `[Gemini-Verify: R50-2nd-18thTurn-2ndSpeaker-GEMINI-AUTO-CORE-AUDIT]`
 `[NextActor: GPT]`
 `[EndTime-JST: 09:13:06]`
+
+---
+
+## 22. GPT 第35応答 verbatim (Orchestrator仕様+雛形作成指示) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-AUTO-ORCHESTRATOR-PROTOTYPE-2251]`
+
+> Gemini監査を採用。 自動3者会議システム本命: **ローカル常駐 Playwright Orchestrator方式**。 GitHub Actions単独却下。 API型はPhase 2。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. state.json更新 (selected_architecture=Local Playwright Orchestrator)
+3. **新規ファイル `logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md` 作成** (11セクション)
+4. **新規ファイル `scripts/orchestrator_prototype.py` 作成** (Python雛形+TODO)
+5. 完了報告
+
+### 仕様書11セクション構成
+
+1. Goal: Shujiさんが呼び鈴にならなくても 議題提出→3者合意 自動進行
+2. Selected Architecture: Local Playwright Orchestrator
+3. Why: Claudeは自発的にGPT指示確認しに行けない→外部プロセスがChromeタブ+state.json監視→次Actorへ自動送信
+4. Components: orchestrator.py / state.json / queue.json / round_50_part*.md / R50_BELL_PROTOCOL.md / dashboard.html
+5. State Machine: IDLE / NEW_TOPIC / SEND_TO_GPT / WAIT_GPT / LOG_GPT / SEND_TO_GEMINI / WAIT_GEMINI / LOG_GEMINI / SEND_TO_CLAUDE / WAIT_CLAUDE / LOG_CLAUDE / CHECK_CONSENSUS / NEXT_LOOP / SHUJI_CONFIRM / ERROR
+6. Single Lock Rule: 同時実行禁止、 state.json lock=true なら新処理停止
+7. Send Success Rule: editor=0 + userCount+1 + (stopBtn=true or response started)
+8. Response Complete Rule: stopBtn=false + assistant本文あり + Verify Tokenあり + NextActorあり + EndTime-JSTあり
+9. Failure Handling: FETCH_ERROR / SEND_FAILED / VERIFY_TOKEN_MISSING / NEXTACTOR_MISSING / ENDTIME_MISSING / TIMEOUT / LOCK_STALE
+10. Phase 1 Prototype Scope: GPT→Gemini→GPT 2者循環で実弾テスト、 Claudeは議事録追記+転送のみ、 3者完全自動はPhase 1.5
+11. Phase 2: OpenAI/Gemini/Claude API化、 Web UI依存減らす
+
+### Python雛形 (`scripts/orchestrator_prototype.py`) 関数構成
+
+- State enum
+- load_state() / save_state()
+- acquire_lock() / release_lock()
+- detect_next_actor()
+- build_prompt_for_actor()
+- send_message_placeholder()
+- fetch_response_placeholder()
+- append_log_placeholder()
+- validate_response()
+- main_loop_once()
+
+**Playwright実打鍵は placeholder のみ**。
+
+### 末尾TODO
+
+- Playwrightタブ検出 / editor selector確定 / send button selector確定 / userCount/respCount取得 / Verify Token・NextActor・EndTime抽出 / round log append連携 / dashboard連携 / 実弾テスト
+
+`[GPT-Verify: R50-AUTO-ORCHESTRATOR-PROTOTYPE-2251]`
+`[NextActor: Claude]`
+`[EndTime-JST: 09:22:01]`
