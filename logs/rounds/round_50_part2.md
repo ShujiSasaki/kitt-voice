@@ -4593,3 +4593,69 @@ Gemini Priority 2 verbatim受領。 Claude 3スロット監査指示。
 `[priority2-consensus_candidate-current: false]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 96. GPT 第128応答 verbatim (Round 2 Source Verification命令) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PRIORITY2-ROUND2-SOURCE-VERIFICATION-7328]`
+
+Claude P2監査受領。 Round 2 Source Verification進める。
+
+### Claudeへの指示
+1-3. Source Verification Matrix + Round 2 Claude Source Audit ファイル作成
+4. 15 claims公式ソース確認
+5. ソース優先順位: 取引所公式 > 金融庁/JVCEA > 公式ヘルプ > 非公式は「参考、 未確定」
+6. 判定ルール: Verified/Pending/Contradicted、 Pending残在ればconsensus_candidate=false維持
+7. Gemini未送信、 real_send=false維持
+
+`[GPT-Verify: R50-PRIORITY2-ROUND2-SOURCE-VERIFICATION-7328]`
+`[NextActor: Claude]`
+`[EndTime-JST: 07:27:52 (GPT推定値)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 97. Claude Round 2 Source Verification完了 — 2026-06-07
+
+### Verify Token: `[Claude-Verify: R50-PRIORITY2-ROUND2-SOURCE-VERIFICATION-COMPLETE]`
+
+### 新規ファイル作成
+- `logs/rounds/R50_PRIORITY2_SOURCE_VERIFICATION_MATRIX.md` (15 claims詳細Matrix)
+- `logs/rounds/R50_PRIORITY2_ROUND2_CLAUDE_SOURCE_AUDIT.md` (Verified/Provisional/Pending分類 + Provisional Route Draft + Gemini再監査質問5件)
+
+### 検証結果
+- **Verified 9件**: SBI VC→USDC / GMO SOL / bitbank SOL / GMO USDC× / bitFlyer USDC× / bitbank USDC× / GMO出金手数料無料 / Travel Rule 2026運用 / Hyperliquid日本居住者可否
+- **Provisional Confirmed 3件**: XRP fee/速度 / SOL fee/速度 / SOL→USDC=利確
+- **Pending 3件**: bitFlyer SOL公式 (403) / Hyperliquid個別case / bitbank fee表 (404)
+- **Contradicted 0件**
+
+### 重要発見
+- **Gemini主張は全Verified領域で公式整合** (国内3社USDC× / SBI VCのみUSDC直購入対応 / GMO出金手数料無料 / Travel Rule TRUST/Sygna 2大ソリューション)
+- **Verified領域でGemini結論方向性は正しい** (経路A/B分離、 個人ウォレット中継必須、 SOL/XRP中継、 GMO中継基地最優先、 国内USDC直送不可)
+
+### 暫定経路Draft
+- 経路A: 国内銀行振込/クレカ → Exness (CFD検証枠)
+- 経路B主軸: **GMOコイン → SOL → 個人Phantom Wallet → Hyperliquid**
+- 経路B Backup: bitbank → SOL → 個人WL → Hyperliquid (bitbank fee確認後)
+- 経路B Backup2: SBI VC → USDC → 個人WL → Hyperliquid (DEX直送制限確認後)
+- 却下: 国内CEX→USDC直送, 国内CEX→Hyperliquid直送
+
+### Gemini再監査質問 5件
+- Q1: bitFlyer SOL公式 (Claude fetch失敗のため)
+- Q2: Hyperliquid個別case 凍結事例
+- Q3: bitbank fee表 (Claude fetch失敗のため)
+- Q4: 経路B複線化 / GMO単一障害点リスク
+- Q5: Hyperliquid法的グレーゾーン具体リスク
+
+### Priority 2 consensus_candidate
+**false維持** (Pending 3件残存のため、 ただし Gemini Q1-Q5回答受領後の Round 3 で判定可能)
+
+`[Claude-Verify: R50-PRIORITY2-ROUND2-SOURCE-VERIFICATION-COMPLETE]`
+`[NextActor: GPT]`
+`[EndTime-JST: 07:36:00 (real Bash取得)]`
+`[priority2-consensus_candidate-current: false]`
+`[verified_count: 9 / provisional: 3 / pending: 3 / contradicted: 0]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
