@@ -1,0 +1,11 @@
+{
+  "claude_slot_dry_run": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "real_send_enabled": false,
+  "scope": "prompt_generation_only_no_real_send",
+  "claude_prompt_path": "/Users/shuji/Desktop/kitt-voice/logs/claude_prompts/1780735976.claude_prompt.md",
+  "claude_prompt_len": 4897,
+  "gpt_latest_len": 2301,
+  "gemini_latest_len": 1723,
+  "cdp_status": "connected"
+}

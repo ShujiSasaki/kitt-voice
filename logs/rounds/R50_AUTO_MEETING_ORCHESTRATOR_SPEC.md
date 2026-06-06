@@ -164,6 +164,38 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 27. Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
+
+### Purpose
+Claudeを3番手の思考・監査者として自動会議に組み込む前に、 Claude向けプロンプト生成だけをdry-run。
+
+### Scope
+- No Claude Web automation
+- No Claude Code execution
+- No real send
+- Generate prompt file only
+
+### Output
+- `logs/claude_prompts/{timestamp}.claude_prompt.md`
+- `logs/dry_run/{timestamp}.claude_slot_dry_run.json`
+
+### Claude prompt format
+```
+## 1. 前1人監査
+Geminiの直前発言を監査してください。
+
+## 2. 前2人監査
+GPTの直前発言を監査してください。
+
+## 3. 自己ターン
+Claude自身の実装担当・監査担当として、 実装可能性、 脆弱性、 合意可否を述べてください。
+
+必須末尾:
+[Claude-Verify: R50-CLAUDE-SLOT-DRYRUN]
+[NextActor: GPT]
+[EndTime-JST: HH:MM:SS]
+```
+
 ## 26. Phase 1.5 Claude Slot Integration Plan (GPT第59 R50-SHUJI29-A-APPROVAL-CLAUDE-SLOT-PREP-5061)
 
 ### Goal

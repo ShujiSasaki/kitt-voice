@@ -2065,6 +2065,172 @@ def _persist_multi_round(result: dict, restore_false: bool = True) -> None:
     save_state(state)
 
 
+# =====================
+# Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
+# =====================
+CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
+
+
+def run_claude_slot_dry_run() -> int:
+    """GPT指示 R50-CMD-CLAUDE-SLOT-DRY-RUN: Claude向け3スロットプロンプト生成のみ、 実Sendなし"""
+    print("=" * 60)
+    print("R50 Claude Slot Dry-run (GPT-Verify: R50-CLAUDE-SLOT-DRY-RUN-9174)")
+    print("=" * 60)
+
+    result = {
+        "claude_slot_dry_run": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "real_send_enabled": False,
+        "scope": "prompt_generation_only_no_real_send",
+    }
+
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        gpt_latest = "(GPT最新応答取得失敗時のダミー)"
+        gemini_latest = "(Gemini最新応答取得失敗時のダミー)"
+        cdp_status = "skipped"
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                    cdp_status = "connected"
+                    gemini_page = None
+                    chatgpt_page = None
+                    for ctx in browser.contexts:
+                        for page in ctx.pages:
+                            if "gemini.google.com" in page.url and gemini_page is None:
+                                gemini_page = page
+                            elif "chatgpt.com/g/g-p-" in page.url and chatgpt_page is None:
+                                chatgpt_page = page
+                    if chatgpt_page:
+                        chatgpt_page.bring_to_front()
+                        gpt_latest = chatgpt_page.evaluate("""() => {
+                            const turns = document.querySelectorAll('[data-testid^=\"conversation-turn-\"]');
+                            const last = turns[turns.length - 1];
+                            return last ? (last.textContent || '').slice(0, 4000) : '(empty)';
+                        }""")
+                    if gemini_page:
+                        gemini_page.bring_to_front()
+                        gemini_latest = gemini_page.evaluate("""() => {
+                            const responses = document.querySelectorAll('model-response');
+                            const last = responses[responses.length - 1];
+                            return last ? (last.textContent || '').slice(0, 4000) : '(empty)';
+                        }""")
+                    print(f"[3] CDP fetch: gpt={len(gpt_latest)}chars gemini={len(gemini_latest)}chars")
+                except Exception as e:
+                    cdp_status = f"failed_using_dummy: {e}"
+                    print(f"[3] CDP fetch failed (using dummy): {e}")
+        except ImportError:
+            cdp_status = "playwright_not_installed_using_dummy"
+            print("[3] Playwright not installed → using dummy text")
+
+        ts = int(time.time())
+        ts_str = time.strftime('%H:%M:%S')
+        CLAUDE_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+        prompt_path = CLAUDE_PROMPTS_DIR / f"{ts}.claude_prompt.md"
+
+        claude_prompt_content = f"""# Claude Slot 3-Stage Prompt (R50-CLAUDE-SLOT-DRYRUN)
+
+Generated at: JST {ts_str}
+Source: Orchestrator dry-run (no real send, no Claude execution)
+
+---
+
+## 1. 前1人監査
+
+Geminiの直前発言を監査してください。
+
+### Gemini直前発言 (verbatim, truncated 4000chars):
+```
+{gemini_latest}
+```
+
+### 監査観点
+- 技術・脆弱性
+- 過剰同意チェック
+- 論理整合性
+- 直前GPT発言との矛盾有無
+
+---
+
+## 2. 前2人監査
+
+GPTの直前発言を監査してください。
+
+### GPT直前発言 (verbatim, truncated 4000chars):
+```
+{gpt_latest}
+```
+
+### 監査観点
+- 司会権限 (議論回す役のみ) 逸脱有無
+- 決済代弁有無
+- Shuji代弁有無
+- Gemini監査受領の妥当性
+
+---
+
+## 3. 自己ターン (Claude発言)
+
+Claude自身の **実装担当 + 監査担当** として、 以下を述べてください:
+
+1. 実装可能性 (Claude Code/CLI/file-based方式での実現性、 工数見積もり)
+2. 脆弱性 (DOMバグ/stall/race condition/Shuji代弁リスク)
+3. 合意可否 (`consensus_approved: true/false`)
+4. unresolved_critical_issues (空配列または具体的issue列挙)
+
+---
+
+必須末尾:
+```
+[Claude-Verify: R50-CLAUDE-SLOT-DRYRUN]
+[NextActor: GPT]
+[EndTime-JST: HH:MM:SS]
+[Claude-Approve-or-Disagree: <true|false>]
+```
+"""
+
+        with open(prompt_path, "w", encoding="utf-8") as f:
+            f.write(claude_prompt_content)
+        print(f"[4] Claude prompt written: {prompt_path} ({len(claude_prompt_content)}chars)")
+
+        result["claude_prompt_path"] = str(prompt_path)
+        result["claude_prompt_len"] = len(claude_prompt_content)
+        result["gpt_latest_len"] = len(gpt_latest)
+        result["gemini_latest_len"] = len(gemini_latest)
+        result["cdp_status"] = cdp_status
+        result["claude_slot_dry_run"] = "PASSED"
+
+        DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+        rp = DRY_RUN_DIR / f"{ts}.claude_slot_dry_run.json"
+        with open(rp, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        result["result_dump"] = str(rp)
+        print(f"[5] result json: {rp}")
+
+        s = load_state()
+        s["claude_slot_dry_run_result"] = result
+        s["real_send_enabled"] = False
+        save_state(s)
+        return 0
+    except Exception as e:
+        result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+        s = load_state()
+        s["claude_slot_dry_run_result"] = result
+        save_state(s)
+        return 1
+    finally:
+        release_lock(load_state())
+        after = load_state()
+        print(f"[final] lock={after.get('lock')} real_send_enabled={after.get('real_send_enabled')}")
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -2088,6 +2254,8 @@ if __name__ == "__main__":
         sys.exit(run_real_topic_relay_test())
     if "--multi-round-consensus-test" in sys.argv:
         sys.exit(run_multi_round_consensus_test())
+    if "--claude-slot-dry-run" in sys.argv:
+        sys.exit(run_claude_slot_dry_run())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
