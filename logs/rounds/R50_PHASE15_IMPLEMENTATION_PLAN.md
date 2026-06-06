@@ -221,9 +221,20 @@
 - `--p1-self-test` PASSED 全8項目
 - real_send_enabled=false 維持確認済
 
-### Phase 3 (P2): ⏳ 次フェーズ
-- Claude Code event-driven slot (trigger_claude_when_needed / build_claude_job / run_claude_code_once / watch_claude_done_marker)
+### Phase 3 (P2): ✅ 完了 (06:01)
+- Claude Code event-driven slot (trigger_claude_when_needed / build_claude_job / _spawn_claude_subprocess / _MockClaudePopen / watch_claude_done_marker / run_claude_code_once with retry)
 - Phase 2 readiness metrics (evaluate_phase2_readiness / record_phase2_metrics)
+- `--p2-self-test` PASSED 全9項目
+- real_send_enabled=false 維持確認済
+- Mock mode実装 (env CLAUDE_MOCK_MODE = success/timeout/error)
+
+### 🎯 Phase 1.5 全6項目 実装完了
+- P0-1: race condition (acquire_lock_atomic O_EXCL)
+- P0-2: stall Watchdog (3分類 + system_recovery_reset_round)
+- P1-1: Shuji proxy pre-check (JUSTIFY_PROXY_SAFE 2段階)
+- P1-2: token overflow strategy (compact + handoff)
+- P2-1: Claude Code event-driven slot (subprocess + atomic rename)
+- P2-2: Phase 2 trigger definition (readiness metrics)
 
 `[Plan-Verify: R50-PHASE15-IMPLEMENTATION-PLAN]`
 `[NextActor: Claude implementation]`

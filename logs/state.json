@@ -314,5 +314,8 @@
         }
       ]
     }
-  ]
+  ],
+  "claude_job_in_progress": false,
+  "claude_job_started_at": 1780779539,
+  "claude_job_completed_at": 1780779539
 }

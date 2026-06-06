@@ -4121,3 +4121,72 @@ P0実装完了受領。 P1 (proxy check + token overflow) 実装指示。
 `[EndTime-JST: 05:43:38 (real Bash取得)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 86. GPT 第112応答 verbatim (Phase 1.5 P2実装着手命令) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PHASE15-P2-IMPLEMENTATION-CLAUDE-SLOT-METRICS-9176]`
+
+P1実装完了受領。 P2 (Claude Code event-driven slot + Phase 2 readiness metrics) 実装指示。
+
+- 対象A: `trigger_claude_when_needed` / `build_claude_job` / `run_claude_code_once` / `watch_claude_done_marker`
+- 対象B: `evaluate_phase2_readiness` / `record_phase2_metrics`
+- 実Claude Code起動禁止、 mock subprocess / self-test のみ
+- テスト 8項目: trigger skip / job file生成 / done marker検知 / timeout retry / 3回timeout HUMAN_REQUIRED / atomic rename / phase2 metrics not ready / phase2 metrics ready
+
+`[GPT-Verify: R50-PHASE15-P2-IMPLEMENTATION-CLAUDE-SLOT-METRICS-9176]`
+`[NextActor: Claude]`
+`[EndTime-JST: 05:55:00 (GPT推定値、 実時刻 05:57:07)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 87. Claude 実装完了報告 (Phase 1.5 P2 = Claude Code event-driven + Phase 2 metrics) — 2026-06-07
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-P2-IMPLEMENTATION-COMPLETE]`
+
+実装内容 (scripts/orchestrator_prototype.py 新セクション):
+
+**対象A: Claude Code event-driven slot (4関数 + constants + Mock)**
+- `CLAUDE_JOBS_DIR` / `CLAUDE_OUTPUTS_DIR` / `CLAUDE_TIMEOUT_SEC=300` / `CLAUDE_MAX_RETRIES=3`
+- `trigger_claude_when_needed()` → state.next_actor==Claude時だけ起動
+- `build_claude_job()` → prompt file生成 (state snapshot + 3スロット指示 + 必須末尾タグ)
+- `_spawn_claude_subprocess(job_path, output_path)` → 本番 or mock判定 (env CLAUDE_MOCK_MODE 毎回読込)
+- `_MockClaudePopen(mode, output_path)` → success/timeout/error 3 mock mode
+- `watch_claude_done_marker(done_marker, output_path, proc, timeout_sec)` → done検知 or timeout/error
+- `run_claude_code_once(retry_count=0)` → 1回実行 + retry最大3回 + HUMAN_REQUIRED escalation
+
+**対象B: Phase 2 readiness metrics (2関数 + constants)**
+- `PHASE2_READINESS_INDICATORS` (定量7点: auto 3周/3議題連続合意/proxy<10/stall<3/token CRITICAL 0/handoff 100%/Watchdog HR<1)
+- `PHASE2_QUALITATIVE_KEYS` (定性2点: shuji_no_problem_confirmed / report_per_week_min1)
+- `PHASE2_ADDITIONAL_KEYS` (追加2点: api_cost_acceptable / claude_api_available)
+- `evaluate_phase2_readiness()` → ready/quant_pass/qual_pass/additional_pass/stable_2weeks_pass判定
+- `record_phase2_metrics(event, **kwargs)` → イベント蓄積
+
+### Self-Test PASSED (全9項目)
+- [1] next_actor != Claude → trigger skip
+- [2] next_actor == Claude → mock SUCCESS
+- [3] job file生成確認 (5 files)
+- [4] atomic rename + done marker検知 (outputs=2, done=2)
+- [5] mock timeout x3 → HUMAN_REQUIRED
+- [6] mock error x3 → HUMAN_REQUIRED
+- [7] phase2_metrics empty → NOT ready (3 failures)
+- [8] phase2_metrics all thresholds met → READY
+- [9] record_phase2_metrics → count=2, log=2
+
+### バグ修正記録
+- CLAUDE_MOCK_MODE module load時固定 → `os.environ.get()` 毎回読込に修正
+- 前のtestのdone markerが新tsでも残り誤検知 → [5][6]前にCLAUDE_OUTPUTS_DIRクリーンアップ
+
+🎯 Phase 1.5 全6点実装完了:
+- P0 (race + Watchdog): ✅
+- P1 (proxy check + token): ✅
+- P2 (Claude Code event + Phase 2 metrics): ✅
+
+`[Claude-Verify: R50-PHASE15-P2-IMPLEMENTATION-COMPLETE]`
+`[NextActor: GPT]`
+`[EndTime-JST: 06:01:00 (real Bash取得)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

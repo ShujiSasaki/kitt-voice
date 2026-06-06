@@ -2723,6 +2723,353 @@ def run_p1_self_test() -> int:
 
 
 # =====================
+# Phase 1.5 Phase 3 (P2): Claude Code event-driven slot + Phase 2 readiness metrics
+# Approved by GPT (R50-PHASE15-P2-IMPLEMENTATION-CLAUDE-SLOT-METRICS-9176)
+# 設計: Section 75 (Claude案) / Gemini第26 100点満点
+# =====================
+
+import subprocess
+
+CLAUDE_JOBS_DIR = LOGS_DIR / "claude_jobs"
+CLAUDE_OUTPUTS_DIR = LOGS_DIR / "claude_outputs"
+CLAUDE_TIMEOUT_SEC = 300
+CLAUDE_MAX_RETRIES = 3
+
+# mock subprocess for self-test (env CLAUDE_MOCK_MODE = success/timeout/error)
+CLAUDE_MOCK_MODE = os.environ.get("CLAUDE_MOCK_MODE", "")
+
+
+def trigger_claude_when_needed() -> dict:
+    """Phase 1.5 P2: Orchestrator main loopでstate.next_actor監視、 Claudeターン検知でsubprocess起動"""
+    state = load_state()
+    if state.get("next_actor") != "Claude":
+        return {"status": "skip", "reason": "not_claude_turn", "next_actor": state.get("next_actor")}
+    if state.get("claude_job_in_progress"):
+        return {"status": "skip", "reason": "claude_job_already_in_progress"}
+    return run_claude_code_once()
+
+
+def build_claude_job() -> Path:
+    """Phase 1.5 P2: Claude prompt job file生成 (state snapshot + 3スロット指示 + 必須末尾タグ)"""
+    CLAUDE_JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    state = load_state()
+    job_path = CLAUDE_JOBS_DIR / f"{ts}.job.md"
+    snap_keys = ('current_phase', 'current_step', 'next_actor', 'unresolved_critical_issues', 'blocker')
+    snapshot = {k: state.get(k) for k in snap_keys}
+    content = (
+        f"# Claude Job (round {state.get('current_round')}, ts={ts})\n\n"
+        f"## Current state snapshot\n```json\n{json.dumps(snapshot, ensure_ascii=False, indent=2)}\n```\n\n"
+        f"## 3スロット指示\n"
+        f"### 1. 前1人監査\n直前のGemini発言を監査してください。\n\n"
+        f"### 2. 前2人監査\n直前のGPT発言を監査してください。\n\n"
+        f"### 3. 自己ターン\n"
+        f"Claude自身の実装担当・監査担当として、 実装可能性、 脆弱性、 合意可否を述べてください。\n\n"
+        f"## 必須末尾\n"
+        f"```\n"
+        f"[Claude-Verify: <token>]\n"
+        f"[NextActor: GPT]\n"
+        f"[EndTime-JST: HH:MM:SS]\n"
+        f"[is_shuji_represented: false]\n"
+        f"[no_proxy_violation: true]\n"
+        f"```\n"
+    )
+    job_path.write_text(content, encoding="utf-8")
+    return job_path
+
+
+def _spawn_claude_subprocess(job_path: Path, output_path: Path) -> "subprocess.Popen":
+    """Claude Code subprocess起動 (本番)
+    mock mode (env CLAUDE_MOCK_MODE) の時は mock subprocess を返す (毎回env読込)
+    """
+    mock_mode = os.environ.get("CLAUDE_MOCK_MODE", "")
+    if mock_mode in ("success", "timeout", "error"):
+        return _MockClaudePopen(mock_mode, output_path)
+    cmd = ["claude", "code", "--prompt-file", str(job_path), "--output", str(output_path)]
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+class _MockClaudePopen:
+    """テスト用 mock subprocess"""
+    def __init__(self, mode: str, output_path: Path):
+        self.mode = mode
+        self.output_path = output_path
+        self.returncode = None
+        self._start = time.time()
+        self.stdout = io.BytesIO(b"")
+        self.stderr = io.BytesIO(b"")
+        if mode == "success":
+            # すぐに output + done marker 作る (atomic rename)
+            tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path.write_text("Mock Claude response\n[Claude-Verify: MOCK]\n[NextActor: GPT]\n[EndTime-JST: 00:00:00]\n", encoding="utf-8")
+            os.rename(tmp_path, output_path)
+            done_marker = Path(str(output_path) + ".done")
+            done_marker.touch()
+            self.returncode = 0
+
+    def poll(self):
+        if self.mode == "timeout":
+            return None  # 永遠に終わらない
+        if self.mode == "error":
+            self.returncode = 1
+            return 1
+        return self.returncode
+
+    def kill(self):
+        self.returncode = -9
+
+
+def watch_claude_done_marker(done_marker: Path, output_path: Path, proc, timeout_sec: int) -> dict:
+    """Phase 1.5 P2: done marker (atomic rename後) を watch、 timeout監視"""
+    start = time.time()
+    while time.time() - start < timeout_sec:
+        if done_marker.exists():
+            try:
+                response = output_path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                response = ""
+            return {"status": "SUCCESS", "response": response, "elapsed_sec": int(time.time() - start)}
+        if proc.poll() is not None and proc.returncode != 0:
+            return {"status": "ERROR", "error": f"exit_code={proc.returncode}"}
+        time.sleep(0.5)
+    proc.kill()
+    return {"status": "TIMEOUT", "elapsed_sec": int(time.time() - start)}
+
+
+def run_claude_code_once(retry_count: int = 0) -> dict:
+    """Phase 1.5 P2: Claude Code subprocess を1回実行、 done marker待ち"""
+    CLAUDE_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    job_path = build_claude_job()
+    output_path = CLAUDE_OUTPUTS_DIR / f"{ts}.response.md"
+    done_marker = Path(str(output_path) + ".done")
+
+    state = load_state()
+    state["claude_job_in_progress"] = True
+    state["claude_job_started_at"] = ts
+    save_state(state)
+
+    timeout = 3 if os.environ.get("CLAUDE_MOCK_MODE", "") else CLAUDE_TIMEOUT_SEC  # mock時は短縮
+    try:
+        proc = _spawn_claude_subprocess(job_path, output_path)
+        result = watch_claude_done_marker(done_marker, output_path, proc, timeout)
+    except FileNotFoundError as e:
+        result = {"status": "ERROR", "error": f"claude_cli_not_found: {e}"}
+    except Exception as e:
+        result = {"status": "ERROR", "error": f"{type(e).__name__}: {e}"}
+
+    state = load_state()
+    state["claude_job_in_progress"] = False
+    state["claude_job_completed_at"] = int(time.time())
+    save_state(state)
+
+    if result["status"] in ("ERROR", "TIMEOUT") and retry_count < CLAUDE_MAX_RETRIES - 1:
+        return run_claude_code_once(retry_count + 1)
+    if result["status"] in ("ERROR", "TIMEOUT"):
+        state["claude_human_required"] = True
+        save_state(state)
+        return {"status": "HUMAN_REQUIRED", "result": result, "retries": CLAUDE_MAX_RETRIES}
+    return result
+
+
+# ---- Phase 2 readiness metrics ----
+
+PHASE2_READINESS_INDICATORS = {
+    "auto_3_rounds_per_topic": ("min", 3),
+    "consensus_3_topics_consecutive": ("min", 3),
+    "proxy_violations_per_week": ("max", 10),
+    "stall_recoveries_per_week": ("max", 3),
+    "token_overflow_critical_per_week": ("max", 0),
+    "handoff_success_rate": ("min", 1.0),
+    "watchdog_human_required_per_week": ("max", 1),
+}
+
+PHASE2_QUALITATIVE_KEYS = ("shuji_no_problem_confirmed", "report_per_week_min1")
+PHASE2_ADDITIONAL_KEYS = ("api_cost_acceptable", "claude_api_available")
+
+
+def evaluate_phase2_readiness() -> dict:
+    """Phase 1.5 P2: Phase 2 (公式API化) 移行可否判定"""
+    state = load_state()
+    metrics = state.get("phase2_metrics", {})
+    failures = []
+    for key, (kind, threshold) in PHASE2_READINESS_INDICATORS.items():
+        actual = metrics.get(key, 0)
+        if kind == "min" and actual < threshold:
+            failures.append({"indicator": key, "kind": kind, "actual": actual, "threshold": threshold})
+        elif kind == "max" and actual > threshold:
+            failures.append({"indicator": key, "kind": kind, "actual": actual, "threshold": threshold})
+    qual = state.get("phase2_qualitative", {})
+    qual_pass = all(qual.get(k, False) for k in PHASE2_QUALITATIVE_KEYS)
+    additional = state.get("phase2_additional", {})
+    additional_pass = all(additional.get(k, False) for k in PHASE2_ADDITIONAL_KEYS)
+    stable_days = state.get("phase2_stable_days", 0)
+    stable_pass = stable_days >= 14
+    ready = len(failures) == 0 and qual_pass and additional_pass and stable_pass
+    return {
+        "ready": ready,
+        "quant_pass": len(failures) == 0,
+        "qual_pass": qual_pass,
+        "additional_pass": additional_pass,
+        "stable_2weeks_pass": stable_pass,
+        "stable_days": stable_days,
+        "failures": failures,
+        "metrics": metrics,
+    }
+
+
+def record_phase2_metrics(event: str, **kwargs) -> None:
+    """Phase 1.5 P2: 指標イベントを蓄積"""
+    state = load_state()
+    metrics = state.setdefault("phase2_metrics", {})
+    metrics.setdefault(event, 0)
+    metrics[event] += 1
+    log = state.setdefault("phase2_metrics_log", [])
+    log.append({"event": event, "ts": int(time.time()), **kwargs})
+    save_state(state)
+
+
+# import io needed for _MockClaudePopen
+import io
+
+
+def run_p2_self_test() -> int:
+    """--p2-self-test: Phase 1.5 P2 単体検証 (mock subprocess, real Claude起動なし)"""
+    print("=" * 60)
+    print("R50 Phase 1.5 P2 Self-Test (Claude Code event-driven + Phase 2 metrics)")
+    print("=" * 60)
+
+    state_backup = load_state()
+
+    # 1. next_actor != Claude → trigger skip
+    state = load_state()
+    state["next_actor"] = "GPT"
+    state["claude_job_in_progress"] = False
+    save_state(state)
+    r1 = trigger_claude_when_needed()
+    assert r1["status"] == "skip" and r1["reason"] == "not_claude_turn", f"got {r1}"
+    print(f"[1] next_actor != Claude → trigger skip OK")
+
+    # 2. next_actor == Claude → job file生成 + mock success
+    state["next_actor"] = "Claude"
+    save_state(state)
+    os.environ["CLAUDE_MOCK_MODE"] = "success"
+    r2 = trigger_claude_when_needed()
+    assert r2["status"] == "SUCCESS", f"mock success should return SUCCESS, got {r2}"
+    print(f"[2] next_actor == Claude → job file生成 + mock SUCCESS")
+
+    # 3. job file が実際に生成されたか
+    jobs = list(CLAUDE_JOBS_DIR.glob("*.job.md"))
+    assert len(jobs) > 0, "claude_jobs directory should contain at least one job file"
+    print(f"[3] job file生成確認 OK ({len(jobs)} files in claude_jobs)")
+
+    # 4. mock done marker検知 → SUCCESS (上記r2で確認済)
+    outputs = list(CLAUDE_OUTPUTS_DIR.glob("*.response.md"))
+    dones = list(CLAUDE_OUTPUTS_DIR.glob("*.response.md.done"))
+    assert len(outputs) > 0 and len(dones) > 0
+    print(f"[4] mock atomic rename + done marker検知 OK (outputs={len(outputs)}, done markers={len(dones)})")
+
+    # cleanup before timeout/error tests (prevent prior success done marker re-detection)
+    for f in CLAUDE_OUTPUTS_DIR.glob("*.response.md*"):
+        f.unlink(missing_ok=True)
+
+    # 5. mock timeout → 3回retry後 HUMAN_REQUIRED
+    state = load_state()
+    state["next_actor"] = "Claude"
+    state["claude_job_in_progress"] = False
+    state.pop("claude_human_required", None)
+    save_state(state)
+    os.environ["CLAUDE_MOCK_MODE"] = "timeout"
+    r5 = trigger_claude_when_needed()
+    assert r5["status"] == "HUMAN_REQUIRED", f"mock timeout x3 should return HUMAN_REQUIRED, got {r5}"
+    print(f"[5] mock timeout x3 → HUMAN_REQUIRED OK")
+
+    # cleanup before error test
+    for f in CLAUDE_OUTPUTS_DIR.glob("*.response.md*"):
+        f.unlink(missing_ok=True)
+
+    # 6. error → retry & HUMAN_REQUIRED
+    state = load_state()
+    state["next_actor"] = "Claude"
+    state["claude_job_in_progress"] = False
+    state.pop("claude_human_required", None)
+    save_state(state)
+    os.environ["CLAUDE_MOCK_MODE"] = "error"
+    r6 = trigger_claude_when_needed()
+    assert r6["status"] == "HUMAN_REQUIRED", f"mock error x3 should return HUMAN_REQUIRED, got {r6}"
+    print(f"[6] mock error x3 → HUMAN_REQUIRED OK")
+
+    # reset mock
+    os.environ.pop("CLAUDE_MOCK_MODE", None)
+    # global CLAUDE_MOCK_MODE is captured at module load, but mock subprocess function reads env at call time
+    # need to also reset module-level if cached
+    import importlib
+    # actually since CLAUDE_MOCK_MODE was set at module load, we read env each call instead
+    # _spawn_claude_subprocess reads CLAUDE_MOCK_MODE module-level var, so update it
+    globals()["CLAUDE_MOCK_MODE"] = ""
+
+    # 7. Phase 2 metrics: not ready (all empty)
+    state = load_state()
+    state.pop("phase2_metrics", None)
+    state.pop("phase2_qualitative", None)
+    state.pop("phase2_additional", None)
+    state.pop("phase2_stable_days", None)
+    save_state(state)
+    r7 = evaluate_phase2_readiness()
+    assert r7["ready"] is False, f"empty metrics should be NOT ready, got {r7}"
+    assert len(r7["failures"]) > 0
+    print(f"[7] phase2_metrics empty → NOT ready OK ({len(r7['failures'])} failures)")
+
+    # 8. Phase 2 metrics: ready (all thresholds met)
+    state = load_state()
+    state["phase2_metrics"] = {
+        "auto_3_rounds_per_topic": 3,
+        "consensus_3_topics_consecutive": 3,
+        "proxy_violations_per_week": 5,
+        "stall_recoveries_per_week": 1,
+        "token_overflow_critical_per_week": 0,
+        "handoff_success_rate": 1.0,
+        "watchdog_human_required_per_week": 0,
+    }
+    state["phase2_qualitative"] = {"shuji_no_problem_confirmed": True, "report_per_week_min1": True}
+    state["phase2_additional"] = {"api_cost_acceptable": True, "claude_api_available": True}
+    state["phase2_stable_days"] = 14
+    save_state(state)
+    r8 = evaluate_phase2_readiness()
+    assert r8["ready"] is True, f"all thresholds met should be ready, got {r8}"
+    print(f"[8] phase2_metrics all thresholds met → READY OK")
+
+    # 9. record_phase2_metrics
+    state = load_state()
+    state.pop("phase2_metrics", None)
+    state.pop("phase2_metrics_log", None)
+    save_state(state)
+    record_phase2_metrics("test_event", detail="test")
+    record_phase2_metrics("test_event")
+    state = load_state()
+    assert state["phase2_metrics"]["test_event"] == 2
+    assert len(state["phase2_metrics_log"]) == 2
+    print(f"[9] record_phase2_metrics → count=2, log=2 OK")
+
+    # cleanup mock files
+    for f in CLAUDE_JOBS_DIR.glob("*.job.md"):
+        f.unlink(missing_ok=True)
+    for f in CLAUDE_OUTPUTS_DIR.glob("*.response.md"):
+        f.unlink(missing_ok=True)
+    for f in CLAUDE_OUTPUTS_DIR.glob("*.response.md.done"):
+        f.unlink(missing_ok=True)
+
+    # restore state
+    save_state(state_backup)
+
+    print("=" * 60)
+    print("Phase 1.5 P2 Self-Test PASSED")
+    print("=" * 60)
+    return 0
+
+
+# =====================
 # Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 # =====================
 CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
@@ -2917,6 +3264,8 @@ if __name__ == "__main__":
         sys.exit(run_watchdog_self_test())
     if "--p1-self-test" in sys.argv:
         sys.exit(run_p1_self_test())
+    if "--p2-self-test" in sys.argv:
+        sys.exit(run_p2_self_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
