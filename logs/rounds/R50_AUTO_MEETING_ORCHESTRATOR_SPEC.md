@@ -164,6 +164,34 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 39. Phase 1.5 STEP3 P2 Claude Proposal - Awaiting Gemini Audit (GPT第98 R50-REISSUE-STEP3-P2-GEMINI-AUDIT-7413)
+
+### Claude proposal summary
+
+#### A. Claude Code event-driven (no always-on)
+- 常時起動しない
+- `state.next_actor == "Claude"` の時だけ Orchestrator が Claude Code subprocess起動
+- prompt file / output tmp / done marker / atomic rename
+- Claude Code は response生成後に終了
+- state/log/queue 管理は Orchestrator
+- Claude Code は state を直接操作しない
+- timeout 300秒
+- retry 最大3回
+- 3回失敗/timeout で HUMAN_REQUIRED
+
+#### B. Phase 2 trigger
+- 手動介入なし3者連続3周成功
+- 3議題連続で consensus_candidate 成功
+- proxy/stall/token/handoff/Watchdog 指標
+- 2週間連続安定
+- Shujiさん明示判断
+- API利用可能性
+- APIコスト許容
+
+### Status
+- STEP3 P2はGemini監査待ち
+- consensus_candidate=false 維持
+
 ## 38. Phase 1.5 STEP2 P1 Resolved / STEP3 P2 Start (GPT第94 R50-REISSUE-STEP3-P2-CLAUDE-PROPOSAL-3196)
 
 ### STEP2 P1 resolved
