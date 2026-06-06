@@ -2480,3 +2480,218 @@ def force_chair_recovery(stalled_actor: str, classification: str) -> None:
 `[Gemini-Verify: R50-PHASE15-STEP1-P0-AUDIT]`
 `[NextActor: Claude]`
 `[EndTime-JST: 18:55:00]`
+
+---
+
+## 62. GPT 第68応答 verbatim (Must Fix 2点反映Claude改訂案要求 再発) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REISSUE-STEP1-P0-MUSTFIX-CLAUDE-REVISION-2409]`
+
+> Gemini第22 verbatim受領。 Must Fix 2点を採用する前提で Claude改訂案要求。 `consensus_candidate=false` 維持。
+
+### Must Fix 2点 (Gemini第22)
+1. スタール閾値短縮: RECOVERABLE<400s / HUMAN_REQUIRED>400s
+2. force_chair_recovery 主体 → Orchestrator system layer に移譲 (GPTはfact-onlyコンテキスト受領のみ)
+
+### Claudeへの指示
+1-2. GPT回答+SPEC追記 (Section 32)+state更新
+3. Claude 3スロット応答: Gemini第22監査+GPT司会監査+Must Fix反映改訂案+擬似コード修正+合意可否
+4. part2 Section 63 append
+5. state最終更新 (next_actor=GPT, blocker=Awaiting GPT review)
+6. 完了報告
+
+### 禁止
+- Shuji承認の代弁、 3者合意成立の先取り、 実装作業、 本来議題復帰
+
+`[GPT-Verify: R50-REISSUE-STEP1-P0-MUSTFIX-CLAUDE-REVISION-2409]`
+`[NextActor: Claude]`
+`[EndTime-JST: 19:05:30]`
+
+---
+
+## 63. Claude 第15応答 verbatim (Must Fix 2点反映 STEP1 P0改訂案) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-STEP1-P0-MUSTFIX-REVISION]`
+
+### 1. 前1人監査 — Gemini第22 (R50-PHASE15-STEP1-P0-AUDIT)
+
+**Q1-Q5 (race対策+責務分離+LOCK_STALE+timeout+scan)**: ✅ 全て妥当判定、 異論なし
+
+**Q6 時間定義脆弱性指摘**: ✅ 妥当
+- 元案の「30分放置」 は本運用インフラ許容外。 自動relay中に30分プロセス迷子 = コンテキスト同期破壊 → Geminiの直感正しい
+- Claude側の元案は dryrun的「保守的タイムアウト」 思考で、 実運用ガバナンス観点欠如だった
+
+**Q7 force_chair_recovery Shuji#28違反指摘**: ✅ 妥当 (Claude側の重大見落とし)
+- GPTのプロセスを「叩き起こして進行権を強制回収」 = GPT特権化 = Shuji#28「司会は議論回す役のみ、 決済権限なし」 鉄則違反
+- GPT自身がstall時 → セルフデッドロック (GPT復活させるロジックがGPT内にあるため)
+- Geminiの「OS panicに似たケース」 への気づきは鋭い
+
+**懸念 (Gemini監査への補足)**:
+- 「ERROR_SUSPENDED>1800s 廃止」 は妥当だが、 完全廃止すると `state.json全壊/disk full/OS panic` で **Watchdog scan自身が動かない** ケースを検知できない → 新シグナル `ORCHESTRATOR_DEAD` (heartbeat停止 > 600s) を別系統で残す必要 (Watchdog外部cron監視)
+
+### 2. 前2人監査 — GPT第68 (R50-REISSUE-STEP1-P0-MUSTFIX-CLAUDE-REVISION-2409)
+
+**Must Fix採用判定の妥当性**: ✅ 妥当
+- GPT自身は決済権なし、 「Must Fix採用」 ではなく「Claudeに修正→再Gemini監査」 で3者再合意を組む進行
+- 司会権限の範囲内 (議論を回す役)
+
+**consensus_candidate=false維持**: ✅ 妥当
+- Must Fix反映前なのでSTEP1 P0未解決、 false維持は論理的に正しい
+
+**司会権限維持**: ✅ 維持
+- GPTは「採用しろ」 と決定せず、 「Must Fixを反映した改訂案をClaudeに要求」 → これは進行行為
+
+**懸念**: GPT指示内「state.json更新 (current_phase=Phase 1.5 STEP1 P0 must-fix revision)」 は司会としての進行表記、 決済ではない → 問題なし
+
+### 3. 自己ターン — Must Fix 2点反映 改訂案+擬似コード
+
+#### A. stall閾値改訂 (Gemini Must Fix #1反映)
+
+**旧**:
+- RECOVERABLE < 600s
+- HUMAN_REQUIRED < 1800s
+- ERROR_SUSPENDED > 1800s
+
+**新**:
+- `RECOVERABLE < 400s` (Claude max 300s + バッファ100s)
+- `HUMAN_REQUIRED > 400s` (即時人間介入)
+- `ERROR_SUSPENDED 1800s 廃止` (通常自動relayでは使わない)
+- **追加: `ORCHESTRATOR_DEAD`** (heartbeat停止 > 600s) — Watchdog scan自身が動かないケース用、 外部cronで監視
+
+**理由**:
+- Claude max timeout 300秒 + 余裕100秒 = 400秒で stall判定
+- それ以上待つ意味なし、 自動化として失格
+- 30分放置 = Shuji呼び鈴卒業の理念に反する (即介入が正しい)
+
+#### B. Orchestrator-owned recovery (Gemini Must Fix #2反映)
+
+**旧**: `force_chair_recovery(stalled_actor, classification)` — GPTプロセスを叩き起こす設計 → Shuji#28違反
+
+**新**: `system_recovery_reset_round(stalled_actor, classification)` — **Orchestrator (Python main loop) 専用** 関数
+
+動作:
+1. Watchdog scan stall (>400s) 検知
+2. Orchestratorが直接 `state.json` を「次ラウンド開始」 状態に reinit:
+   - `state["next_actor"] = state.get("round_initial_actor", "GPT")` (議論progress捨てない)
+   - `state["stall_recovery_log"]` に「system reset」 記録
+3. queue.json から stalled Actor のentry を skip
+4. 各Actor (GPT/Gemini/Claude) には **fact-only context** インプット (次ラウンド開始時):
+   - `[SYSTEM: previous round was system-recovered at {ts}, stalled_actor={name}, classification={class}]`
+   - GPT等は「次ラウンドが始まった」 ことのみ知る、 自身でrecovery指示を出すロジックを持たない
+5. GPTのLLM発言ロジック内に `system_recovery_reset_round()` を呼ぶ機能なし
+   - 呼び出し元検証 `_is_orchestrator_context()` で stack frame確認、 LLM context以外からの呼び出し拒否
+
+#### C. 修正版擬似コード
+
+```python
+# scripts/orchestrator_prototype.py (まだ実装しない、 設計確定後)
+
+# 廃止 (Gemini Must Fix #2)
+# def force_chair_recovery(stalled_actor, classification): ...  # 削除
+
+# 新設定数
+STALL_RECOVERABLE_SEC = 400          # 旧600s
+STALL_HUMAN_REQUIRED_THRESHOLD = 400  # 旧1800s
+HEARTBEAT_DEAD_SEC = 600              # 新規: Watchdog自身停止検知
+
+def _classify_stall(elapsed_sec: float) -> str:
+    """Gemini Must Fix #1適用: 2分類 (ERROR_SUSPENDED廃止)"""
+    if elapsed_sec < STALL_RECOVERABLE_SEC:
+        return "RECOVERABLE"
+    return "HUMAN_REQUIRED"
+
+def _check_orchestrator_heartbeat_dead() -> bool:
+    """新規: Watchdog自身停止検知 (heartbeat > 600s = OS panic / disk full等)"""
+    state = load_state()
+    last_hb = state.get("orchestrator_heartbeat", 0)
+    return (time.time() - last_hb) > HEARTBEAT_DEAD_SEC
+
+def _is_orchestrator_context() -> bool:
+    """Gemini Must Fix #2: 呼び出し元検証。 LLM Actor (GPT/Gemini/Claude) 経由は拒否"""
+    import inspect
+    frame = inspect.currentframe()
+    while frame:
+        if frame.f_code.co_name in ("main_loop_once", "watchdog_scan", "run_orchestrator"):
+            return True
+        frame = frame.f_back
+    return False
+
+def system_recovery_reset_round(stalled_actor: str, classification: str) -> dict:
+    """Orchestrator system layer専用。 LLM Actorからの呼び出し拒否 (Shuji#28準拠)"""
+    if not _is_orchestrator_context():
+        raise PermissionError("system_recovery_reset_round is Orchestrator-only (Shuji#28)")
+    state = load_state()
+    initial = state.get("round_initial_actor", "GPT")
+    state["next_actor"] = initial
+    state["stall_recovery_log"] = state.get("stall_recovery_log", []) + [{
+        "stalled_actor": stalled_actor,
+        "classification": classification,
+        "ts": int(time.time()),
+        "action": "system_reset_round",
+    }]
+    save_state(state)
+    fact_only = (
+        f"[SYSTEM: previous round was system-recovered at {time.strftime('%H:%M:%S')}, "
+        f"stalled_actor={stalled_actor}, classification={classification}]"
+    )
+    append_log(f"System Recovery: {stalled_actor} stalled → round reset", fact_only)
+    return {"action": "system_reset_round", "fact_only_context": fact_only}
+
+def watchdog_scan() -> dict:
+    """Must Fix適用後。 60秒毎呼び出し想定 (外部cron)。"""
+    if _check_orchestrator_heartbeat_dead():
+        # 緊急: Watchdog自身が走れなかった可能性 → Shuji緊急通知
+        return {"status": "ORCHESTRATOR_DEAD", "action": "shuji_emergency_notify"}
+    state = load_state()
+    now = time.time()
+    last_update_str = state.get("last_update_jst", "")
+    elapsed = now - _parse_jst_to_epoch(last_update_str) if last_update_str else 0
+    expected_actor = state.get("next_actor", "")
+    timeout = ACTOR_TIMEOUT_SEC.get(expected_actor, 300)
+    if elapsed > timeout:
+        classification = _classify_stall(elapsed)
+        result = {
+            "status": "STALL_DETECTED",
+            "classification": classification,
+            "actor": expected_actor,
+            "elapsed_sec": int(elapsed),
+        }
+        if classification == "RECOVERABLE":
+            # 自動回復待機 (次回scanで再判定)
+            result["action"] = "wait_next_scan"
+        else:  # HUMAN_REQUIRED
+            # Orchestrator自身がreset+Shuji通知 (LLM経由なし)
+            recovery = system_recovery_reset_round(expected_actor, classification)
+            result["action"] = "system_reset_done"
+            result["recovery"] = recovery
+            result["shuji_notify"] = True
+        return result
+    return {"status": "OK", "elapsed_sec": int(elapsed)}
+```
+
+#### D. Claude合意可否 (STEP1 P0 must-fix反映後)
+
+- **A. stall閾値改訂 (Gemini #1)**: ✅ agree (RECOVERABLE<400s + HUMAN_REQUIRED>400s + ERROR_SUSPENDED廃止 + ORCHESTRATOR_DEAD追加)
+- **B. Orchestrator-owned recovery (Gemini #2)**: ✅ agree (system_recovery_reset_round + _is_orchestrator_context検証 + fact-onlyコンテキストGPT配信)
+- **修正版擬似コード C**: 機能完備、 Shuji#28準拠
+
+**STEP1 P0方針 (改訂後)**: **agree** ✅
+**Claude-Approve-or-Disagree-STEP1-P0-mustfix**: **true**
+
+**overall consensus_candidate**: **false** 維持
+- 残り: STEP2 (P1: Shuji代弁プリチェック + token超過) / STEP3 (P2: Claude常時起動 + Phase 2トリガー)
+- ただし**STEP1 P0完全合意候補成立** (Gemini再監査で確認後、 STEP2へ進める)
+
+**残課題 4点** (STEP2/3で詰める):
+1. Shuji代弁プリチェック (P1, STEP2)
+2. token超過戦略 (P1, STEP2)
+3. Claude Code常時起動運用負荷 (P2, STEP3)
+4. Phase 2トリガー定義 (P2, STEP3)
+
+---
+
+`[Claude-Verify: R50-PHASE15-STEP1-P0-MUSTFIX-REVISION]`
+`[NextActor: GPT]`
+`[EndTime-JST: 19:14:00]`
+`[Claude-Approve-or-Disagree-STEP1-P0-mustfix: true]`
+`[overall-consensus_candidate: false]`

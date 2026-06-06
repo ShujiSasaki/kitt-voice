@@ -3,7 +3,7 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Awaiting Gemini STEP1 P0 audit verbatim for GPT judgment",
+  "current_phase": "Phase 1.5 STEP1 P0 must-fix revision received",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
@@ -11,7 +11,8 @@
   "active_part_file": "logs/rounds/round_50_part2.md",
   "next_actor": "GPT",
   "orchestrator_phase": "phase15_step1_p0_gemini_audit_received",
-  "current_step": "STEP1 P0 Claude must-fix revision",
+  "current_step": "STEP1 P0 must-fix revision by Claude",
+  "p0_mustfix_revision_received": true,
   "p0_claude_proposal_received": true,
   "p0_gemini_audit_received": true,
   "p0_gemini_must_fix": {
@@ -75,7 +76,7 @@
     "Phase 2 trigger definition"
   ],
   "final_report_ready": false,
-  "blocker": "Gemini STEP1 P0 audit summary received, verbatim required before GPT adoption",
+  "blocker": "Awaiting GPT review of Claude P0 must-fix revision (Section 63)",
   "gemini_phase15_audit_received": true,
   "gemini_phase15_recommendation": "候補E (GPT/Gemini 2者合意 + Claude実装ログ監査) 一択、 Phase 1完了報告 今すぐOK",
   "DRY_RUN": true,

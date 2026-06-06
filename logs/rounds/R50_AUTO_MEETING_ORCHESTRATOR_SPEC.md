@@ -164,6 +164,25 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 32. Phase 1.5 STEP1 P0 Gemini Must-Fix (GPT第68 R50-REISSUE-STEP1-P0-MUSTFIX-CLAUDE-REVISION-2409)
+
+Gemini監査により以下 Must Fix 2点が指摘された。
+
+### Must Fix #1: スタール閾値短縮
+- RECOVERABLE < 400s (Claude max 300s + バッファ100s)
+- HUMAN_REQUIRED > 400s (即時人間介入、 Shujiさん呼び鈴)
+- ERROR_SUSPENDED > 1800s は通常自動relayでは廃止
+- 追加: ORCHESTRATOR_DEAD (heartbeat > 600s) は別系統で残す (Watchdog自身停止検知)
+
+### Must Fix #2: force_chair_recovery → Orchestrator system layer移譲
+- 旧 `force_chair_recovery(stalled_actor, classification)` 廃止 (GPTプロセス叩き起こし=GPT特権化=Shuji#28違反)
+- 新 `system_recovery_reset_round(stalled_actor, classification)` = Orchestrator (Python main loop) 専用
+- 呼び出し元検証 `_is_orchestrator_context()` で LLM Actor (GPT/Gemini/Claude) 経由は PermissionError
+- GPTは fact-only context のみ受領: `[SYSTEM: previous round was system-recovered at {ts}, stalled_actor={name}, classification={class}]`
+
+### consensus_candidate=false 維持
+Must Fix反映前なのでSTEP1 P0未解決、 false維持。
+
 ## 31. Phase 1.5 STEP1 P0 Claude Proposal - Awaiting Gemini Audit (GPT第66 R50-PHASE15-STEP1-P0-GEMINI-AUDIT-7462)
 
 Claude proposed concrete protocol for P0-1 (race condition) + P0-2 (stall Watchdog).
