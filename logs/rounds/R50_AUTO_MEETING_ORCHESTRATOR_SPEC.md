@@ -164,6 +164,19 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 19. Controlled Two-Agent Auto Relay Test (GPT第50 R50-TWO-AGENT-RELAY-TEST-2907)
+
+Phase 1 Orchestrator の Send/Fetch個別動作確認済み後、 GPT↔Gemini 2者循環を **1回だけ** 自動relay。
+
+### 目的
+- Shujiさん呼び鈴なしで 2者間自動会議1周可能か検証
+- Gemini送信 → Gemini応答取得 → 議事録append → ChatGPT送信 → ChatGPT応答取得 (Verify Tokenなくても TEST_PARTIAL)
+
+### 制約
+- 本来議題進めない / テスト議題のみ / 1往復で停止
+- `real_send_enabled` テスト中のみ `true` → 終了後 `false` 戻し
+- 失敗時は `ERROR_SUSPENDED` ではなく `TEST_FAILED` として停止
+
 ## 18. ChatGPT Controlled Send Test (GPT第49 R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129)
 
 Gemini単方向E2E (Send→Response→Fetch) 完了後、 ChatGPTへの制御付き実送信テスト。

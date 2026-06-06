@@ -1,0 +1,21 @@
+{
+  "two_agent_relay_test": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "gemini": {
+    "send": "SUCCESS",
+    "fetch": "SUCCESS",
+    "verify_token": "[Gemini-Verify: R50-TWO-AGENT-RELAY-GEMINI-OK]",
+    "next_actor": "GPT",
+    "end_time_jst": "14:36:49",
+    "response_len": 114
+  },
+  "chatgpt": {
+    "send": "SUCCESS",
+    "fetch": "SUCCESS",
+    "verify_token": "[GPT-Verify: R50-TWO-AGENT-RELAY-CHATGPT-OK-8471]",
+    "next_actor": "Claude",
+    "end_time_jst": "14:37:05",
+    "response_len": 120,
+    "missing_tags": []
+  }
+}

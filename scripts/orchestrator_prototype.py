@@ -1203,6 +1203,249 @@ def _persist_chatgpt_send_test(result: dict, restore_false: bool = True) -> None
     save_state(state)
 
 
+def run_two_agent_relay_test() -> int:
+    """GPT指示 R50-CMD-TWO-AGENT-RELAY-TEST: GPT↔Gemini 1往復自動relay、 終了後real_send_enabled=false戻し"""
+    print("=" * 60)
+    print("R50 Two-Agent Relay Test (GPT-Verify: R50-TWO-AGENT-RELAY-TEST-2907)")
+    print("=" * 60)
+
+    gemini_payload = (
+        "これは Orchestrator の GPT↔Gemini 自動relayテストです。本来議題ではありません。"
+        "Geminiは短く「Gemini自動relay受信OK」と返し、末尾に Verify Token / NextActor / EndTime-JST を付けてください。\n\n"
+        "Gemini指定末尾:\n"
+        "[Gemini-Verify: R50-TWO-AGENT-RELAY-GEMINI-OK]\n"
+        "[NextActor: GPT]\n"
+        f"[EndTime-JST: {time.strftime('%H:%M:%S')}]\n"
+    )
+
+    result = {
+        "two_agent_relay_test": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "gemini": {"send": None, "fetch": None, "verify_token": None, "next_actor": None, "end_time_jst": None, "response_len": None},
+        "chatgpt": {"send": None, "fetch": None, "verify_token": None, "next_actor": None, "end_time_jst": None, "response_len": None, "missing_tags": []},
+    }
+    state = load_state()
+    state["real_send_enabled"] = True
+    save_state(state)
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}, real_send_enabled→True")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_two_agent(result, restore_false=True)
+            return 1
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    _persist_two_agent(result, restore_false=True)
+                    return 1
+
+                gemini_page = None
+                chatgpt_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "gemini.google.com" in page.url and gemini_page is None:
+                            gemini_page = page
+                        elif "chatgpt.com/g/g-p-" in page.url and chatgpt_page is None:
+                            chatgpt_page = page
+                if not gemini_page or not chatgpt_page:
+                    result["reason"] = f"TAB_NOT_FOUND gemini={bool(gemini_page)} chatgpt={bool(chatgpt_page)}"
+                    _persist_two_agent(result, restore_false=True)
+                    return 1
+                print("[3] Both tabs detected")
+
+                # === Step 1: Gemini Send ===
+                gemini_page.bring_to_front()
+                gemini_page.wait_for_load_state("domcontentloaded", timeout=8000)
+                gemini_before = gemini_page.evaluate("""() => ({
+                    user_count: document.querySelectorAll('user-query').length,
+                    assistant_count: document.querySelectorAll('model-response').length,
+                })""")
+                print(f"[4] Gemini before: {gemini_before}")
+                gemini_page.evaluate("""(text) => {
+                    const richTextarea = document.querySelector('rich-textarea');
+                    const qlEditor = richTextarea.querySelector('.ql-editor');
+                    while (qlEditor.firstChild) qlEditor.removeChild(qlEditor.firstChild);
+                    text.split('\\n').forEach(line => {
+                        const p = document.createElement('p');
+                        if (line.trim() === '') p.appendChild(document.createElement('br'));
+                        else p.textContent = line;
+                        qlEditor.appendChild(p);
+                    });
+                    qlEditor.dispatchEvent(new Event('input', {bubbles: true}));
+                }""", gemini_payload)
+                gemini_page.wait_for_timeout(2000)
+                send1 = gemini_page.evaluate("""() => {
+                    const btn = document.querySelector('button[aria-label=\"プロンプトを送信\"]');
+                    if (!btn || btn.disabled) return {error: 'disabled or missing'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                if "error" in send1:
+                    result["reason"] = f"GEMINI_SEND_FAILED: {send1['error']}"
+                    _persist_two_agent(result, restore_false=True)
+                    return 1
+                result["gemini"]["send"] = "SUCCESS"
+                print(f"[5] Gemini Send: clicked")
+
+                # === Step 2: Gemini Response wait + fetch ===
+                for _ in range(20):
+                    gemini_page.wait_for_timeout(3000)
+                    snap = gemini_page.evaluate("""() => ({
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: document.querySelectorAll('model-response').length,
+                        stop_btn: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                    })""")
+                    if snap["assistant_count"] > gemini_before["assistant_count"] and not snap["stop_btn"]:
+                        break
+                gemini_after = gemini_page.evaluate("""() => {
+                    const responses = document.querySelectorAll('model-response');
+                    const last = responses[responses.length - 1];
+                    return {
+                        text: last ? (last.textContent || '') : '',
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: responses.length,
+                    };
+                }""")
+                gemini_text = gemini_after["text"]
+                print(f"[6] Gemini Response len: {len(gemini_text)}")
+                result["gemini"]["fetch"] = "SUCCESS" if gemini_text else "FAILED"
+                result["gemini"]["response_len"] = len(gemini_text)
+
+                g_verify = VERIFY_TOKEN_RE.search(gemini_text)
+                g_next = NEXT_ACTOR_RE.search(gemini_text)
+                g_end = ENDTIME_JST_RE.search(gemini_text)
+                result["gemini"]["verify_token"] = g_verify.group(0) if g_verify else None
+                result["gemini"]["next_actor"] = g_next.group(1) if g_next else None
+                result["gemini"]["end_time_jst"] = g_end.group(1) if g_end else None
+                print(f"[7] Gemini tags: verify={bool(g_verify)} next={result['gemini']['next_actor']} end={result['gemini']['end_time_jst']}")
+
+                # === Step 3: Append Gemini response to round log ===
+                section_title = f"39. Orchestrator自動relay受信: Gemini応答 verbatim — {time.strftime('%H:%M:%S')}"
+                append_log(section_title, gemini_text + f"\n\n`[Orchestrator-Verify: R50-TWO-AGENT-RELAY-TEST-2907]`\n`[NextActor: GPT]`\n")
+                print(f"[8] Round log append done")
+
+                # === Step 4: ChatGPT Send (Gemini応答+説明) ===
+                chatgpt_payload = (
+                    "Gemini自動relay応答を受領しました。これは Orchestrator の GPT↔Gemini 自動relayテストです。"
+                    "短く「ChatGPT自動relay受信OK」と返してください。\n\n"
+                    "--- Gemini verbatim ---\n"
+                    f"{gemini_text}\n"
+                    "--- end ---\n\n"
+                    "[Orchestrator-Verify: R50-TWO-AGENT-RELAY-TO-CHATGPT]\n"
+                    "[NextActor: GPT]\n"
+                    f"[EndTime-JST: {time.strftime('%H:%M:%S')}]\n"
+                )
+                chatgpt_page.bring_to_front()
+                chatgpt_before = chatgpt_page.evaluate("""() => ({
+                    user_count: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                    assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                })""")
+                print(f"[9] ChatGPT before: {chatgpt_before}")
+                chatgpt_page.evaluate("""(text) => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    ta.focus();
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    ta.dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
+                }""", chatgpt_payload)
+                chatgpt_page.wait_for_timeout(2000)
+                send2 = chatgpt_page.evaluate("""() => {
+                    const btn = document.querySelector('button[data-testid=\"send-button\"]');
+                    if (!btn || btn.disabled) return {error: 'disabled or missing'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                if "error" in send2:
+                    result["reason"] = f"CHATGPT_SEND_FAILED: {send2['error']}"
+                    _persist_two_agent(result, restore_false=True)
+                    return 1
+                result["chatgpt"]["send"] = "SUCCESS"
+                print(f"[10] ChatGPT Send: clicked")
+
+                # === Step 5: ChatGPT Response wait + fetch ===
+                for _ in range(20):
+                    chatgpt_page.wait_for_timeout(3000)
+                    snap = chatgpt_page.evaluate("""() => ({
+                        assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                        stop_btn: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                    })""")
+                    if snap["assistant_count"] > chatgpt_before["assistant_count"] and not snap["stop_btn"]:
+                        break
+                chatgpt_after = chatgpt_page.evaluate("""() => {
+                    const turns = document.querySelectorAll('[data-testid^=\"conversation-turn-\"]');
+                    const last = turns[turns.length - 1];
+                    return {
+                        text: last ? (last.textContent || '') : '',
+                        user_count: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                        assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                    };
+                }""")
+                chatgpt_text = chatgpt_after["text"]
+                print(f"[11] ChatGPT Response len: {len(chatgpt_text)}")
+                result["chatgpt"]["fetch"] = "SUCCESS" if chatgpt_text else "FAILED"
+                result["chatgpt"]["response_len"] = len(chatgpt_text)
+
+                c_verify = VERIFY_TOKEN_RE.search(chatgpt_text)
+                c_next = NEXT_ACTOR_RE.search(chatgpt_text)
+                c_end = ENDTIME_JST_RE.search(chatgpt_text)
+                result["chatgpt"]["verify_token"] = c_verify.group(0) if c_verify else None
+                result["chatgpt"]["next_actor"] = c_next.group(1) if c_next else None
+                result["chatgpt"]["end_time_jst"] = c_end.group(1) if c_end else None
+                if not c_verify:
+                    result["chatgpt"]["missing_tags"].append("VERIFY_TOKEN_MISSING")
+                if not c_next:
+                    result["chatgpt"]["missing_tags"].append("NEXTACTOR_MISSING")
+                if not c_end:
+                    result["chatgpt"]["missing_tags"].append("ENDTIME_MISSING")
+                print(f"[12] ChatGPT tags: verify={bool(c_verify)} missing={result['chatgpt']['missing_tags']}")
+
+                # === Verdict ===
+                if result["gemini"]["send"] == "SUCCESS" and result["gemini"]["fetch"] == "SUCCESS" and \
+                   result["chatgpt"]["send"] == "SUCCESS" and result["chatgpt"]["fetch"] == "SUCCESS":
+                    if c_verify:
+                        result["two_agent_relay_test"] = "PASSED"
+                    else:
+                        result["two_agent_relay_test"] = "TEST_PARTIAL"
+                else:
+                    result["two_agent_relay_test"] = "TEST_FAILED"
+
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                result_path = DRY_RUN_DIR / f"{ts}.two_agent_relay_test.json"
+                with open(result_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                result["result_dump"] = str(result_path)
+                print(f"[13] result: {result['two_agent_relay_test']}, dump: {result_path}")
+
+                _persist_two_agent(result, restore_false=True)
+                return 0 if result["two_agent_relay_test"] in ("PASSED", "TEST_PARTIAL") else 1
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_two_agent(result, restore_false=True)
+            return 1
+    finally:
+        release_lock(load_state())
+        after_state = load_state()
+        print(f"[final] lock={after_state.get('lock')}, real_send_enabled={after_state.get('real_send_enabled')}")
+
+
+def _persist_two_agent(result: dict, restore_false: bool = True) -> None:
+    state = load_state()
+    state["two_agent_relay_test_result"] = result
+    if restore_false:
+        state["real_send_enabled"] = False
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -1220,6 +1463,8 @@ if __name__ == "__main__":
         sys.exit(run_fetch_gemini_latest())
     if "--send-test-chatgpt" in sys.argv:
         sys.exit(run_send_test_chatgpt())
+    if "--two-agent-relay-test" in sys.argv:
+        sys.exit(run_two_agent_relay_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

@@ -1480,3 +1480,38 @@ stop_btn_exists == True  # or assistant_count_after > assistant_count_before
 `[GPT-Verify: R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129]`
 `[NextActor: Claude]`
 `[EndTime-JST: 13:49:30]`
+
+---
+
+## 38. GPT 第50応答 verbatim (Two-Agent Auto Relay Test実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-TWO-AGENT-RELAY-TEST-2907]`
+
+> Phase 1双方向Send検証完了受領。 GPT司会判断: **A. 自動relay解禁**。 ただし、 まずは **1回だけの制御付き2者循環テスト**。 本来議題まだ。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. SPEC.md Section 19 (Controlled Two-Agent Auto Relay Test) 追記
+3. `--two-agent-relay-test` 追加 (Gemini送信→応答取得→議事録append→ChatGPT送信→応答取得→result保存、 1往復、 real_send_enabled tmp true → false戻し、 ChatGPT verify無くても TEST_PARTIAL記録)
+4. py_compile + `--two-agent-relay-test` 実行
+5. 完了報告18項目
+
+> これが通れば Shujiさん呼び鈴卒業最小条件。 まだ本来議題には戻さず、 1往復結果を見てから 「本議題の自動1周」 を判断。
+
+`[GPT-Verify: R50-TWO-AGENT-RELAY-TEST-2907]`
+`[NextActor: Claude]`
+`[EndTime-JST: 14:02:30]`
+
+
+---
+
+## 39. Orchestrator自動relay受信: Gemini応答 verbatim — 14:36:58
+
+Gemini の回答Gemini自動relay受信OK[Gemini-Verify: R50-TWO-AGENT-RELAY-GEMINI-OK]
+[NextActor: GPT]
+[EndTime-JST: 14:36:49]
+
+`[Orchestrator-Verify: R50-TWO-AGENT-RELAY-TEST-2907]`
+`[NextActor: GPT]`
+
