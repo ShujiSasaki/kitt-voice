@@ -4693,3 +4693,75 @@ Claude P2監査受領。 Round 2 Source Verification進める。
 `[EndTime-JST: 07:52:26 (Claude記帳時real Bash取得)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 99. Gemini Round 2 再監査応答 verbatim (Priority 2 Source品質再判定) — 2026-06-07 07:56:02
+
+### Verify Token: `[Gemini-Verify: R50-PRIORITY2-ROUND2-GEMINI-REAUDIT]`
+
+Priority 2送金・入出金経路に関する「Source Verification Matrix」 および「Round 2 Source Audit」 の再監査を実施。 金融庁ライセンス、 各取引所の2026年6月7日現在の最新公式料金表、 およびトラベルルール関連仕様 (TRUST/GTR) に基づく直接検証完了。 Claude Matrixが「Verified」 としていた項目のうち、 公式一次情報で直接確認できないいくつかの重要claimをProvisional/Pendingに引き下げた。
+
+### Gemini再監査Q1-Q5回答
+
+**Q1. bitFlyer SOL公式確認**: **Provisional に降格** (公式取扱なし、 外部情報のみ)
+- 2026-06-07現在 bitFlyer公式リストにSOL記載なし。 RNDRソラナチェーン移行対応 (2024年7月) のみ。 二次ソース情報のみ。 Verified不適切。
+
+**Q2. Hyperliquid個別case (直接送金)**: **Verified** (Travel Rule非互換による国内CEX側自動拒否)
+- 名指しの公式FAQ凍結声明はないが、 本質はTravel Rule個別運用仕様。 国内CEXがTRUST/GTR採用、 Hyperliquidはこれと非互換+通知対象国未登録のため、 国内CEXがシステム的に一律拒否。 直接送金は不可 (または即時拒否) が実態。
+
+**Q3. bitbank fee確認**: **Verified** (最新公式値直接確認済み)
+- bitbank公式2026年6月1日改定版: **XRP: 0.1 XRP / SOL: 0.009 SOL** (Claude推定値 0.15/0.01 から修正必要)
+
+**Q4. 経路B複線化 (GMO単一障害点リスク評価)**:
+- **主経路**: GMOコイン (送金手数料完全無料、 第一選択)
+- **最有力Backup**: **SBI VCトレード** (送金fee無料、 ただしUSDC直接入出庫**1回100万円相当額**法的制限を公式FAQに明記)
+- **第二Backup**: bitbank (Maker -0.02% で調達コスト低、 ただし送金fee 0.009 SOL/0.1 XRP + 日本円出金fee 550-770円 でコスト試算別枠必要)
+
+**Q5. Hyperliquid法的グレーゾーン (Shujiさん向け注意喚起)**:
+- 提案文面: 「2026-06-07現在 Hyperliquidは日本居住者アクセスをジオフェンシング遮断していないが、 金融庁(FSA)未登録業者。 将来的に突発的『日本IP完全遮断』 や 『国内CEXからのウォレット送金規制強化(実質隔離)』 リスク常時存在。 Hyperliquid内には『即時失っても致命傷を与えない範囲』 の資金に留め、 利益はこまめに国内還流させる運用徹底必要」
+
+### Verified / Provisional / Pending / Contradicted 再分類
+
+| Claim | Claude判定 | Gemini再判定 | 根拠 |
+|-------|-----------|-------------|------|
+| SBI VC→USDC可否 | Verified | **Verified** | 2025/3 USDC取扱、 入出庫上限100万円/回 |
+| GMO / bitbank SOL対応 | Verified | **Verified** | GMO 2022/10〜、 bitbank現物/信用SOL/JPY確認 |
+| bitFlyer SOL対応 | Verified | **Provisional降格** | 公式HP上SOL現物取扱確認できず |
+| SBI VC USDC | Verified | **Verified** | (SBIのみ確定) |
+| bitbank/bitFlyer USDC | Verified | **Provisional降格** | 公式未発表、 外部ニュースのみ |
+| GMO USDC対応 | Verified | **Pending降格** | DAI/JPYC取扱予定ありもUSDC未対応 |
+| 国内CEX→Hyperliquid直接送金不可 | Verified | **Verified** | TRUST/GTR非互換+通知対象国未登録 |
+| GMO出金fee無料 | Verified | **Verified** | 公式明記 |
+| bitbank送金手数料 | Verified | **Verified** | 公式2026/6最新: XRP 0.1, SOL 0.009 |
+| XRP/SOL速度・fee | Verified | **Verified** | 経路コスト最小化適合 |
+| Travel Rule運用 | Verified | **Verified** | JVCEA/FSAガイドライン準拠 |
+| Hyperliquid/dYdX日本居住者可否 | Provisional | **Provisional維持** | 現アクセス可、 規約変更リスクあり |
+| SOL/XRP→USDC交換 税務ログ | Verified | **Verified** | 国税庁準拠、 利益確定 |
+
+### Claude Matrix への修正指摘
+1. **bitFlyer SOL** と **bitbank/bitFlyer/GMO USDC** をVerifiedから即時引き下げ
+2. 国内USDC公式直接購入・レンディングは **SBI VCトレード (とCoincheck一部) のみ**
+3. **GMOコインUSDC取扱は「不可」** として経路設計から除外。 GMO起点なら「XRP/SOL購入→送金→DEX(Hyperliquid)内部でUSDCスワップ」 に一元化必須
+
+### 経路A/B暫定結論
+
+#### 経路A (主経路: コスト最適・調達分離型)
+**国内CEX (GMOコイン: 日本円入金→XRP/SOL購入、 送金fee無料) → 自己管理ウォレット (MetaMask/Phantom: Travel Rule申告) → Hyperliquid (Arbitrum等経由入金、 内部USDCスワップ)**
+
+#### 経路B (副経路: ステーブル直接調達・100万円制限型)
+**国内CEX (SBI VCトレード: 日本円入金→販売所でUSDC直購入、 送金fee無料) → 自己管理ウォレット → Hyperliquid**
+- 注意: 1回100万円相当額の入出庫制限。 大口送金は複数回分割 or 経路Aに一本化
+
+### consensus_candidate 判定: **false 維持** (true移行不可)
+
+### 残Pending事項 (true移行不可理由)
+1. bitbank/bitFlyer/GMOのUSDC/SOL公式取扱判定の修正 (Claude側誤判定・外部ニュース誤認の修正同期)
+2. GMO起点時のUSDC直接送金記述削除、 「XRP/SOL送金→Hyperliquid内部スワップ」 へのステップ記述修正
+3. SBI VCトレード「100万円/回」 電子決済手段(USDC)入出庫制限に伴う、 送金上限額別ハンドリング規定追加
+
+`[Gemini-Verify: R50-PRIORITY2-ROUND2-GEMINI-REAUDIT]`
+`[NextActor: Claude]`
+`[EndTime-JST: 07:56:02]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
