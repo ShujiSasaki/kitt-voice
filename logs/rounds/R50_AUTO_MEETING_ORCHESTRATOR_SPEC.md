@@ -84,15 +84,50 @@ failしたら タイムアウト判定 (Section 9)。
 | TIMEOUT | 一定時間 (例120秒) 応答なし → reload+再送 |
 | LOCK_STALE | lock=true が 一定時間以上 → 強制release |
 
-## 10. Phase 1 Prototype Scope
+## 10. Phase 1 Prototype Scope (Revised 2026-06-06 GPT第37採用)
 
-まずは **「GPT→Gemini→GPT」 の2者循環** で実弾テスト。
+**修正**: Phase 1から Claude を 会議運用ループから **完全に外す**。
 
-- Claudeは議事録追記と転送だけ
-- 3者完全自動は Phase 1.5
-- 議題提出はShujiさんが手動 (CLIまたはWebUI 1回打鍵)
+**範囲** (GPT↔Gemini 2者循環を Playwrightが全代行):
 
-## 11. Phase 2
+1. **Chrome CDP接続** (ログイン済セッション流用、 Cookie管理ゼロ) ← **最短ルート**
+2. GPT/Geminiタブ検出
+3. Shujiさん議題提出検知
+4. GPT→Gemini送信
+5. Gemini応答取得
+6. Verify Token / NextActor / EndTime-JST検証
+7. 議事録append
+8. Gemini→GPT送信
+9. GPT応答取得
+
+**Claudeの位置**: 会議運用から **除外**。 実装補助・GPT指示待ちのみ。
+
+**議題提出**: Shujiさんが 手動 (CLIまたはWebUI 1回打鍵)
+
+## 10.1 Phase 1 Required Safety Features (Claude提案 a-d、 GPT第37採用)
+
+**実装順 - 最優先** (Phase 1必須):
+- **Dry-runモード** (実Send前に inject内容を `logs/dry_run/` にdump、 デバッグ容易化)
+- Chrome CDP接続
+- GPT/Geminiタブ検出
+- Send成功検証 (editor=0+userCount+1+stopBtn=true)
+- Response完了検証 (stopBtn=false+本文+Verify+NextActor+EndTime)
+
+**実装順 - 次** (Phase 1 後半):
+- 議事録append (自動timestamp commit付き)
+- **state.json バックアップ** (lock_stale/破損対策、 ロールバック手順明文化)
+- **30分stall通知** (メール/Slack/iOS通知、 オーケストレーター死亡時の気づき経路)
+- dashboard連携
+
+## 11. Phase 1.5
+
+Phase 1が安定してから:
+- Claudeを発言者として戻すか検討
+- Watchdog追加
+- dashboard強化
+- stall通知 (Phase 1から繰上もあり)
+
+## 12. Phase 2
 
 OpenAI / Gemini / Claude API化。 Web UI依存を減らす。
 
@@ -100,6 +135,6 @@ OpenAI / Gemini / Claude API化。 Web UI依存を減らす。
 
 ---
 
-由来: Shuji#27 → GPT第33 (5案A-E) → Gemini第19 (案B+Playwright GREEN承認、 3ステップロードマップ) → GPT第35 (Local Playwright Orchestrator方式採択+本仕様確定)
+由来: Shuji#27 → GPT第33 (5案A-E) → Gemini第19 (案B+Playwright GREEN承認、 3ステップロードマップ) → GPT第35 (Local Playwright Orchestrator方式採択+本仕様確定) → Claude第10 (発言監査3スロット+追加安全策a-d提案) → **GPT第37 (Phase 1 Claude除外+Chrome CDP+Dry-run必須+a-d採用)**
 
-`[GPT-Verify: R50-AUTO-ORCHESTRATOR-PROTOTYPE-2251]`
+`[GPT-Verify: R50-PHASE1-CLAUDE-EXCLUDED-6824]`

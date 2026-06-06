@@ -1,54 +1,56 @@
 {
-  "_comment": "GPT指示R50-CMD-CREATE-ORCHESTRATOR-PROTOTYPE完了 (仕様書+雛形)",
+  "_comment": "GPT指示R50-CMD-REVISE-PHASE1-CLAUDE-EXCLUDED: Phase 1 Claude除外+Chrome CDP+Dry-run必須+追加安全策(a-d)採用",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 26,
-  "current_phase": "Auto meeting system - Playwright orchestrator prototype",
-  "round_title": "Local Playwright Orchestrator 雛形+仕様書 確定",
+  "current_turn": 27,
+  "current_phase": "Auto meeting system - Phase 1 spec revised",
+  "round_title": "Phase 1 Claude除外設計 (GPT↔Gemini 2者循環自動化)",
   "round_validity": "in_progress",
-  "phase": "R50_orchestrator_prototype_created_awaiting_gpt_next",
+  "phase": "R50_phase1_claude_excluded_awaiting_gemini_audit",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Claude",
+  "next_actor": "Gemini",
   "blocker": null,
-  "selected_architecture": "Local Playwright Orchestrator",
-  "github_actions_role": "monitoring only",
-  "api_orchestrator_role": "Phase 2 upgrade",
-  "temporary_bell": "Shuji until prototype works",
+  "phase1_scope": "GPT-Gemini loop fully handled by Playwright, Claude excluded from runtime",
+  "claude_role_phase1": "excluded from meeting runtime (implementation support + GPT directive wait only)",
+  "selected_architecture": "Local Playwright Orchestrator + Chrome CDP",
+  "fastest_route": "Chrome CDP接続 (既存ログイン済Chrome流用)",
+  "phase1_required_features": {
+    "priority_1": ["Dry-runモード", "Chrome CDP接続", "GPT/Geminiタブ検出", "Send成功検証", "Response完了検証"],
+    "priority_2": ["議事録append + 自動timestamp commit", "state.json backup", "30分stall通知", "dashboard連携"]
+  },
+  "claude_proposed_safety_measures_adopted": {
+    "a": "30分stall通知 (メール/Slack/iOS通知)",
+    "b": "state.jsonバックアップ (lock_stale/破損対策)",
+    "c": "議事録自動timestamp commit (Playwright書込前にgit add+commit)",
+    "d": "Dry-runモード (実Send前にinject内容をlogs/dry_run/にdump)"
+  },
+  "temporary_bell": "Shuji until Phase 1 deployed",
   "frozen_topics": ["R50 final infrastructure report", "exchange selection"],
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
   "next_actor_tag_rule": true,
   "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
-  "bell_protocol_status": "minimum viable protocol adopted, evolving to full automation",
   "lock": false,
-  "orchestrator_files": {
-    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (11セクション)",
-    "prototype": "scripts/orchestrator_prototype.py (State enum + I/O + lock + Playwright placeholder)"
-  },
   "gpt_command_pending": false,
   "claude_ack": true,
+  "claude_active_command": "R50-CMD-REVISE-PHASE1-CLAUDE-EXCLUDED",
   "claude": {
-    "status": "completed_orchestrator_prototype_creation"
+    "status": "executing_directive_spec_revision_forward_gemini"
   },
   "gpt": {
-    "status": "completed_R50_AUTO_ORCHESTRATOR_PROTOTYPE_2251",
-    "label": "GPT第35 Local Playwright Orchestrator方式採択+仕様+雛形作成指示",
-    "responded_count_R50": 35
+    "status": "completed_R50_PHASE1_CLAUDE_EXCLUDED_6824",
+    "label": "GPT第37 Claude発言監査採用 + Phase 1 Claude除外 + Chrome CDP最短ルート + Dry-run必須 + 追加安全策a-d採用",
+    "responded_count_R50": 37
   },
   "gemini": {
-    "status": "completed_R50_2nd_18thTurn_2ndSpeaker_AUTO_CORE_AUDIT_GREEN",
-    "label": "Gemini第19 案B+Playwright全面承認",
+    "status": "pending_phase1_revision_audit",
+    "label": "GPT指示5 verbatim+監査7項目 転送待ち",
     "responded_count_R50": 19
   },
-  "auto_meeting_system_consensus": {
-    "main_architecture": "案B: ローカル常駐Python + Playwright",
-    "spec_sections": 11,
-    "prototype_functions": ["State enum", "load_state/save_state", "acquire_lock/release_lock", "detect_next_actor", "build_prompt_for_actor", "send_message_placeholder", "fetch_response_placeholder", "append_log_placeholder", "validate_response", "main_loop_once"],
-    "implementation_roadmap": {
-      "phase_1": "GPT→Gemini→GPT 2者循環 (Claudeは議事録追記+転送のみ)",
-      "phase_1_5": "3者完全自動",
-      "phase_2": "OpenAI/Gemini/Claude API化"
-    }
+  "claude_response_count_R50": 10,
+  "orchestrator_files": {
+    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (Phase 1 Claude除外+安全策a-d反映済)",
+    "prototype": "scripts/orchestrator_prototype.py (本格実装未着手、 GPT第37指示で Gemini監査後 開始予定)"
   },
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
