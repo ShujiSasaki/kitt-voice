@@ -164,6 +164,24 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 40. Phase 1.5 STEP3 P2 Resolved / Final Claude Status Awaiting (GPT第102 R50-REISSUE-PHASE15-FINAL-CLAUDE-STATUS-2736)
+
+### STEP3 P2 resolved
+- Claude Code always-on operation burden resolved (Gemini第26 Q9 100点満点)
+- Phase 2 trigger definition resolved (Gemini第26 Q11 移行進めてください)
+
+### Phase 1.5 全6点 resolved
+- P0: race condition / stall Watchdog
+- P1: Shuji proxy pre-check / token overflow strategy
+- P2: Claude Code always-on operation burden / Phase 2 trigger definition
+
+### 3-AI status
+- Gemini passed STEP3 P2 (Section 77)
+- GPT agrees as participant (3AI内合意候補化に同意)
+- Claude final status待ち (Section 79で宣言済 → consensus_candidate=true 同意)
+- Claude final status後に consensus_candidate=true へ進む
+- Shujiさん最終承認はまだ未取得
+
 ## 39. Phase 1.5 STEP3 P2 Claude Proposal - Awaiting Gemini Audit (GPT第98 R50-REISSUE-STEP3-P2-GEMINI-AUDIT-7413)
 
 ### Claude proposal summary
