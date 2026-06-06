@@ -1,57 +1,55 @@
 {
-  "_comment": "GPT指示R50-CMD-REVISE-PHASE1-CLAUDE-EXCLUDED: Phase 1 Claude除外+Chrome CDP+Dry-run必須+追加安全策(a-d)採用",
+  "_comment": "Gemini第20 Phase 1 Claude除外 GREEN承認+P0-P3優先順位再マッピング+SIGINT機構追加",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 27,
-  "current_phase": "Auto meeting system - Phase 1 spec revised",
-  "round_title": "Phase 1 Claude除外設計 (GPT↔Gemini 2者循環自動化)",
+  "current_turn": 28,
+  "current_phase": "Auto meeting system - Phase 1 GREEN approved, awaiting GPT implementation directive",
+  "round_title": "Phase 1 Claude除外設計 全面承認",
   "round_validity": "in_progress",
-  "phase": "R50_phase1_claude_excluded_awaiting_gemini_audit",
+  "phase": "R50_phase1_green_approved_awaiting_gpt_orchestrator_implementation_directive",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
+  "next_actor": "GPT",
   "blocker": null,
   "phase1_scope": "GPT-Gemini loop fully handled by Playwright, Claude excluded from runtime",
-  "claude_role_phase1": "excluded from meeting runtime (implementation support + GPT directive wait only)",
-  "selected_architecture": "Local Playwright Orchestrator + Chrome CDP",
-  "fastest_route": "Chrome CDP接続 (既存ログイン済Chrome流用)",
-  "phase1_required_features": {
-    "priority_1": ["Dry-runモード", "Chrome CDP接続", "GPT/Geminiタブ検出", "Send成功検証", "Response完了検証"],
-    "priority_2": ["議事録append + 自動timestamp commit", "state.json backup", "30分stall通知", "dashboard連携"]
+  "selected_architecture": "Local Playwright Orchestrator + Chrome CDP (port 9222)",
+  "phase1_required_features_P0_P3": {
+    "P0": "30分stall通知 (要素取得見失い沈黙時の人間気づき経路)",
+    "P1": "Dry-runモード (DRY_RUN=True, 実Send前ログ出力のみ)",
+    "P2": "state.jsonバックアップ (状態破損保険)",
+    "P3": "議事録自動timestamp commit (運用安定後の履歴管理)"
   },
-  "claude_proposed_safety_measures_adopted": {
-    "a": "30分stall通知 (メール/Slack/iOS通知)",
-    "b": "state.jsonバックアップ (lock_stale/破損対策)",
-    "c": "議事録自動timestamp commit (Playwright書込前にgit add+commit)",
-    "d": "Dry-runモード (実Send前にinject内容をlogs/dry_run/にdump)"
-  },
-  "temporary_bell": "Shuji until Phase 1 deployed",
-  "frozen_topics": ["R50 final infrastructure report", "exchange selection"],
+  "phase1_safety_addition_gemini20": "DOM変更時の即時セーフティシャットダウン (SIGINT) - div[contenteditable='true']等 30秒未検出→state.json STATUS:ERROR_SUSPENDED→安全自壊",
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
   "next_actor_tag_rule": true,
   "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "lock": false,
+  "frozen_topics": ["R50 final infrastructure report", "exchange selection"],
+  "temporary_bell": "Shuji until Phase 1 orchestrator deployed",
   "gpt_command_pending": false,
   "claude_ack": true,
-  "claude_active_command": "R50-CMD-REVISE-PHASE1-CLAUDE-EXCLUDED",
   "claude": {
-    "status": "executing_directive_spec_revision_forward_gemini"
+    "status": "completed_gemini20_fetch_awaiting_gpt_implementation_directive"
   },
   "gpt": {
-    "status": "completed_R50_PHASE1_CLAUDE_EXCLUDED_6824",
-    "label": "GPT第37 Claude発言監査採用 + Phase 1 Claude除外 + Chrome CDP最短ルート + Dry-run必須 + 追加安全策a-d採用",
-    "responded_count_R50": 37
+    "status": "completed_R50_FETCH_GEMINI_PHASE1_CLAUDE_EXCLUDED_AUDIT",
+    "label": "GPT第38 Gemini監査応答取得指示",
+    "responded_count_R50": 38
   },
   "gemini": {
-    "status": "pending_phase1_revision_audit",
-    "label": "GPT指示5 verbatim+監査7項目 転送待ち",
-    "responded_count_R50": 19
+    "status": "completed_R50_2nd_19thTurn_2ndSpeaker_PHASE1_CLAUDE_EXCLUDED_GREEN",
+    "label": "Gemini第20 Claude除外絶対的妥当+CDP完全承認+P0-P3再マッピング+SIGINTセーフティ追加",
+    "responded_count_R50": 20,
+    "key_judgments": {
+      "claude_exclusion": "絶対的に妥当 (開発期間3分の1短縮)",
+      "shuji_graduation": "一撃で卒業 (100%達成)",
+      "chrome_cdp": "完全承認",
+      "dry_run": "必須 (暴走防止)",
+      "implementation_directive_to_claude": "即時指示許可 (ゴーサイン)"
+    }
   },
   "claude_response_count_R50": 10,
-  "orchestrator_files": {
-    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (Phase 1 Claude除外+安全策a-d反映済)",
-    "prototype": "scripts/orchestrator_prototype.py (本格実装未着手、 GPT第37指示で Gemini監査後 開始予定)"
-  },
+  "next_expected_gpt_directive": "Claudeへ orchestrator_prototype.py Playwright CDP接続完全実装指示",
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
 }
