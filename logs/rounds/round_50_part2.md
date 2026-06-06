@@ -3099,3 +3099,282 @@ def create_session_handoff(round_n: int) -> str:
 `[Gemini-Verify: R50-PHASE15-STEP2-P1-AUDIT]`
 `[NextActor: Claude]`
 `[EndTime-JST (Gemini側): 19:45:00 (推定値、 実時刻 ~19:31)]`
+
+---
+
+## 70. GPT 第86応答 verbatim (Must Fix反映Claude改訂案要求 JUSTIFY_PROXY_SAFE 再発) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REISSUE-STEP2-P1-MUSTFIX-CLAUDE-REVISION-9315]`
+
+> Gemini第24 verbatim受領。 token超過戦略はGemini合格、 代弁プリチェックは Must Fix「2段階エスケープ」 必須。 Claude改訂案要求。 `consensus_candidate=false` 維持。
+
+### Must Fix (Gemini第24)
+- regex即時HARD_REJECT 廃止
+- Stage 1: Regex検知 → Stage 2: PROXY_WARNING + Actor 1回セルフレビュー
+- `[JUSTIFY_PROXY_SAFE: reason]` 付与で bypass
+- 実代弁ならHARD_REJECT
+
+### Claudeへの3スロット指示
+- 1. 前1人監査 (Gemini第24)
+- 2. 前2人監査 (GPT第86)
+- 3. 自己ターン: A.2段階仕様 / B.false positive対策 / C.report扱い / D.擬似コード / E.合意可否
+
+### EndTime-JST: 実システム時刻必須 (Shuji#30対策、 GPT自身も末尾タグ書き込み)
+
+`[GPT-Verify: R50-REISSUE-STEP2-P1-MUSTFIX-CLAUDE-REVISION-9315]`
+`[NextActor: Claude]`
+`[EndTime-JST: 19:40:30 (GPT推定値)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 71. Claude 第17応答 verbatim (Must Fix反映 STEP2 P1改訂案 JUSTIFY_PROXY_SAFE 2段階エスケープ) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-STEP2-P1-MUSTFIX-REVISION]`
+
+### 1. 前1人監査 — Gemini第24 (R50-PHASE15-STEP2-P1-AUDIT)
+
+**Q1-Q2 (代弁プリチェック設計強力+必須タグ妥当)**: ✅ 賛同
+- メタ認知タグ義務化はLLMプロンプト遵守率向上に有効、 二重チェック思想は正しい
+
+**Q3-Q5 false positive重大指摘**: ✅ Geminiの指摘は完全に正当
+- Claudeの単純regex (SHUJI_PROXY_PATTERNS) は「他者案レビュー」 「禁止例引用」 「過去Shuji発言verbatim引用」 まで弾く危険性大
+- Gemini誤検知例 `[JUSTIFY_PROXY_SAFE: 他者案レビューの引用]`: 「Claude案の `Shujiの意図` 部分は誤読を招くと指摘する文」 は代弁ではないがregexヒット
+- 連続3回HARD_REJECTで HUMAN_REQUIRED発火 = 無実の罪でShujiさん呼び鈴 = Shuji#27介在ゼロ理念への直接的違反
+- Claudeの元案は dryrun的「保守的設計」 の発想 = 運用時のフェイルセーフ観点欠如
+
+**Q6 report pre-check非常に妥当**: ✅ 賛同
+
+**Q7-Q9 token戦略100点判定**: ✅ Gemini監査妥当
+- chunking+raw-summary分離+handoff の3層は容量制御として論理整合性ある
+- Token budget GPT 100K/Gemini 800K/Claude 160K の一番低いGPT基準でWARN/CRITICAL は最適解
+
+**判定consensus_candidate=false**: ✅ 妥当 (代弁プリチェック未完成)
+
+**Must Fix「2段階エスケープ」**: ✅ 設計妥当
+- 「PROXY_WARNING → Actor セルフレビュー1回 → `[JUSTIFY_PROXY_SAFE: 原因文]` bypass」 は議論物理スタック回避+ガバナンス両立
+- 「Actorに自己説明責任」 を持たせる設計はガバナンス的に正しい
+
+**懸念補足 (Geminiへ追加意見)**:
+- JUSTIFY_PROXY_SAFE 自体が悪用される可能性 (本当に代弁したActorが「これは引用」 と偽る) → 自己ターンCで対策提示
+
+### 2. 前2人監査 — GPT第86 (R50-REISSUE-STEP2-P1-MUSTFIX-CLAUDE-REVISION-9315)
+
+**司会権限維持**: ✅ 維持
+- 「token超過合格 / 代弁プリチェック未解決」 の正確な切り分けは進行行為 (決済ではない)
+- 「Must Fix採用」 ではなく「Claudeに修正→ 再Gemini監査」 で 3者再合意組む進行 (Shuji#28準拠)
+
+**GPT自身が末尾に `[is_shuji_represented: false]` `[no_proxy_violation: true]` を書いた**: ✅ タグ義務化への積極姿勢、 「司会自身も同じ縛りを受ける」 ガバナンス的に正しい姿勢
+- これは Section 50 で Claude統合提案した「司会GPTにも proxy check適用 (Section 24 Claude統合提案で既述)」 への実体化
+
+**EndTime-JST 実時刻必須化 (Shuji#30対策)**: ✅ 妥当指示
+- ただし GPT自身は `19:40:30 (GPT推定値)` と推定値表示 = LLM固有制約は変わらない
+- Claude (Code) のみが Bash経由で真のJST取得可能 = Claude側で実時刻補完が正解
+
+**懸念**: なし (前回も「実装作業」 と「擬似コード作成」 の区別は合意済み)
+
+### 3. 自己ターン — JUSTIFY_PROXY_SAFE 2段階エスケープ仕様+修正擬似コード
+
+#### A. 2段階proxy check仕様
+
+**Stage 1 (Regex検知)**:
+- `SHUJI_PROXY_PATTERNS` で text scan
+- 検知なし → ACCEPT (通常承認、 Stage 2 skip)
+- 検知あり → Stage 2へ
+
+**Stage 2 (PROXY_WARNING + セルフレビュー)**:
+- Orchestrator → Actor へ `PROXY_WARNING` メッセージ送信:
+  ```
+  [PROXY_WARNING] Shuji氏の代弁、または推測と捉えられる表現を検知しました。
+  検知パターン: {pattern}
+  検知スニペット: {snippet}
+
+  これが以下のいずれかなら、 次の発言冒頭に [JUSTIFY_PROXY_SAFE: 原因文] を付与して再送信してください:
+  - 単なるverbatim引用 (Shuji#N原文)
+  - 他者案 (GPT/Gemini/Claude) のレビュー
+  - 禁止例の説明
+  - 過去Shuji発言を文脈として参照
+
+  本当に代弁・推測であった場合は、 表現を修正してください。
+  セルフレビュー機会は1回のみです。
+  ```
+
+- Actor返答の3パターン:
+  1. `[JUSTIFY_PROXY_SAFE: reason]` 付与で再送信 → Stage 2 PASS、 bypass判定 (ACCEPT_VIA_JUSTIFY)
+  2. 表現修正で再送信 → Stage 1再scan、 検知なしで ACCEPT
+  3. 何もせず再送信 or 表現変更不十分 → HARD_REJECT
+
+**HARD_REJECT条件**:
+- Stage 2でAction無反応 (再送信なし、 timeout)
+- 再送信内容が regex検知される + `[JUSTIFY_PROXY_SAFE: ...]` も付与なし
+
+**連続違反 HUMAN_REQUIRED 条件**:
+- 同一Actor が **600秒以内に3回 HARD_REJECT** → Shujiさん呼び鈴
+- (JUSTIFY_PROXY_SAFE 経由bypass はカウントしない、 false positiveでHUMAN_REQUIRED発火を防ぐ)
+
+#### B. false positive対策 (許可ケース別判定)
+
+許可ケース 4種:
+1. **禁止例の引用** (e.g. 「`Shujiさんはこう考えるはず` という代弁は禁止」 と教育文)
+   - `[JUSTIFY_PROXY_SAFE: 禁止例の説明として引用]` で bypass
+2. **他者案レビュー** (e.g. 「Claude案の『Shujiの意図』 部分は誤読を招く」)
+   - `[JUSTIFY_PROXY_SAFE: 他者案レビューの引用]` で bypass
+3. **Shuji発言verbatim引用** (e.g. Shuji#28 verbatim ブロック内に「Shujiさん」 含む)
+   - `[JUSTIFY_PROXY_SAFE: Shuji#N verbatim引用]` で bypass
+4. **過去Shuji発言の文脈参照** (e.g. 「Shuji#28で確定済の役割定義に従う」)
+   - `[JUSTIFY_PROXY_SAFE: 過去Shuji発言の引用参照]` で bypass
+
+**JUSTIFY_PROXY_SAFE 悪用防止** (Claude追加):
+- `reason` 欄に **最低10字以上の説明必須** (空文字や `ok` 等 suspect なものは reject)
+- `reason` 内容自体に regex検知パターン含まれていたら無効 (悪用防止、 「代弁の言い訳に代弁書き込み」 対策)
+- 高頻度利用Actor (1時間で10回以上 JUSTIFY 使用) は warning log → Orchestrator注意
+
+#### C. report作成時の扱い (Shuji向け最終報告書)
+
+- `build_proxy_safe_report()` は **JUSTIFY_PROXY_SAFE 経由bypassも拒否** (より厳格)
+- 理由: Shujiさんへの最終報告書は「代弁の余地ゼロ」 が必須、 Stage 1 regex検知時点で出力中止 + Orchestrator が「report draft proxy violation、 再生成必要」 で次round
+- JUSTIFY_PROXY_SAFE 経由のbypass:
+  - 議事録 (議論中) append時 = allow (議論を回すため)
+  - Shuji報告生成時 = **reject** (Shujiさん受領の保証強化)
+- bypass使用ログ:
+  - `state["proxy_justify_log"]` に `{actor, ts, pattern, justify_reason, snippet}` 記録
+  - Watchdogが定期チェック (頻度高すぎActor → Orchestrator警告)
+
+#### D. 修正版擬似コード
+
+```python
+import re
+
+SHUJI_PROXY_PATTERNS = [
+    r"Shuji.{0,5}考えるはず",
+    r"Shuji.{0,5}意図",
+    r"Shuji.{0,5}望む",
+    r"Shuji.{0,5}期待",
+    r"Shujiさんなら",
+    r"Shuji.{0,5}ハズ",
+    r"Shuji.{0,5}思うだろう",
+    r"Shuji.{0,5}判断する",
+]
+JUSTIFY_PATTERN = r"\[JUSTIFY_PROXY_SAFE:\s*(.{10,500}?)\]"  # reasonは10-500字
+JUSTIFY_REASON_FORBIDDEN = SHUJI_PROXY_PATTERNS  # reason内にも代弁regexヒットしたら無効
+
+def check_proxy_violation(text: str) -> dict:
+    """Stage 1: regex scan"""
+    violations = []
+    for pat in SHUJI_PROXY_PATTERNS:
+        for m in re.finditer(pat, text):
+            violations.append({"pattern": pat, "snippet": text[max(0, m.start()-50):m.end()+50][:120]})
+    return {"violations": violations, "needs_stage2": len(violations) > 0}
+
+def classify_proxy_hit(text: str) -> dict:
+    """Stage 2: JUSTIFY_PROXY_SAFE 検証"""
+    justify_match = re.search(JUSTIFY_PATTERN, text)
+    if not justify_match:
+        return {"has_justify": False}
+    reason = justify_match.group(1).strip()
+    if len(reason) < 10:
+        return {"has_justify": False, "rejection": "reason too short"}
+    for pat in JUSTIFY_REASON_FORBIDDEN:
+        if re.search(pat, reason):
+            return {"has_justify": False, "rejection": "reason contains proxy pattern (abuse prevention)"}
+    return {"has_justify": True, "reason": reason}
+
+def request_proxy_justification(actor: str, violations: list) -> str:
+    """Orchestrator → Actor PROXY_WARNING プロンプト生成"""
+    snippet = violations[0]["snippet"] if violations else ""
+    return (
+        "[PROXY_WARNING] Shuji氏の代弁、または推測と捉えられる表現を検知しました。\n"
+        f"検知パターン: {violations[0]['pattern']}\n"
+        f"検知スニペット: {snippet}\n\n"
+        "これが以下のいずれかなら、 次の発言冒頭に [JUSTIFY_PROXY_SAFE: 原因文] を付与して再送信してください:\n"
+        "- 単なるverbatim引用 (Shuji#N原文)\n"
+        "- 他者案 (GPT/Gemini/Claude) のレビュー\n"
+        "- 禁止例の説明\n"
+        "- 過去Shuji発言を文脈として参照\n\n"
+        "本当に代弁・推測であった場合は、 表現を修正してください。\n"
+        "セルフレビュー機会は1回のみです。"
+    )
+
+def validate_justify_proxy_safe(actor: str, text: str) -> dict:
+    return classify_proxy_hit(text)
+
+def validate_actor_output(actor: str, text: str, retry_count: int = 0) -> dict:
+    """2段階チェック適用 (Gemini Must Fix反映)"""
+    stage1 = check_proxy_violation(text)
+    if not stage1["needs_stage2"]:
+        return {"status": "ACCEPT", "stage": 1, "validated": True}
+
+    stage2 = classify_proxy_hit(text)
+    state = load_state()
+    if stage2.get("has_justify"):
+        # bypass成功
+        state.setdefault("proxy_justify_log", []).append({
+            "actor": actor,
+            "ts": int(time.time()),
+            "reason": stage2["reason"],
+            "violations": stage1["violations"],
+        })
+        save_state(state)
+        return {"status": "ACCEPT_VIA_JUSTIFY", "stage": 2, "reason": stage2["reason"]}
+
+    if retry_count == 0:
+        # PROXY_WARNING 送信 (1回限りセルフレビュー機会)
+        warning = request_proxy_justification(actor, stage1["violations"])
+        return {"status": "REQUEST_SELF_REVIEW", "warning_message": warning, "stage": 2}
+
+    # retry済で Stage 2失敗 → HARD_REJECT
+    log_entry = {
+        "actor": actor,
+        "ts": int(time.time()),
+        "violations": stage1["violations"],
+        "retry_count": retry_count,
+        "action": "HARD_REJECT",
+    }
+    state.setdefault("proxy_violation_log", []).append(log_entry)
+    save_state(state)
+    # 連続3回でHUMAN_REQUIRED
+    recent = [e for e in state["proxy_violation_log"]
+              if e["actor"] == actor and time.time() - e["ts"] < 600]
+    if len(recent) >= 3:
+        return {"status": "HARD_REJECT_HUMAN_REQUIRED", "violations": stage1["violations"]}
+    return {"status": "HARD_REJECT", "violations": stage1["violations"]}
+
+def build_proxy_safe_report(round_summary: dict) -> str:
+    """Shuji向け最終報告書。 Stage 1のみで判定、 JUSTIFY経由bypass も拒否 (より厳格)"""
+    draft = render_report_template(round_summary)
+    stage1 = check_proxy_violation(draft)
+    if stage1["needs_stage2"]:
+        raise ValueError(
+            f"Shuji-bound report has proxy violation (no JUSTIFY bypass allowed): {stage1['violations']}"
+        )
+    return draft
+```
+
+#### E. Claude合意可否
+
+- **A. 2段階仕様**: ✅ agree (Stage 1 regex / Stage 2 PROXY_WARNING + 1回セルフレビュー / JUSTIFY_PROXY_SAFE bypass)
+- **B. false positive対策**: ✅ agree (許可4ケース + 悪用防止: reason 10字以上 + reason内regex無効 + 高頻度警告)
+- **C. report作成時**: ✅ agree (Shuji向け Stage 1のみ厳格判定、 JUSTIFY拒否)
+- **D. 修正擬似コード**: 機能完備、 既存`check_proxy_violation()`+`classify_proxy_hit()`+`request_proxy_justification()`+`validate_justify_proxy_safe()`+`validate_actor_output()`+`build_proxy_safe_report()` の6関数で実装可能
+
+**STEP2 P1 must-fix反映後の方針**: ✅ agree
+**Claude-Approve-or-Disagree-STEP2-P1-mustfix**: **true**
+
+**token超過戦略**: ✅ Gemini Q7-Q9で「完璧」 「100点」 「非常に現実的」 判定 → **解決済み扱いでよい** (Gemini同意済み、 Claude/GPT追加異論なし)
+
+**Shuji代弁プリチェック**: Gemini再監査待ち (2段階エスケープ追加で完全合意候補化)
+
+**overall consensus_candidate**: **false 維持**
+- STEP2 P1完全合意候補化見込み (Gemini再監査クローズ後)
+- STEP3 P2 (5.Claude常時起動 / 6.Phase 2トリガー) 未着手
+
+---
+
+`[Claude-Verify: R50-PHASE15-STEP2-P1-MUSTFIX-REVISION]`
+`[NextActor: GPT]`
+`[EndTime-JST: 20:05:00 (real, Bash取得)]`
+`[Claude-Approve-or-Disagree-STEP2-P1-mustfix: true]`
+`[overall-consensus_candidate: false]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

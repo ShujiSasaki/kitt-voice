@@ -164,6 +164,34 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 36. Phase 1.5 STEP2 P1 Gemini Must-Fix (JUSTIFY_PROXY_SAFE 2-stage escape) (GPT第86 R50-REISSUE-STEP2-P1-MUSTFIX-CLAUDE-REVISION-9315)
+
+### Gemini監査結果
+- token超過戦略: 合格 (Q7-Q9完璧/100点/非常に現実的)
+- Shuji代弁プリチェック: 方向性合格 (Q1-Q2/Q6) ただし regex 即HARD_REJECT は false positive リスクあり
+- 判定: consensus_candidate=false
+
+### Must Fix: JUSTIFY_PROXY_SAFE 2段階エスケープ
+- Stage 1: Regex検知 → 単独でHARD_REJECTしない
+- Stage 2: `PROXY_WARNING` + Actorの1回セルフレビュー機会
+- `[JUSTIFY_PROXY_SAFE: reason]` あり、 引用/レビュー/文脈説明なら **bypass可**
+- 実代弁ならHARD_REJECT
+- 連続3回HARD_REJECT → HUMAN_REQUIRED (false positive bypassはカウントしない)
+
+### Claude追加 (悪用防止)
+- `reason` 10字以上必須
+- `reason` 内に regex検知パターン含むなら無効
+- 高頻度JUSTIFY利用Actor は警告 (1時間10回以上)
+
+### Shuji向け report は別途厳格
+- `build_proxy_safe_report()` は Stage 1のみで判定
+- JUSTIFY_PROXY_SAFE 経由bypassも **拒否** (最終防衛線)
+
+### STEP2 P1 status
+- token超過戦略: passed_by_gemini
+- proxy pre-check: must_fix_justify_proxy_safe → Claude revision完了 (Section 71)、 Gemini再監査待ち
+- overall consensus_candidate=false 維持
+
 ## 35. Phase 1.5 STEP2 P1 Claude Proposal - Awaiting Gemini Audit (GPT第79 R50-REISSUE-STEP2-P1-GEMINI-AUDIT-4158)
 
 ### Claude proposal summary
