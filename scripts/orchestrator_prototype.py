@@ -1045,6 +1045,164 @@ def _persist_fetch_gemini(result: dict) -> None:
     save_state(state)
 
 
+def run_send_test_chatgpt() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-CHATGPT-SEND-TEST: 1回だけChatGPT実送信、 終了後real_send_enabled=false戻し"""
+    print("=" * 60)
+    print("R50 Orchestrator Controlled ChatGPT Send Test (GPT-Verify: R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129)")
+    print("=" * 60)
+
+    test_payload = (
+        "これは Orchestrator の ChatGPT 実送信テストです。本来議題ではありません。"
+        "短く「受信確認OK」とだけ返してください。\n\n"
+        "[GPT-Verify: R50-CHATGPT-SEND-TEST-PAYLOAD]\n"
+        "[NextActor: GPT]\n"
+        f"[EndTime-JST: {time.strftime('%H:%M:%S')}]\n"
+    )
+
+    result = {
+        "send_test_chatgpt": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "chatgpt_tab_detected": False,
+        "before": {},
+        "after": {},
+        "send_verification": {},
+    }
+    state = load_state()
+    state["real_send_enabled"] = True
+    backup_path = backup_state(state)
+    save_state(state)
+    print(f"[1] backup: {backup_path}, real_send_enabled→True")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_chatgpt_send_test(result, restore_false=True)
+            return 1
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    _persist_chatgpt_send_test(result, restore_false=True)
+                    return 1
+
+                chatgpt_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "chatgpt.com/g/g-p-" in page.url:
+                            chatgpt_page = page
+                            break
+                    if chatgpt_page:
+                        break
+                if not chatgpt_page:
+                    result["reason"] = "CHATGPT_TAB_NOT_FOUND"
+                    _persist_chatgpt_send_test(result, restore_false=True)
+                    return 1
+                result["chatgpt_tab_detected"] = True
+                print("[3] ChatGPTタブ検出: True")
+
+                chatgpt_page.bring_to_front()
+                chatgpt_page.wait_for_load_state("domcontentloaded", timeout=8000)
+
+                before = chatgpt_page.evaluate("""() => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    return {
+                        editor_len: ta ? (ta.textContent || '').length : -1,
+                        user_count: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                        assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                        stop_btn: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                    };
+                }""")
+                result["before"] = before
+                print(f"[4] before: {before}")
+
+                inject_result = chatgpt_page.evaluate("""(text) => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    if (!ta) return {error: 'no textarea'};
+                    ta.focus();
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    ta.dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
+                    return {injected: true, len: (ta.textContent || '').length};
+                }""", test_payload)
+                print(f"[5] inject: {inject_result}")
+                if "error" in inject_result:
+                    result["reason"] = f"INJECT_FAILED: {inject_result['error']}"
+                    _persist_chatgpt_send_test(result, restore_false=True)
+                    return 1
+
+                chatgpt_page.wait_for_timeout(2000)
+
+                click_result = chatgpt_page.evaluate("""() => {
+                    const btn = document.querySelector('button[data-testid=\"send-button\"]');
+                    if (!btn) return {error: 'no send button'};
+                    if (btn.disabled) return {error: 'disabled'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                print(f"[6] click: {click_result}")
+                if "error" in click_result:
+                    result["reason"] = f"CLICK_FAILED: {click_result['error']}"
+                    _persist_chatgpt_send_test(result, restore_false=True)
+                    return 1
+
+                chatgpt_page.wait_for_timeout(4000)
+                after = chatgpt_page.evaluate("""() => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    return {
+                        editor_len: ta ? (ta.textContent || '').length : -1,
+                        user_count: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                        assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                        stop_btn: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                    };
+                }""")
+                result["after"] = after
+                print(f"[7] after: {after}")
+
+                verify = {
+                    "editor_zero": after["editor_len"] == 0,
+                    "user_count_incremented": (after["user_count"] - before["user_count"]) == 1,
+                    "stop_btn_or_assistant_increased": after["stop_btn"] or (after["assistant_count"] > before["assistant_count"]),
+                }
+                verify["all_passed"] = all(verify.values())
+                result["send_verification"] = verify
+                print(f"[8] verification: {verify}")
+
+                result["send_test_chatgpt"] = "PASSED" if verify["all_passed"] else "FAILED"
+
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                result_path = DRY_RUN_DIR / f"{ts}.chatgpt_send_test.json"
+                with open(result_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                result["result_dump"] = str(result_path)
+                print(f"[9] result dump: {result_path}")
+
+                _persist_chatgpt_send_test(result, restore_false=True)
+                return 0 if verify["all_passed"] else 1
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_chatgpt_send_test(result, restore_false=True)
+            return 1
+    finally:
+        release_lock(load_state())
+        after_state = load_state()
+        print(f"[final] lock={after_state.get('lock')}, real_send_enabled={after_state.get('real_send_enabled')}")
+
+
+def _persist_chatgpt_send_test(result: dict, restore_false: bool = True) -> None:
+    state = load_state()
+    state["chatgpt_send_test_result"] = result
+    if restore_false:
+        state["real_send_enabled"] = False
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -1060,6 +1218,8 @@ if __name__ == "__main__":
         sys.exit(run_send_test_gemini())
     if "--fetch-gemini-latest" in sys.argv:
         sys.exit(run_fetch_gemini_latest())
+    if "--send-test-chatgpt" in sys.argv:
+        sys.exit(run_send_test_chatgpt())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

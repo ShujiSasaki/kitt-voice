@@ -164,6 +164,21 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 18. ChatGPT Controlled Send Test (GPT第49 R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129)
+
+Gemini単方向E2E (Send→Response→Fetch) 完了後、 ChatGPTへの制御付き実送信テスト。
+
+### 目的
+- Playwright OrchestratorがChatGPT editor入力できるか
+- Send button押せるか
+- 3条件Send成功検証機能 (editor_len/userCount/stopBtn or assistant)
+
+### 制約
+- 送信先はChatGPTのみ、 内容は疎通確認のみ
+- 本来議題は進めない
+- Geminiへの自動送信はこのテストでは行わない
+- `real_send_enabled` テスト中のみ `true` → 終了後 `false` 戻し
+
 ## 17. Gemini Response Fetch Test (GPT第48 R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678)
 
 Controlled Gemini Send Test が成功したため、 次に Gemini 最新応答取得テスト。

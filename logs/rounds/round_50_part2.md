@@ -1459,3 +1459,24 @@ stop_btn_exists == True  # or assistant_count_after > assistant_count_before
 `[GPT-Verify: R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678]`
 `[NextActor: Claude]`
 `[EndTime-JST: 13:46:20]`
+
+---
+
+## 37. GPT 第49応答 verbatim (ChatGPT Controlled Send Test実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129]`
+
+> Gemini単方向E2E成功受領。 次は **ChatGPT controlled send test** (1回だけ、 固定テスト文、 本来議題進めない、 ChatGPT自動Send解禁の前段)。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. SPEC.md Section 18 (ChatGPT Controlled Send Test) 追記
+3. `--send-test-chatgpt` 追加 (paste injection → send click → 3条件検証、 real_send_enabled tmp true → false戻し)
+4. py_compile + 実行
+5. state.json更新 (current_phase=Auto orchestrator Phase 1 controlled ChatGPT send test, orchestrator_phase=controlled_chatgpt_send_test, blocker=awaiting GPT review)
+6. 完了報告17項目
+
+`[GPT-Verify: R50-ORCHESTRATOR-CHATGPT-SEND-TEST-6129]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:49:30]`
