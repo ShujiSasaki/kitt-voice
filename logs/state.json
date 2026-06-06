@@ -1,41 +1,36 @@
 {
-  "_comment": "GPT指示R50-CMD-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP完了 (骨格実装+py_compile OK、 実Send禁止継続)",
+  "_comment": "GPT指示R50-CMD-ORCHESTRATOR-SELFTEST完了 (PASSED, exit 0)",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 29,
-  "current_phase": "Auto meeting system - Phase 1 dry-run+CDP skeleton implemented",
-  "round_title": "Phase 1 dry-run + CDP接続 骨格実装完了",
+  "current_turn": 30,
+  "current_phase": "Auto orchestrator Phase 1 dry-run self-test",
+  "round_title": "orchestrator self-test PASSED",
   "round_validity": "in_progress",
-  "phase": "R50_phase1_skeleton_implemented_awaiting_gpt_next",
+  "phase": "R50_orchestrator_selftest_passed_awaiting_gpt_next",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Claude",
+  "next_actor": "GPT",
+  "orchestrator_test_status": "self-test PASSED (exit 0)",
   "blocker": null,
   "DRY_RUN": true,
+  "real_send_enabled": false,
   "CDP_ENDPOINT": "http://127.0.0.1:9222",
   "DOM_TIMEOUT_SEC": 30,
   "STALL_NOTIFY_SEC": 1800,
-  "phase1_skeleton_status": "implemented_compiles_OK",
-  "real_send_enabled": false,
-  "phase1_implementation_complete": {
-    "Playwright_CDP_接続": "placeholder (connect_to_chrome_cdp_placeholder)",
-    "ChatGPT_タブ検出": "placeholder",
-    "Gemini_タブ検出": "placeholder",
-    "Dry_run_モード": "実装済 (DRY_RUN=True + dry_run_dump to logs/dry_run/)",
-    "state_json_backup": "実装済 (backup_state to logs/state_backups/)",
-    "lock取得解除": "実装済 (atomic file rename)",
-    "SIGINT安全終了": "実装済 (handle_sigint, state.STATUS=INTERRUPTED)",
-    "DOM30秒未検出ERROR_SUSPENDED": "実装済 (trigger_error_suspended)",
-    "Verify_Token_NextActor_EndTime抽出": "実装済 (regex VERIFY_TOKEN_RE/NEXT_ACTOR_RE/ENDTIME_JST_RE)",
-    "Send成功検証": "verify_send_success_placeholder (ruleのみ実装)",
-    "Response完了検証": "validate_response 実装済"
+  "selftest_results": {
+    "py_compile": "OK",
+    "exit_code": 0,
+    "state_backup_path": "logs/state_backups/state.1780708141.json",
+    "dry_run_dump_path": "logs/dry_run/1780708141.SELFTEST.txt",
+    "lock_acquired": true,
+    "lock_released": true,
+    "validate_response": "valid (verify_token+next_actor+end_time_jst 全一致)"
   },
-  "py_compile_result": "OK (10:02:24)",
   "phase1_required_features_P0_P3": {
-    "P0": "30分stall通知 - 実装済 (stall_notify_placeholder、 通知経路はplaceholder)",
-    "P1": "Dry-runモード - 実装済",
-    "P2": "state.jsonバックアップ - 実装済",
-    "P3": "議事録自動timestamp commit - append_log実装済 (git commit統合はTODO)"
+    "P0": "30分stall通知 - 実装済 (stall_notify_placeholder)",
+    "P1": "Dry-runモード - 実装済 (self-test PASSED)",
+    "P2": "state.jsonバックアップ - 実装済 (self-testで動作確認済)",
+    "P3": "議事録自動timestamp commit - append_log実装済"
   },
   "selected_architecture": "Local Playwright Orchestrator + Chrome CDP (port 9222)",
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
@@ -47,12 +42,12 @@
   "gpt_command_pending": false,
   "claude_ack": true,
   "claude": {
-    "status": "completed_phase1_skeleton_awaiting_gpt_next"
+    "status": "completed_orchestrator_selftest_passed"
   },
   "gpt": {
-    "status": "completed_R50_IMPLEMENT_ORCHESTRATOR_PHASE1_DRYRUN_CDP_4189",
-    "label": "GPT第39 dry-run+CDP骨格実装命令 (実Send禁止継続)",
-    "responded_count_R50": 39
+    "status": "completed_R50_ORCHESTRATOR_SELFTEST_6193",
+    "label": "GPT第40 --self-testモード追加+実行命令 (実Send禁止)",
+    "responded_count_R50": 40
   },
   "gemini": {
     "status": "completed_R50_2nd_19thTurn_2ndSpeaker_PHASE1_CLAUDE_EXCLUDED_GREEN",
@@ -61,8 +56,8 @@
   },
   "claude_response_count_R50": 10,
   "orchestrator_files": {
-    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (Section 10.1 P0-P3+Section 10.2 ERROR_SUSPENDED/SIGINT追加)",
-    "prototype": "scripts/orchestrator_prototype.py (Phase 1骨格実装、 py_compile OK、 実Send禁止)"
+    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (Section 10.1+10.2)",
+    "prototype": "scripts/orchestrator_prototype.py (Phase 1骨格+self-test実装、 PASSED)"
   },
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"

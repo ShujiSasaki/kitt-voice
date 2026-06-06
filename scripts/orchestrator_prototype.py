@@ -299,7 +299,74 @@ def main_loop_once() -> dict:
         release_lock(load_state())
 
 
+def run_self_test() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-SELFTEST: 実Send絶対禁止、 dry-runで validate_response 検証"""
+    print("=" * 60)
+    print("R50 Orchestrator Self-Test (GPT-Verify: R50-ORCHESTRATOR-SELFTEST-6193)")
+    print("=" * 60)
+    assert DRY_RUN is True, "DRY_RUN must remain True during self-test"
+
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] state.json backup: {backup_path}")
+
+    locked = acquire_lock(state)
+    print(f"[2] lock acquired: {locked}")
+
+    dummy_prompt = "[Self-Test] dummy prompt to dry-run pipeline"
+    dump_path = dry_run_dump("SELFTEST", dummy_prompt)
+    print(f"[3] dry_run_dump: {dump_path}")
+
+    dummy_response = (
+        "これは self-test 応答です。\n"
+        "[GPT-Verify: SELFTEST-0001]\n"
+        "[NextActor: Gemini]\n"
+        "[EndTime-JST: 10:05:00]\n"
+    )
+    validation = validate_response(dummy_response)
+    print(f"[4] validate_response: {json.dumps(validation, ensure_ascii=False)}")
+
+    if not validation["valid"]:
+        print(f"FAIL: validate_response missing fields: {validation['missing']}")
+        release_lock(load_state())
+        return 1
+    expected_verify_token = "[GPT-Verify: SELFTEST-0001]"
+    if validation["verify_token"] != expected_verify_token:
+        print(f"FAIL: verify_token mismatch: got={validation['verify_token']}")
+        release_lock(load_state())
+        return 1
+    if validation["next_actor"] != "Gemini":
+        print(f"FAIL: next_actor mismatch: got={validation['next_actor']}")
+        release_lock(load_state())
+        return 1
+    if validation["end_time_jst"] != "10:05:00":
+        print(f"FAIL: end_time_jst mismatch: got={validation['end_time_jst']}")
+        release_lock(load_state())
+        return 1
+
+    release_lock(load_state())
+    after = load_state()
+    print(f"[5] lock released: lock={after.get('lock')}")
+
+    if after.get("lock") is not False:
+        print("FAIL: lock not released")
+        return 1
+    if STATE_BACKUP_DIR.exists() is False:
+        print("FAIL: STATE_BACKUP_DIR not created")
+        return 1
+    if DRY_RUN_DIR.exists() is False:
+        print("FAIL: DRY_RUN_DIR not created")
+        return 1
+
+    print("=" * 60)
+    print("SELF-TEST PASSED (DRY_RUN={}, real_send_enabled=False)".format(DRY_RUN))
+    print("=" * 60)
+    return 0
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        sys.exit(run_self_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

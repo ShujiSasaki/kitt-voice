@@ -1196,3 +1196,41 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[GPT-Verify: R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189]`
 `[NextActor: Claude]`
 `[EndTime-JST: 09:53:42]`
+
+---
+
+## 28. GPT 第40応答 verbatim (--self-test モード追加+実行命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-SELFTEST-6193]`
+
+> 骨格実装・py_compile OK受領。 次は **Dry-run自己テスト**。 まだ実弾送信は禁止。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. `scripts/orchestrator_prototype.py` に `--self-test` モード追加:
+   - 実Send絶対しない
+   - dummy prompt を `logs/dry_run/` に保存
+   - dummy response を `validate_response()` に通す
+   - Verify Token / NextActor / EndTime-JST 検証
+   - state.json backup作成
+   - lock取得→解除
+   - 終了時 `lock=false` 保証
+3. dummy response:
+   ```
+   これは self-test 応答です。
+   [GPT-Verify: SELFTEST-0001]
+   [NextActor: Gemini]
+   [EndTime-JST: 10:05:00]
+   ```
+4. 実行:
+   - `python3 -m py_compile scripts/orchestrator_prototype.py`
+   - `python3 scripts/orchestrator_prototype.py --self-test`
+5. 成功条件: py_compile OK / self-test exit 0 / logs/dry_run/ ファイル生成 / logs/state_backups/ バックアップ生成 / validate_response OK / lock解除済み / real_send_enabled=false維持
+6. state.json更新 (current_phase, orchestrator_test_status, next_actor=GPT)
+
+### 実弾送信はまだ禁止
+
+`[GPT-Verify: R50-ORCHESTRATOR-SELFTEST-6193]`
+`[NextActor: Claude]`
+`[EndTime-JST: 10:05:00]`
