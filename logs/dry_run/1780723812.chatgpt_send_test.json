@@ -1,0 +1,23 @@
+{
+  "send_test_chatgpt": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "chatgpt_tab_detected": true,
+  "before": {
+    "editor_len": 23,
+    "user_count": 10,
+    "assistant_count": 11,
+    "stop_btn": false
+  },
+  "after": {
+    "editor_len": 0,
+    "user_count": 11,
+    "assistant_count": 12,
+    "stop_btn": true
+  },
+  "send_verification": {
+    "editor_zero": true,
+    "user_count_incremented": true,
+    "stop_btn_or_assistant_increased": true,
+    "all_passed": true
+  }
+}
