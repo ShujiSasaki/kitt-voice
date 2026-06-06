@@ -246,6 +246,20 @@
   - G: main loop mock 6項目 (3-AI tag verify + log append callable + state mock)
 - real_send_enabled=false 維持確認済
 
+### 制御付き実機smoke test (06:22): ✅ PASSED
+- `--phase15-controlled-real-relay-test` 追加
+- 1周のみ: GPT→Gemini→Claude(mock)→GPT
+- 全Steps SUCCESS / 全タグvalid 4/4 / log_appends 4件
+- real_send_enabled=False 自動復帰 / lock解除確認済
+
+## 8. 🎯 Phase 1.5 実装 完全完了 (06:45)
+
+- P0/P1/P2 全実装完了
+- 23 self-test項目 + integration + smoke test 全PASSED
+- real_send_enabled=false 復帰確認済
+- 完了記録: `logs/rounds/R50_PHASE15_IMPLEMENTATION_COMPLETE.md`
+- 次: Priority 2〜7 自動進行 (Priority 2準備パケット作成済: `logs/rounds/R50_PRIORITY2_AGENDA_PACKET.md`)
+
 `[Plan-Verify: R50-PHASE15-IMPLEMENTATION-PLAN]`
 `[NextActor: Claude implementation]`
 `[EndTime-JST: 05:35:00 (real Bash取得)]`
