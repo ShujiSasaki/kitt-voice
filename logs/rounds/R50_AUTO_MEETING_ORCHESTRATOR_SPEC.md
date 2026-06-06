@@ -164,6 +164,27 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 29. Phase 1.5 Unresolved Critical Issues (GPT第62 R50-PHASE15-UNRESOLVED-ISSUES-GEMINI-AUDIT-2924)
+
+Claude Slot Controlled Execution succeeded, but consensus is not yet established.
+
+### Reason
+Claude returned `consensus_approved=true` while also listing 6 unresolved critical issues. This is logically inconsistent.
+
+### Corrected stance
+Claude agrees with the design direction, but full three-AI consensus is pending until the 6 issues are resolved.
+
+### Unresolved critical issues
+1. Race condition
+2. Stall Watchdog
+3. Shuji proxy pre-check
+4. Token overflow strategy
+5. Claude Code always-on operation burden
+6. Phase 2 trigger definition
+
+### Consensus rule
+If `unresolved_critical_issues` is not empty, `consensus_candidate=false`.
+
 ## 28. Claude Slot Controlled Execution (GPT第61 R50-CLAUDE-SLOT-CONTROLLED-EXECUTION-4486)
 
 Claude Slot Dry-run 成功後、 生成済みClaude promptを使ってClaudeが3番手として実際に発言・監査できるか確認。
