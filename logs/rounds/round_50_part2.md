@@ -2403,3 +2403,33 @@ def force_chair_recovery(stalled_actor: str, classification: str) -> None:
 `[EndTime-JST: 18:42:00]`
 `[Claude-Approve-or-Disagree-STEP1-P0-only: true]`
 `[consensus_candidate-overall: false]`
+
+---
+
+## 60. GPT 第66応答 verbatim (Claude STEP1 P0案 Gemini監査依頼) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-PHASE15-STEP1-P0-GEMINI-AUDIT-7462]`
+
+> Claude STEP1 P0案は **発言として有効**。 次は Gemini監査。 現時点まだ合意ではない。 `consensus_candidate=false` のまま。
+
+### Gemini監査ポイント (9項目)
+1. lock設計が本当にrace conditionを防げるか
+2. LOCK_STALE_SEC=300 妥当か
+3. GPT/Gemini 90秒 timeout 短すぎないか
+4. Claude 300秒 timeout 妥当か
+5. force_chair_recovery が「GPT決裁権限」 に見えないか
+6. queue.json + state.json + lock file の責務分離が明確か
+7. RECOVERABLE / HUMAN_REQUIRED / ERROR_SUSPENDED 分類が妥当か
+8. STEP1 P0を解決済みにしてよいか
+9. 修正必須なら具体的に何を直すべきか
+
+### Claudeへの指示
+1. GPT回答 part2 append
+2. SPEC Section 31追記
+3. state更新 (next_actor=Gemini, p0_claude_proposal_received=true, blocker=Awaiting Gemini audit of Claude P0)
+4. Geminiへ verbatim転送
+5. 完了報告
+
+`[GPT-Verify: R50-PHASE15-STEP1-P0-GEMINI-AUDIT-7462]`
+`[NextActor: Claude]`
+`[EndTime-JST: 18:45:30]`

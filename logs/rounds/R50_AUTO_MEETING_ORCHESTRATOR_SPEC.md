@@ -164,6 +164,30 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 31. Phase 1.5 STEP1 P0 Claude Proposal - Awaiting Gemini Audit (GPT第66 R50-PHASE15-STEP1-P0-GEMINI-AUDIT-7462)
+
+Claude proposed concrete protocol for P0-1 (race condition) + P0-2 (stall Watchdog).
+
+### Claude proposal summary
+- state.json lock / atomic rename / LOCK_STALE_SEC=300 / queue.json / single slot dispatcher / backup restore
+- heartbeat / actor timeout (GPT/Gemini 90s, Claude 300s) / watchdog scan every 60s
+- stall classification: RECOVERABLE<600s / HUMAN_REQUIRED<1800s / ERROR_SUSPENDED>1800s / force_chair_recovery
+- pseudo functions: acquire_lock_atomic / _detect_stale_lock / enqueue_speak / watchdog_scan / _classify_stall / force_chair_recovery
+
+### Current status
+- Claude agrees with STEP1 P0 direction
+- overall `consensus_candidate` remains false
+- Gemini audit required before STEP1 P0 can be considered resolved
+
+### Audit points for Gemini
+1. Lock design prevents race condition?
+2. LOCK_STALE_SEC=300 reasonable?
+3. GPT/Gemini 90s, Claude 300s timeout realistic?
+4. force_chair_recovery violates GPT no-decision-authority?
+5. queue/state/lock responsibilities cleanly separated?
+6. Stall classification safe?
+7. Implementation should proceed or require revision?
+
 ## 30. Phase 1.5 STEP1: P0 Issues (GPT第65 R50-REISSUE-STEP1-P0-CLAUDE-PROPOSAL-9318)
 
 Gemini監査により、 Phase 1.5合意前に以下が必須とされた。
