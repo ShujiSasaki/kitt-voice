@@ -1,19 +1,39 @@
 #!/usr/bin/env python3
 """
-R50 Auto Meeting Orchestrator - Prototype
+R50 Auto Meeting Orchestrator - Phase 1 Prototype (dry-run + CDP)
 
-GPT指示: R50-CMD-CREATE-ORCHESTRATOR-PROTOTYPE (R50-AUTO-ORCHESTRATOR-PROTOTYPE-2251)
-仕様書: logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md
-由来: Shuji#27 → GPT第33 → Gemini第19 (案B+Playwright GREEN) → GPT第35 (Local Playwright Orchestrator採択)
+GPT指示: R50-CMD-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP (R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189)
+仕様: logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md
 
-Phase 1 雛形 (仕様確認用): Playwright実打鍵は placeholder のみ
+Phase 1骨格:
+- Chrome CDP接続 (http://127.0.0.1:9222)
+- ChatGPT/Geminiタブ検出 placeholder
+- Dry-runモード (DRY_RUN=True で 実Send禁止)
+- state.json backup
+- lock取得/解除 (atomic file rename)
+- SIGINT / KeyboardInterrupt 安全終了
+- DOM要素30秒未検出時 ERROR_SUSPENDED
+- Verify Token/NextActor/EndTime-JST 抽出 (regex)
+- Send成功検証
+- Response完了検証
+
+Playwright実打鍵は placeholder。 まだ実Sendはしない (GPT第39禁止)。
 """
 import json
 import os
 import re
+import shutil
+import signal
+import sys
 import time
 from enum import Enum
 from pathlib import Path
+
+DRY_RUN = True
+CDP_ENDPOINT = "http://127.0.0.1:9222"
+DOM_TIMEOUT_SEC = 30
+STALL_NOTIFY_SEC = 1800
+
 
 # =====================
 # State Machine (Spec Section 5)
@@ -34,6 +54,8 @@ class State(str, Enum):
     NEXT_LOOP = "NEXT_LOOP"
     SHUJI_CONFIRM = "SHUJI_CONFIRM"
     ERROR = "ERROR"
+    ERROR_SUSPENDED = "ERROR_SUSPENDED"
+    INTERRUPTED = "INTERRUPTED"
 
 
 # =====================
@@ -44,10 +66,12 @@ STATE_JSON = REPO_ROOT / "logs" / "state.json"
 QUEUE_JSON = REPO_ROOT / "logs" / "queue.json"
 ROUND_LOG = REPO_ROOT / "logs" / "rounds" / "round_50_part2.md"
 BELL_PROTOCOL = REPO_ROOT / "logs" / "rounds" / "R50_BELL_PROTOCOL.md"
+STATE_BACKUP_DIR = REPO_ROOT / "logs" / "state_backups"
+DRY_RUN_DIR = REPO_ROOT / "logs" / "dry_run"
 
 
 # =====================
-# State I/O (Spec Section 6: Single Lock Rule)
+# State I/O (Spec Section 6: Single Lock Rule + P2: backup)
 # =====================
 def load_state() -> dict:
     with open(STATE_JSON, "r", encoding="utf-8") as f:
@@ -59,6 +83,15 @@ def save_state(state: dict) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
     os.replace(tmp, STATE_JSON)
+
+
+def backup_state(state: dict) -> Path:
+    STATE_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    path = STATE_BACKUP_DIR / f"state.{ts}.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+    return path
 
 
 def acquire_lock(state: dict) -> bool:
@@ -77,6 +110,57 @@ def release_lock(state: dict) -> None:
 
 
 # =====================
+# Signal Handler (Spec 10.2: SIGINT安全終了)
+# =====================
+def handle_sigint(signum, frame):
+    try:
+        state = load_state()
+        state["STATUS"] = State.INTERRUPTED.value
+        state["lock"] = False
+        state["interrupted_epoch"] = int(time.time())
+        save_state(state)
+    except Exception as e:
+        sys.stderr.write(f"sigint cleanup failed: {e}\n")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, handle_sigint)
+
+
+# =====================
+# Dry-run Helpers (Spec 10.1 P1)
+# =====================
+def dry_run_dump(actor: str, payload: str) -> Path:
+    DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    path = DRY_RUN_DIR / f"{ts}.{actor}.txt"
+    path.write_text(payload, encoding="utf-8")
+    return path
+
+
+# =====================
+# CDP Connection Placeholder (Spec 10.1)
+# =====================
+def connect_to_chrome_cdp_placeholder(endpoint: str = CDP_ENDPOINT) -> dict:
+    return {
+        "status": "PLACEHOLDER_CDP_NOT_CONNECTED",
+        "endpoint": endpoint,
+        "instructions": [
+            "Start Chrome with: chrome --remote-debugging-port=9222",
+            "Then implement via Playwright sync_playwright().chromium.connect_over_cdp(endpoint)",
+        ],
+    }
+
+
+def detect_chatgpt_tab_placeholder() -> dict:
+    return {"status": "PLACEHOLDER", "tab_id": None, "url": "chatgpt.com/g/g-p-...", "needs": "Playwright BrowserContext.pages() filter by URL"}
+
+
+def detect_gemini_tab_placeholder() -> dict:
+    return {"status": "PLACEHOLDER", "tab_id": None, "url": "gemini.google.com/app/...", "needs": "Playwright BrowserContext.pages() filter by URL"}
+
+
+# =====================
 # Actor Detection
 # =====================
 def detect_next_actor(state: dict) -> str | None:
@@ -84,27 +168,39 @@ def detect_next_actor(state: dict) -> str | None:
 
 
 def build_prompt_for_actor(actor: str, context: dict) -> str:
-    return f"[Orchestrator] {actor} へのプロンプト placeholder (context={list(context.keys())})"
+    return f"[Orchestrator] {actor} へのプロンプト placeholder (context keys={list(context.keys())})"
 
 
 # =====================
-# Playwright Placeholders (TODO: 実装)
+# Send / Response (Spec 10.1)
 # =====================
-def send_message_placeholder(actor: str, prompt: str) -> dict:
-    return {"status": "PLACEHOLDER_SEND_NOT_IMPLEMENTED", "actor": actor, "len": len(prompt)}
+def send_message(actor: str, prompt: str) -> dict:
+    if DRY_RUN:
+        path = dry_run_dump(actor, prompt)
+        return {"status": "DRY_RUN_DUMPED", "actor": actor, "path": str(path)}
+    return {"status": "PLACEHOLDER_REAL_SEND_NOT_IMPLEMENTED", "actor": actor}
 
 
-def fetch_response_placeholder(actor: str) -> dict:
-    return {"status": "PLACEHOLDER_FETCH_NOT_IMPLEMENTED", "actor": actor, "verbatim": None}
+def verify_send_success_placeholder(actor: str) -> dict:
+    return {
+        "status": "PLACEHOLDER",
+        "actor": actor,
+        "rule": "editor=0 AND userCount+1 AND (stopBtn=true OR response_started)",
+        "checks_required": ["editor empty", "userCount increment", "stopBtn=true or response started"],
+    }
 
 
-# =====================
-# Log Append
-# =====================
-def append_log_placeholder(section_title: str, verbatim: str) -> bool:
-    with open(ROUND_LOG, "a", encoding="utf-8") as f:
-        f.write(f"\n\n---\n\n## {section_title}\n\n{verbatim}\n")
-    return True
+def fetch_response(actor: str) -> dict:
+    return {"status": "PLACEHOLDER_REAL_FETCH_NOT_IMPLEMENTED", "actor": actor, "verbatim": None}
+
+
+def wait_response_with_timeout_placeholder(actor: str, timeout_sec: int = DOM_TIMEOUT_SEC) -> dict:
+    return {
+        "status": "PLACEHOLDER",
+        "actor": actor,
+        "timeout_sec": timeout_sec,
+        "rule_on_timeout": f"if no DOM element within {timeout_sec}s: state.STATUS=ERROR_SUSPENDED, sys.exit(1)",
+    }
 
 
 # =====================
@@ -136,21 +232,69 @@ def validate_response(text: str) -> dict:
 
 
 # =====================
-# Main Loop (Phase 1: GPT→Gemini→GPT)
+# Log Append (Spec 10.1 P3)
+# =====================
+def append_log(section_title: str, verbatim: str) -> bool:
+    with open(ROUND_LOG, "a", encoding="utf-8") as f:
+        f.write(f"\n\n---\n\n## {section_title}\n\n{verbatim}\n")
+    return True
+
+
+# =====================
+# DOM Element Watcher (Spec 10.2)
+# =====================
+def trigger_error_suspended(reason: str) -> None:
+    state = load_state()
+    state["STATUS"] = State.ERROR_SUSPENDED.value
+    state["error_reason"] = reason
+    state["error_epoch"] = int(time.time())
+    state["lock"] = False
+    save_state(state)
+    sys.stderr.write(f"ERROR_SUSPENDED: {reason}\n")
+    sys.exit(1)
+
+
+# =====================
+# Stall Notify Placeholder (Spec 10.1 P0)
+# =====================
+def stall_notify_placeholder(last_activity_epoch: int) -> dict:
+    elapsed = int(time.time()) - last_activity_epoch
+    if elapsed > STALL_NOTIFY_SEC:
+        return {
+            "status": "STALL_DETECTED",
+            "elapsed_sec": elapsed,
+            "notify_channels_todo": ["email", "slack", "ios_push", "macos_notification"],
+        }
+    return {"status": "OK", "elapsed_sec": elapsed}
+
+
+# =====================
+# Main Loop Skeleton (Phase 1: GPT→Gemini→GPT)
 # =====================
 def main_loop_once() -> dict:
     state = load_state()
+    backup_path = backup_state(state)
     if not acquire_lock(state):
-        return {"status": "LOCK_HELD"}
+        return {"status": "LOCK_HELD", "backup": str(backup_path)}
     try:
+        cdp = connect_to_chrome_cdp_placeholder()
+        chatgpt = detect_chatgpt_tab_placeholder()
+        gemini = detect_gemini_tab_placeholder()
         current_state = state.get("orchestrator_state", State.IDLE.value)
         next_actor = detect_next_actor(state)
-        report = {
+        prompt = build_prompt_for_actor(next_actor or "GPT", {"backup_path": str(backup_path)})
+        send_result = send_message(next_actor or "GPT", prompt)
+        return {
+            "dry_run": DRY_RUN,
+            "backup": str(backup_path),
+            "cdp": cdp,
+            "chatgpt_tab": chatgpt,
+            "gemini_tab": gemini,
             "orchestrator_state": current_state,
             "next_actor": next_actor,
-            "action": "PLACEHOLDER_NO_REAL_PLAYWRIGHT_YET",
+            "send_result": send_result,
+            "note": "Real Playwright打鍵はGPT指示でまだ禁止 (R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189)",
         }
-        return report
     finally:
         release_lock(load_state())
 
@@ -160,13 +304,16 @@ if __name__ == "__main__":
 
 
 # =====================
-# TODO (GPT第35指定)
+# TODO (Phase 1 残実装 / Phase 1.5+)
 # =====================
-# - PlaywrightでChatGPT/Gemini/Claudeタブ検出
-# - editor selector確定 (ChatGPT: #prompt-textarea / Gemini: rich-textarea .ql-editor)
-# - send button selector確定 (ChatGPT: button[data-testid="send-button"] / Gemini: button[aria-label="プロンプトを送信"])
-# - userCount/respCount取得 (ChatGPT: [data-testid^="conversation-turn-"] / Gemini: user-query, model-response)
-# - Verify Token / NextActor / EndTime-JST 抽出 (本ファイルの VERIFY_TOKEN_RE / NEXT_ACTOR_RE / ENDTIME_JST_RE で実装済み)
-# - round log append連携 (本ファイルの append_log_placeholder で雛形あり、 PR形式に拡張)
-# - dashboard連携 (logs/dashboard.html, Phase 1.5以降)
-# - 実弾テスト (GPT→Gemini→GPT 2者循環、 Phase 1)
+# - Playwright sync_playwright + connect_over_cdp(CDP_ENDPOINT) 実装
+# - ChatGPT/Geminiタブ pages() フィルタ実装 (URLパターン一致)
+# - editor selector: ChatGPT=#prompt-textarea / Gemini=rich-textarea .ql-editor
+# - send button selector: ChatGPT=button[data-testid="send-button"] / Gemini=button[aria-label="プロンプトを送信"]
+# - DOM要素30秒polling+ERROR_SUSPENDED発火 (trigger_error_suspended)
+# - userCount/respCount取得+増加検知 (Send成功verification)
+# - assistant本文取得+Verify/NextActor/EndTime抽出 (Response完了verification)
+# - round log append連携 (append_log呼び出しからの拡張)
+# - 30分stall通知の実通知経路 (email/slack/iOS)
+# - dashboard連携 (Phase 1.5以降)
+# - **実弾送信解禁**: GPT指示でDRY_RUN=False切替を待つ

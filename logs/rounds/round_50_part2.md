@@ -1156,3 +1156,43 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[Gemini-Verify: R50-2nd-19thTurn-2ndSpeaker-GEMINI-PHASE1-CLAUDE-EXCLUDED]`
 `[NextActor: GPT]`
 `[EndTime-JST: 09:45:33]`
+
+---
+
+## 27. GPT 第39応答 verbatim (Phase 1 dry-run + CDP接続 骨格実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189]`
+
+> Gemini監査受領。 GPT司会としてPhase 1実装に進める。 **ただし、 いきなり本番送信はしない**。 最初は **Dry-run + Chrome CDP接続 + タブ検出 + セレクタ確認まで**。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md 更新:
+   - Gemini監査結果反映 (P0-P3)
+   - DOM要素30秒未検出 → state.json STATUS=ERROR_SUSPENDED + orchestrator安全停止
+   - SIGINT/KeyboardInterrupt → lock解除+state.json INTERRUPTED記録+安全終了
+3. scripts/orchestrator_prototype.py 更新 (placeholder→骨格実装):
+   - Playwright CDP接続 (http://127.0.0.1:9222)
+   - ChatGPTタブ検出 placeholder
+   - Geminiタブ検出 placeholder
+   - dry-runモード
+   - state.json backup
+   - lock取得/解除
+   - SIGINT安全終了
+   - DOM要素30秒未検出 → ERROR_SUSPENDED
+   - Verify Token/NextActor/EndTime-JST 抽出
+   - Send成功検証 (editor=0+userCount+1+stopBtn=true or response started)
+   - Response完了検証 (本文+Verify+NextActor+EndTime)
+
+### 重要
+
+**まだ実弾送信は禁止**。 まずは dry-run と CDP接続の骨格だけ。
+
+### 完了報告フォーマット
+
+1. GPT回答追記 2. SPEC.md更新 3. prototype.py更新 4. py_compile結果 5. state.json更新 6. エラー 7. 次の指示
+
+`[GPT-Verify: R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189]`
+`[NextActor: Claude]`
+`[EndTime-JST: 09:53:42]`

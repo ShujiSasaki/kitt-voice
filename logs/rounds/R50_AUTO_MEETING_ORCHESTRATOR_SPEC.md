@@ -104,20 +104,57 @@ failしたら タイムアウト判定 (Section 9)。
 
 **議題提出**: Shujiさんが 手動 (CLIまたはWebUI 1回打鍵)
 
-## 10.1 Phase 1 Required Safety Features (Claude提案 a-d、 GPT第37採用)
+## 10.1 Phase 1 Required Safety Features (P0-P3、 Gemini第20再マッピング+GPT第39採用)
 
-**実装順 - 最優先** (Phase 1必須):
-- **Dry-runモード** (実Send前に inject内容を `logs/dry_run/` にdump、 デバッグ容易化)
-- Chrome CDP接続
+**Priority 再マッピング** (Gemini第20指示):
+
+- **P0 最優先**: 30分stall通知 (要素取得見失い沈黙時の人間気づき経路、 **最大脆弱性対策**)
+- **P1**: Dry-runモード (`DRY_RUN=True`、 実Send前ログ出力のみ、 暴走防止)
+- **P2**: state.jsonバックアップ (lock_stale/破損保険)
+- **P3**: 議事録自動timestamp commit (運用安定後の履歴管理)
+
+**実装順** (GPT第39):
+
+最優先実装 (骨格):
+- Chrome CDP接続 (`http://127.0.0.1:9222`)
 - GPT/Geminiタブ検出
-- Send成功検証 (editor=0+userCount+1+stopBtn=true)
-- Response完了検証 (stopBtn=false+本文+Verify+NextActor+EndTime)
+- dry-runモード
+- state.json backup
+- lock取得/解除
+- SIGINT安全終了
 
-**実装順 - 次** (Phase 1 後半):
-- 議事録append (自動timestamp commit付き)
-- **state.json バックアップ** (lock_stale/破損対策、 ロールバック手順明文化)
-- **30分stall通知** (メール/Slack/iOS通知、 オーケストレーター死亡時の気づき経路)
-- dashboard連携
+検証ロジック:
+- Send成功検証 (editor=0 + userCount+1 + stopBtn=true or response開始)
+- Response完了検証 (本文 + Verify Token + NextActor + EndTime-JST)
+- Verify Token / NextActor / EndTime-JST 抽出
+
+## 10.2 Critical Safety Mechanism (Gemini第20追加+GPT第39採用)
+
+**DOM要素30秒未検出時の即時セーフティ・シャットダウン**:
+
+```python
+# 30秒以上 div[contenteditable="true"] 等 が見つからない場合
+state["STATUS"] = "ERROR_SUSPENDED"
+save_state(state)
+# orchestrator安全停止 (プロセス自壊)
+sys.exit(1)
+```
+
+**SIGINT / KeyboardInterrupt時の安全終了**:
+
+```python
+import signal
+
+def handle_sigint(signum, frame):
+    state = load_state()
+    state["STATUS"] = "INTERRUPTED"
+    state["lock"] = False
+    state["interrupted_epoch"] = int(time.time())
+    save_state(state)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, handle_sigint)
+```
 
 ## 11. Phase 1.5
 
