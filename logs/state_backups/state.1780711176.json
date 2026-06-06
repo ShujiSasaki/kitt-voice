@@ -22,14 +22,9 @@
   "DOM_TIMEOUT_SEC": 30,
   "STALL_NOTIFY_SEC": 1800,
   "cdp_smoke_test_result": {
-    "cdp_smoke_test": "PASSED",
-    "endpoint": "http://127.0.0.1:9222",
-    "reason": null,
-    "pages": [],
-    "chatgpt_candidates": [],
-    "gemini_candidates": [],
-    "pages_count": 0,
-    "pages_dump": "/Users/shuji/Desktop/kitt-voice/logs/dry_run/1780711177.cdp_pages.json"
+    "cdp_smoke_test": "ERROR",
+    "reason": "CDP_CONNECTION_FAILED: ECONNREFUSED 127.0.0.1:9222 (Chrome未起動)",
+    "next_step": "Shujiさん Chrome起動 → cdp-smoke-test 再実行"
   },
   "phase1_required_features_P0_P3": {
     "P0": "30分stall通知 - 実装済",
