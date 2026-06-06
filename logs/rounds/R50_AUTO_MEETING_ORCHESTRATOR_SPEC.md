@@ -164,6 +164,22 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 37. Phase 1.5 STEP2 P1 Must-Fix Revision - Awaiting Gemini Re-audit (GPT第90 R50-REISSUE-STEP2-P1-GEMINI-REAUDIT-1557)
+
+### Claude反映済 Must Fix
+- token超過戦略: Gemini監査で合格済み
+- JUSTIFY_PROXY_SAFE 2段階 proxy check 提示済
+- Regex 即HARD_REJECT 廃止
+- PROXY_WARNING + 1回セルフレビュー
+- `[JUSTIFY_PROXY_SAFE: reason]` による bypass
+- false positive bypass は HUMAN_REQUIRED カウント外
+- Shuji向け report では JUSTIFY bypass 拒否
+- `build_proxy_safe_report` は厳格判定
+
+### Status
+- STEP2 P1はGemini再監査待ち
+- consensus_candidate=false 維持
+
 ## 36. Phase 1.5 STEP2 P1 Gemini Must-Fix (JUSTIFY_PROXY_SAFE 2-stage escape) (GPT第86 R50-REISSUE-STEP2-P1-MUSTFIX-CLAUDE-REVISION-9315)
 
 ### Gemini監査結果
