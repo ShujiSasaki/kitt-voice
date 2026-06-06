@@ -9,10 +9,23 @@
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
-  "orchestrator_phase": "phase15_step1_p0_gemini_audit",
-  "current_step": "STEP1 P0 Gemini audit",
+  "next_actor": "Claude",
+  "orchestrator_phase": "phase15_step1_p0_gemini_audit_received",
+  "current_step": "STEP1 P0 Claude must-fix revision",
   "p0_claude_proposal_received": true,
+  "p0_gemini_audit_received": true,
+  "p0_gemini_must_fix": {
+    "1_stall_threshold_shortening": {
+      "RECOVERABLE": "< 400s (Claude max 300s + buffer 100s)",
+      "HUMAN_REQUIRED": "> 400s (即時人間介入)",
+      "ERROR_SUSPENDED_old_1800s": "DEPRECATED"
+    },
+    "2_force_chair_recovery_systemization": {
+      "old_pattern": "GPT chair process invoked",
+      "new_pattern": "Orchestrator system invokes state.json reinit / queue skip / GPT receives only context fact",
+      "reason": "GPT特権化防止 (Shuji#28違反回避)"
+    }
+  },
   "claude_slot_status": "executed_but_unresolved",
   "gemini_phase15_unresolved_audit_received": true,
   "gemini_p0_p1_p2_classification": {
@@ -62,7 +75,7 @@
     "Phase 2 trigger definition"
   ],
   "final_report_ready": false,
-  "blocker": "Awaiting Gemini audit of Claude P0 race condition and stall Watchdog proposal",
+  "blocker": "Claude must revise P0 proposal with 2 Must-Fix items (stall threshold ≤400s + force_chair_recovery → Orchestrator system)",
   "gemini_phase15_audit_received": true,
   "gemini_phase15_recommendation": "候補E (GPT/Gemini 2者合意 + Claude実装ログ監査) 一択、 Phase 1完了報告 今すぐOK",
   "DRY_RUN": true,

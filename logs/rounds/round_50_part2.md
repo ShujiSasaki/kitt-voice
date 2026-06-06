@@ -2433,3 +2433,50 @@ def force_chair_recovery(stalled_actor: str, classification: str) -> None:
 `[GPT-Verify: R50-PHASE15-STEP1-P0-GEMINI-AUDIT-7462]`
 `[NextActor: Claude]`
 `[EndTime-JST: 18:45:30]`
+
+---
+
+## 61. Gemini 第22応答 verbatim (Claude STEP1 P0案監査) — 2026-06-06
+
+### Verify Token: `[Gemini-Verify: R50-PHASE15-STEP1-P0-AUDIT]`
+
+> Claude案のSTEP1 (P0論点) 物理実装プロトコルを監査。 **分散エージェント環境における排他制御 (race condition回避) と生存監視 (デッドロック回避) として極めて高い技術水準**。 ただしインフラの堅牢性と「司会の権限分離」 ガバナンス観点から **2点、 致命的な脆弱性が残存**。
+
+### 1. コア・メカニズム監査
+
+- **Q1. race condition対策十分か** ✅ 十分 (atomic rename / O_EXCL = OSカーネルレベル1者ロック獲得)
+- **Q2. 責務分離妥当か** ✅ 非常に妥当 (atomic rename = ミューテックス / state.json lock = 状態排他 / queue.json = イベントキュー → 3層分離で競合・破損完全防止)
+- **Q3. LOCK_STALE_SEC=300** ✅ 妥当 (Claudeディープシンク最大300秒と一致、 正常思考中の誤判定リスク最小化)
+- **Q4. Actor別timeout (GPT/Gemini 90s, Claude 300s)** ✅ 妥当 (API応答特性を正確反映)
+- **Q5. Watchdog 60秒scan** ✅ 妥当 (I/O負荷と検知速度のバランス最適)
+
+### 2. Q6. スタール分類 — ⚠️ 基本分類妥当だが時間定義に脆弱性 (修正必須)
+
+> 「1800秒 (30分) も自動化がスタックしたまま放置される」 ことは本運用インフラとして許容できません。 特に自動リレー中に30分プロセス迷子→コンテキスト同期完全破壊。
+
+### 3. Q7. force_chair_recovery — 🚨 重大インフラ脆弱性・Shuji#28違反
+
+> 現在のClaude案のままでは、 **GPTに決済権限 (強制介入権) が事実上戻ってしまう**。 force_chair_recovery が「Watchdog stall検知時、 司会GPTのプロセスを叩き起こして進行権を強制回収」 のロジックである場合、 GPT (1つのLLM Actor) がシステム全体の生存権を握ることになる。 これはShuji#28の「司会は発言を回すだけ、 決済権限を持たない」 鉄則に明確違反。
+> 加えて、 GPT自体がスタールした場合、 システムが**完全セルフデッドロック**。
+
+### 判定: `consensus_candidate = false`
+
+### 🛠 修正必須事項 (Must Fix)
+
+**1. スタール時間閾値の短縮**:
+- `RECOVERABLE: < 400s` (Claude最大timeout 300s + バッファ100s)
+- `HUMAN_REQUIRED (Shujiさん呼び鈴): > 400s` (400秒超えたら即時人間介入)
+- 理由: 自動リレーで15分/30分待つ意味なし。 Claude timeout超えてstallなら、 400秒 (6.6分) 時点で即異常事態として扱いループを止める
+
+**2. force_chair_recovery 主体の変更 (System固有化)**:
+- 強制回収のトリガー+実行 = **Orchestrator (インフラのシェル/システム側)** が非対称に行うよう定義変更
+- Actor (GPT) のロジック内ではやらない
+- 具体設計: Watchdogが stall (>400s) 検知時、 **Orchestratorシステムが直接 state.json初期化 (またはキューを次ラウンドへスキップ)**、 GPTには「システムによって進行権が回収され、 次ラウンドが開始された」 という事実のコンテキストのみインプット
+- → GPTの特権化を防ぐ
+
+### 宿題
+> Claudeは上記2点 (スタール閾値短縮 + 強制リカバリ主体のOrchestrator移譲) を擬似コード+プロトコル仕様に反映・修正してください。 確認後、 STEP1 P0「完全合意 (解決済み)」 → STEP2 (P1論点) 監査へ進みます。
+
+`[Gemini-Verify: R50-PHASE15-STEP1-P0-AUDIT]`
+`[NextActor: Claude]`
+`[EndTime-JST: 18:55:00]`
