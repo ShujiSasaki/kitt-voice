@@ -164,6 +164,62 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 26. Phase 1.5 Claude Slot Integration Plan (GPT第59 R50-SHUJI29-A-APPROVAL-CLAUDE-SLOT-PREP-5061)
+
+### Goal
+GPT→Gemini→Claude→GPT の3者循環を自動化する。
+
+### Claude participation method
+- Claude Web automation は当面回避
+- Claude Code / file-based input-output を優先
+- Orchestrator が Claude prompt fileを生成
+- Claude が response file を生成
+- Orchestrator が Claude response を検証:
+  - Claude Verify Token
+  - NextActor
+  - EndTime-JST
+  - agree / disagree / critical issues
+- Orchestrator が Claude response を round log に append
+- Orchestrator が GPT へ routing back
+
+### New states
+- `SEND_TO_CLAUDE`
+- `WAIT_CLAUDE`
+- `LOG_CLAUDE`
+- `CHECK_THREE_AI_CONSENSUS`
+- `BUILD_SHUJI_REPORT_DRAFT`
+
+### Consensus logic
+```
+gpt_agree == true
+gemini_agree == true
+claude_agree == true
+unresolved_critical_issues == []
+no_proxy_violation == true
+```
+→ `agreement_status = three_ai_consensus_candidate`
+→ `requires_shuji_final_approval = true`
+
+## 25. Shuji#29 Approval (R50-SHUJI29-A-APPROVAL-CLAUDE-SLOT-PREP-5061)
+
+### Shujiさん返答
+> A
+
+### Meaning
+Phase 1.5 revised by Shuji#28 is approved.
+
+### Approved roles
+- Thinking/Audit: GPT + Gemini + Claude
+- Implementation: Claude
+- Moderator: GPT
+- GPT has no decision authority
+- GPT routes discussion only
+- Three-AI consensus is required before reporting to Shuji
+- Final approval belongs to Shuji
+
+### Next implementation
+Phase 1.5 Claude Slot Integration
+
 ## 24. Phase 1.5 Revised by Shuji#28 (GPT第58+Gemini第20+Claude第12)
 
 ### Shuji#28
