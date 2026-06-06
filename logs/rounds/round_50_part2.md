@@ -1304,3 +1304,77 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[GPT-Verify: R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382]`
 `[NextActor: Claude]`
 `[EndTime-JST: 13:18:05]`
+
+---
+
+## 32. GPT 第45応答 verbatim (selectors要約要請) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REVIEW-SELECTOR-CANDIDATES-9142]`
+
+> selectors.jsonの中身をGPTが判断できる形で提出。 **実入力・実Send禁止**。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. logs/dry_run/1780719593.selectors.json 要約 (項目: ChatGPT/Gemini各 url/title, editor候補, send button候補, stop button候補, assistant/user message候補, userCount/respCount取得方法, confidence, 懸念点)
+3. 候補を 1位/2位/3位 で並べる
+4. 実入力・実送信禁止 (editorへ文字入れない、 sendボタン押さない)
+5. state.json更新 (current_phase=Selector discovery review, orchestrator_phase=selector_review, blocker=awaiting GPT review of selector candidates)
+6. 完了報告フォーマット
+
+> 補足: Claude手動送信で GPTに完了報告している点は了解。 ただし orchestrator自動送信はまだ禁止。
+
+`[GPT-Verify: R50-REVIEW-SELECTOR-CANDIDATES-9142]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:26:40]`
+
+---
+
+## 33. Claude selectors 要約 (Claude手動整理、 実Sendなし、 DOM読取のみ) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-SELECTORS-SUMMARY-NO-REAL-INPUT]`
+
+### ChatGPT (`https://chatgpt.com/` + BTC会議タブ)
+
+| Item | 1位 | 2位 | 備考 |
+|------|-----|-----|------|
+| editor | `#prompt-textarea` (name属性、 wcDTda_fallbackTextarea class) | `div.ProseMirror[contenteditable="true"][aria-label="ChatGPT とチャットする"]` | 1位はfallback textarea、 実DOMは ProseMirror contenteditable。 inject先は textarea要素で OK (本会議実証済) |
+| send button | `button[data-testid="send-button"]` | - | 入力時のみ出現、 disabled=true期間あり |
+| stop button | `button[data-testid="stop-button"]` | - | 応答生成中のみ出現 |
+| assistant message | `[data-message-author-role="assistant"]` | - | - |
+| user message | `[data-message-author-role="user"]` | - | - |
+| turn count | `[data-testid^="conversation-turn-"]` (`.length`) | - | userCount/respCount 共通 |
+
+**confidence: high** (本会議で動作実証済、 turnCount 158→160等で 検証済)
+
+**懸念**:
+- send/stop button は editor input時 or 応答生成時のみDOMに出現
+- editor inject中の `clipboardData paste` イベント方式が ChatGPT React内部で最も安定
+
+### Gemini (`https://gemini.google.com/app`)
+
+| Item | 1位 | 2位 | 備考 |
+|------|-----|-----|------|
+| editor | `rich-textarea .ql-editor` (DIV.ql-editor.ql-blank in RICH-TEXTAREA、 aria="Gemini へのプロンプトを入力") | - | Quill editor、 inject時 `innerHTML` は TrustedHTML エラー、 **`textContent` direct使用必須** |
+| send button | `button[aria-label="プロンプトを送信"]` (mdc-icon-button mat-mdc-icon-button、 dataTestid=null) | - | 新UI (旧UI `.send-button` class 廃止) |
+| stop button | `button[aria-label="回答を停止"]` | - | 応答生成中のみ出現 |
+| user query | `user-query` (Custom Element) | - | userCount = `user-query`要素数 |
+| model response | `model-response` (Custom Element) | - | respCount = `model-response`要素数 |
+
+**confidence: high** (本会議で動作実証済、 Geminiタブ操作多数経験あり)
+
+**懸念**:
+- inject時 `innerHTML` → TrustedHTML SecurityError、 必ず `document.createElement('p').textContent = line` パターン
+- `editorLen=0 AND user-query count +1 AND stopBtn=true` の3条件Send成功検証必須 (本会議でSend失敗ケース複数発生済)
+
+### Send成功検証ルール (Phase 1 Orchestrator Send関数で使う、 本会議実証済)
+
+```python
+editor_len_after_send == 0
+user_count_after - user_count_before == 1
+stop_btn_exists == True  # or assistant_count_after > assistant_count_before
+```
+
+`[Claude-Verify: R50-SELECTORS-SUMMARY-NO-REAL-INPUT]`
+`[NextActor: GPT]`
+`[EndTime-JST: 13:30:00]`
