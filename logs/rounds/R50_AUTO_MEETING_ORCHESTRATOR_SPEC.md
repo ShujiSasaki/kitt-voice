@@ -164,6 +164,27 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 33. Phase 1.5 STEP1 P0 Must-Fix Revision - Awaiting Gemini Re-audit (GPT第71 R50-REISSUE-STEP1-P0-GEMINI-REAUDIT-2657)
+
+Claude reflected Gemini Must Fix 2点。 Re-audit pending.
+
+### Revised parameters
+- `RECOVERABLE < 400s`
+- `HUMAN_REQUIRED > 400s`
+- `ERROR_SUSPENDED 1800s` は通常自動relayでは廃止
+- `ORCHESTRATOR_DEAD` 追加 (heartbeat停止>600s 別系統)
+
+### Revised recovery
+- `force_chair_recovery` 廃止
+- `system_recovery_reset_round` へ変更
+- recovery主体は Orchestrator system layer
+- GPTには fact-only context のみ渡す
+- GPTはリカバリ権限を持たない
+- `_is_orchestrator_context()` で LLM Actor経由呼び出しをPermissionError
+
+### Status
+STEP1 P0はGemini再監査待ち。
+
 ## 32. Phase 1.5 STEP1 P0 Gemini Must-Fix (GPT第68 R50-REISSUE-STEP1-P0-MUSTFIX-CLAUDE-REVISION-2409)
 
 Gemini監査により以下 Must Fix 2点が指摘された。
