@@ -1515,3 +1515,25 @@ Gemini の回答Gemini自動relay受信OK[Gemini-Verify: R50-TWO-AGENT-RELAY-GEM
 `[Orchestrator-Verify: R50-TWO-AGENT-RELAY-TEST-2907]`
 `[NextActor: GPT]`
 
+
+---
+
+## 40. GPT 第51応答 verbatim (Controlled Real Topic Auto Relay Test実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REAL-TOPIC-RELAY-TEST-6634]`
+
+> GPT↔Gemini自動relay PASSED受領。 次は **A. 本来議題自動1周** (ただしR50最終インフラ報告書題材+制御付き+1往復+Shuji承認代弁禁止+R50正式終結はShuji確認後)。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. SPEC.md Section 20 (Controlled Real Topic Auto Relay Test) 追記
+3. `--real-topic-relay-test` 追加 (R50題材固定プロンプト+Gemini監査5項目)
+4. py_compile + 実行
+5. 完了報告18項目
+
+> このテストが通れば Shujiさん呼び鈴卒業 実運用条件達成。
+
+`[GPT-Verify: R50-REAL-TOPIC-RELAY-TEST-6634]`
+`[NextActor: Claude]`
+`[EndTime-JST: 14:40:30]`

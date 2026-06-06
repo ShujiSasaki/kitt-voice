@@ -164,6 +164,22 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 20. Controlled Real Topic Auto Relay Test (GPT第51 R50-REAL-TOPIC-RELAY-TEST-6634)
+
+Two-Agent Auto Relay Test PASSED後、 本来議題 (R50最終インフラ報告書) を題材に **制御付き自動1周テスト**。
+
+### 目的
+- Shujiさん介在なしで実議題に対しGPT→Gemini→GPT監査relay成立確認
+- R50最終インフラ報告書題材
+- このテスト結果だけでR50正式終結としない
+
+### 制約
+- 1往復のみ、 GPT→Gemini→GPT
+- Claude運用ループ外
+- `real_send_enabled` テスト中のみ `true` → 終了後 `false`
+- このテストでShujiさん承認を代弁しない
+- R50正式終結はShujiさん確認後
+
 ## 19. Controlled Two-Agent Auto Relay Test (GPT第50 R50-TWO-AGENT-RELAY-TEST-2907)
 
 Phase 1 Orchestrator の Send/Fetch個別動作確認済み後、 GPT↔Gemini 2者循環を **1回だけ** 自動relay。
