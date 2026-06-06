@@ -1,0 +1,45 @@
+{
+  "test": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "gpt_send": "SUCCESS",
+  "gemini_send": "SUCCESS",
+  "gemini_fetch": "SUCCESS",
+  "claude_slot_response": "SUCCESS",
+  "claude_to_gpt_send": "SUCCESS",
+  "tag_validation": {
+    "gpt": {
+      "valid": true,
+      "verify_token": "[GPT-Verify: R50-PHASE15-SMOKE-TEST-OK]",
+      "next_actor": "Gemini"
+    },
+    "gemini": {
+      "valid": true,
+      "verify_token": "[Gemini-Verify: R50-PHASE15-SMOKE-TEST-OK]",
+      "next_actor": "Claude"
+    },
+    "claude_mock": {
+      "valid": true,
+      "verify_token": "[Claude-Verify: MOCK]",
+      "next_actor": "GPT"
+    },
+    "gpt_final": {
+      "valid": true,
+      "verify_token": "[GPT-Verify: R50-PHASE15-SMOKE-TEST-ROUND-COMPLETE]",
+      "next_actor": "Shuji"
+    }
+  },
+  "log_appends": [
+    "gpt_response",
+    "gemini_response",
+    "claude_mock_response",
+    "gpt_final_response"
+  ],
+  "state_updates": [
+    {
+      "step": "step3_pre",
+      "next_actor": "Claude"
+    }
+  ],
+  "lock_acquired": true,
+  "real_send_restored_false": false
+}

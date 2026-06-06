@@ -3,7 +3,7 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Phase 1.5 controlled real 3AI relay smoke test PASSED",
+  "current_phase": "Phase 1.5 integration test PASSED - main loop mock 1round verified",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
@@ -133,7 +133,7 @@
   "claude_approve": true,
   "requires_shuji_final_approval": false,
   "implementation_priority": "Phase 1.5 first, then Priority 2-7 auto progression",
-  "implementation_phase": "CONTROLLED_REAL_RELAY_SMOKE_TEST_PASSED",
+  "implementation_phase": "INTEGRATION_TEST_PASSED",
   "p0_status": "implemented_and_self_test_passed",
   "p1_status": "implemented_and_self_test_passed",
   "p2_status": "implemented_and_self_test_passed",
@@ -337,52 +337,6 @@
     }
   ],
   "claude_job_in_progress": false,
-  "claude_job_started_at": 1780782046,
-  "claude_job_completed_at": 1780782046,
-  "controlled_real_relay_test_result": {
-    "test": "PASSED",
-    "endpoint": "http://127.0.0.1:9222",
-    "gpt_send": "SUCCESS",
-    "gemini_send": "SUCCESS",
-    "gemini_fetch": "SUCCESS",
-    "claude_slot_response": "SUCCESS",
-    "claude_to_gpt_send": "SUCCESS",
-    "tag_validation": {
-      "gpt": {
-        "valid": true,
-        "verify_token": "[GPT-Verify: R50-PHASE15-SMOKE-TEST-OK]",
-        "next_actor": "Gemini"
-      },
-      "gemini": {
-        "valid": true,
-        "verify_token": "[Gemini-Verify: R50-PHASE15-SMOKE-TEST-OK]",
-        "next_actor": "Claude"
-      },
-      "claude_mock": {
-        "valid": true,
-        "verify_token": "[Claude-Verify: MOCK]",
-        "next_actor": "GPT"
-      },
-      "gpt_final": {
-        "valid": true,
-        "verify_token": "[GPT-Verify: R50-PHASE15-SMOKE-TEST-ROUND-COMPLETE]",
-        "next_actor": "Shuji"
-      }
-    },
-    "log_appends": [
-      "gpt_response",
-      "gemini_response",
-      "claude_mock_response",
-      "gpt_final_response"
-    ],
-    "state_updates": [
-      {
-        "step": "step3_pre",
-        "next_actor": "Claude"
-      }
-    ],
-    "lock_acquired": true,
-    "real_send_restored_false": false,
-    "result_dump": "/Users/shuji/Desktop/kitt-voice/logs/dry_run/1780782077.controlled_real_relay_test.json"
-  }
+  "claude_job_started_at": 1780779539,
+  "claude_job_completed_at": 1780779539
 }
