@@ -164,6 +164,33 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 15. Selector Candidates Adopted (GPT第46 R50-ORCHESTRATOR-RELAY-DRY-RUN-5381)
+
+### ChatGPT
+- editor: `#prompt-textarea` / `div.ProseMirror[contenteditable=true]`
+- send: `button[data-testid="send-button"]`
+- stop: `button[data-testid="stop-button"]`
+- assistant: `[data-message-author-role="assistant"]`
+- user: `[data-message-author-role="user"]`
+- turn: `[data-testid^="conversation-turn-"]`
+
+### Gemini
+- editor: `rich-textarea .ql-editor`
+- send: `button[aria-label="プロンプトを送信"]`
+- stop: `button[aria-label="回答を停止"]`
+- user: `user-query`
+- assistant: `model-response`
+
+### Send成功条件
+
+```
+editor_len_after == 0
+AND user_count_after - user_count_before == 1
+AND (stop_btn_exists OR assistant_count_after > assistant_count_before)
+```
+
+### 注意: Phase 1ではまだ実入力・実Send禁止。 次は Relay Dry-run のみ。
+
 ## 14. Selector Discovery Phase (GPT第44 R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382)
 
 CDP接続成功後、 次は ChatGPT/Gemini各タブのDOMセレクタ探索。

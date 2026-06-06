@@ -627,6 +627,128 @@ def _persist_selector_discovery(result: dict) -> None:
     save_state(state)
 
 
+def run_relay_dry_run() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-RELAY-DRY-RUN: GPT最新発言を読み取り Gemini向けプロンプト生成、 実入力・実Sendなし"""
+    print("=" * 60)
+    print("R50 Orchestrator Relay Dry-Run (GPT-Verify: R50-ORCHESTRATOR-RELAY-DRY-RUN-5381)")
+    print("=" * 60)
+    assert DRY_RUN is True
+
+    result = {
+        "relay_dry_run": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "chatgpt_tab": False,
+        "gemini_tab": False,
+        "verify_token": None,
+        "next_actor": None,
+        "end_time_jst": None,
+        "next_actor_is_gemini": False,
+    }
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_relay(result)
+            return 1
+
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    print(CDP_SETUP_HINT)
+                    _persist_relay(result)
+                    return 1
+
+                chatgpt_page = None
+                gemini_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        url = page.url
+                        if "chatgpt.com/g/g-p-" in url and chatgpt_page is None:
+                            chatgpt_page = page
+                            result["chatgpt_tab"] = True
+                        elif "gemini.google.com" in url and gemini_page is None:
+                            gemini_page = page
+                            result["gemini_tab"] = True
+                print(f"[3] ChatGPTタブ: {result['chatgpt_tab']}")
+                print(f"[4] Geminiタブ: {result['gemini_tab']}")
+
+                if not chatgpt_page:
+                    result["reason"] = "CHATGPT_TAB_NOT_FOUND"
+                    _persist_relay(result)
+                    return 1
+                if not gemini_page:
+                    result["reason"] = "GEMINI_TAB_NOT_FOUND"
+                    _persist_relay(result)
+                    return 1
+
+                chatgpt_page.bring_to_front()
+                chatgpt_page.wait_for_load_state("domcontentloaded", timeout=8000)
+                last_assistant = chatgpt_page.evaluate("""() => {
+                    const turns = document.querySelectorAll('[data-testid^="conversation-turn-"]');
+                    const last = turns[turns.length - 1];
+                    return last ? (last.textContent || '') : '';
+                }""")
+                print(f"[5] ChatGPT最新本文 len={len(last_assistant)}")
+
+                verify_match = VERIFY_TOKEN_RE.search(last_assistant)
+                next_actor_match = NEXT_ACTOR_RE.search(last_assistant)
+                end_time_match = ENDTIME_JST_RE.search(last_assistant)
+
+                result["verify_token"] = verify_match.group(0) if verify_match else None
+                result["next_actor"] = next_actor_match.group(1) if next_actor_match else None
+                result["end_time_jst"] = end_time_match.group(1) if end_time_match else None
+                result["next_actor_is_gemini"] = (result["next_actor"] == "Gemini")
+                print(f"[6] Verify Token: {result['verify_token']}")
+                print(f"[7] NextActor: {result['next_actor']}")
+                print(f"[8] EndTime-JST: {result['end_time_jst']}")
+
+                gemini_prompt = (
+                    "[Claude-Transmission: GPT verbatim relay via Orchestrator dry-run]\n\n"
+                    f"GPT司会から Geminiへ ({result['verify_token']} に紐づく中継):\n\n"
+                    "--- GPT verbatim ---\n"
+                    f"{last_assistant}\n"
+                    "--- end ---\n\n"
+                    "Geminiは標準形式で応答してください:\n"
+                    "  [Gemini-Verify: ...]\n  [NextActor: GPT or Claude]\n  [EndTime-JST: HH:MM:SS]\n\n"
+                    "[Orchestrator-DryRun-Relay]\n[NextActor: Gemini]\n"
+                )
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                relay_path = DRY_RUN_DIR / f"{ts}.relay_to_gemini.txt"
+                with open(relay_path, "w", encoding="utf-8") as f:
+                    f.write(gemini_prompt)
+                result["relay_dump"] = str(relay_path)
+                result["relay_dry_run"] = "PASSED"
+                print(f"[9] Gemini向け dry-run: {relay_path}")
+                print("[10] 実入力・実Sendなし (DRY_RUN強制)")
+                _persist_relay(result)
+                return 0
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_relay(result)
+            return 1
+    finally:
+        release_lock(load_state())
+        after = load_state()
+        print(f"[final] lock released: lock={after.get('lock')}")
+
+
+def _persist_relay(result: dict) -> None:
+    state = load_state()
+    state["relay_dry_run_result"] = result
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -636,6 +758,8 @@ if __name__ == "__main__":
         sys.exit(print_cdp_setup())
     if "--selector-discovery" in sys.argv:
         sys.exit(run_selector_discovery())
+    if "--relay-dry-run" in sys.argv:
+        sys.exit(run_relay_dry_run())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

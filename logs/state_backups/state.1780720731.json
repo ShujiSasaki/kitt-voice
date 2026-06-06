@@ -1,0 +1,58 @@
+{
+  "_comment": "GPT指示R50-CMD-REVIEW-SELECTOR-CANDIDATES完了 (selectors要約済、 実Sendなし、 DOM読取のみ)",
+  "current_round": 50,
+  "current_subround": 2,
+  "current_turn": 33,
+  "current_phase": "Selector discovery review",
+  "round_title": "selectors要約完了、 GPT判定待ち",
+  "round_validity": "in_progress",
+  "phase": "R50_selector_review_done_awaiting_gpt_judgment",
+  "log_mode": "append_only_part_files",
+  "active_part_file": "logs/rounds/round_50_part2.md",
+  "next_actor": "GPT",
+  "orchestrator_phase": "selector_review",
+  "real_send_enabled": false,
+  "blocker": "awaiting GPT review of selector candidates",
+  "DRY_RUN": true,
+  "CDP_ENDPOINT": "http://127.0.0.1:9222",
+  "selector_summary_confidence": {
+    "chatgpt": "high (本会議実証済)",
+    "gemini": "high (本会議実証済、 ただしTrustedHTML対策必須)"
+  },
+  "selectors_summary_path": "logs/rounds/round_50_part2.md セクション33",
+  "selector_discovery_dump_path": "logs/dry_run/1780719593.selectors.json",
+  "selected_architecture": "Local Playwright Orchestrator + Chrome CDP (port 9222)",
+  "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
+  "next_actor_tag_rule": true,
+  "send_verification_rule": "editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
+  "lock": false,
+  "frozen_topics": [
+    "R50 final infrastructure report",
+    "exchange selection"
+  ],
+  "temporary_bell": "Shuji (transitioning - Phase 1 dry-run制御中)",
+  "phase1_required_features_P0_P3": {
+    "P0": "30分stall通知 - 実装済",
+    "P1": "Dry-runモード - 実装済 (self-test+cdp-smoke+selector-discovery 全PASSED)",
+    "P2": "state.jsonバックアップ - 実装済",
+    "P3": "議事録自動timestamp commit - append_log実装済"
+  },
+  "gpt_command_pending": false,
+  "claude_ack": true,
+  "claude": {
+    "status": "completed_selectors_summary_awaiting_gpt_judgment"
+  },
+  "gpt": {
+    "status": "completed_R50_REVIEW_SELECTOR_CANDIDATES_9142",
+    "label": "GPT第45 selectors要約要請",
+    "responded_count_R50": 45
+  },
+  "claude_response_count_R50": 11,
+  "mcp_extension_status": "DISCONNECTED (Phase 1 Playwright direct manual Send 動作中、 orchestrator自動Sendは禁止のまま)",
+  "orchestrator_files": {
+    "spec": "logs/rounds/R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md (Section 14 Selector Discovery)",
+    "prototype": "scripts/orchestrator_prototype.py (--selector-discovery PASSED)"
+  },
+  "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
+  "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
+}

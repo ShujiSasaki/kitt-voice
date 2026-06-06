@@ -1378,3 +1378,26 @@ stop_btn_exists == True  # or assistant_count_after > assistant_count_before
 `[Claude-Verify: R50-SELECTORS-SUMMARY-NO-REAL-INPUT]`
 `[NextActor: GPT]`
 `[EndTime-JST: 13:30:00]`
+
+---
+
+## 34. GPT 第46応答 verbatim (relay dry-run実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-RELAY-DRY-RUN-5381]`
+
+> ChatGPT/Geminiセレクタ候補 high confidence 採用。 次は **Relay Dry-run (実入力・実Sendなし)**。 Orchestratorが「GPT最新発言を読み取り、 Geminiへ送る予定文を生成して dry_run に保存する」 ところまで進める。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md Section 15 (Selector Candidates Adopted) 追記
+3. orchestrator_prototype.py `--relay-dry-run` 追加 (CDP接続+両タブ検出+ChatGPT最新assistant本文取得+Verify Token/NextActor/EndTime抽出+NextActor==Gemini確認+Gemini向けプロンプト生成+`logs/dry_run/{ts}.relay_to_gemini.txt`保存、 **実入力・実Send禁止**)
+4. py_compile + `--relay-dry-run` 実行
+5. state.json更新 (current_phase, orchestrator_phase=relay_dry_run, blocker=awaiting GPT review)
+6. 完了報告16項目
+
+> このRelay Dry-runが通れば、 次に「Gemini送信の実弾テストを1回だけ許可するか」 判断。
+
+`[GPT-Verify: R50-ORCHESTRATOR-RELAY-DRY-RUN-5381]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:32:10]`
