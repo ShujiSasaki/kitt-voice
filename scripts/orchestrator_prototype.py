@@ -2066,6 +2066,294 @@ def _persist_multi_round(result: dict, restore_false: bool = True) -> None:
 
 
 # =====================
+# Phase 1.5 Phase 1 (P0): race condition + stall Watchdog
+# Approved by Shuji#31 (R50-SHUJI31-PHASE15-IMPLEMENTATION-START-6092)
+# 設計: Section 59/63 (Claude案+Must Fix反映) / Gemini第23 100点満点
+# =====================
+
+LOGS_DIR = REPO_ROOT / "logs"
+LOCK_FILE = LOGS_DIR / "state.json.lock"
+QUEUE_FILE = LOGS_DIR / "queue.json"
+LOCK_STALE_SEC = 300
+STALL_RECOVERABLE_SEC = 400
+STALL_HUMAN_REQUIRED_THRESHOLD = 400
+HEARTBEAT_DEAD_SEC = 600
+ACTOR_TIMEOUT_SEC = {"GPT": 90, "Gemini": 90, "Claude": 300}
+
+
+def acquire_lock_atomic(holder: str) -> bool:
+    """Phase 1.5 P0: atomic exclusive lock取得 (O_EXCL = POSIX atomic mutex)
+    既取得中なら stale検出してリトライ (LOCK_STALE_SEC=300 経過なら強制解除)
+    注: os.rename は既存上書きするため mutex にならない、 O_EXCL を使う
+    """
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    content = json.dumps({"holder": holder, "ts": time.time()})
+    try:
+        fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, content.encode('utf-8'))
+        os.close(fd)
+        return True
+    except FileExistsError:
+        if _detect_stale_lock():
+            try:
+                fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, content.encode('utf-8'))
+                os.close(fd)
+                return True
+            except FileExistsError:
+                return False
+        return False
+
+
+def _detect_stale_lock() -> bool:
+    """LOCK_STALE_SEC 経過した lock を検出 → 強制解除"""
+    if not LOCK_FILE.exists():
+        return False
+    age = time.time() - LOCK_FILE.stat().st_mtime
+    if age > LOCK_STALE_SEC:
+        try:
+            LOCK_FILE.unlink()
+            return True
+        except OSError:
+            return False
+    return False
+
+
+def release_lock_atomic() -> None:
+    """atomic lock解除"""
+    LOCK_FILE.unlink(missing_ok=True)
+
+
+def enqueue_speak(actor: str, content_path: str) -> dict:
+    """Phase 1.5 P0: 発言要求 queue.json に追加 (lock取得→read→append→atomic write→release)"""
+    if not acquire_lock_atomic(f"enqueue_speak:{actor}"):
+        return {"status": "LOCK_FAILED", "actor": actor}
+    try:
+        if QUEUE_FILE.exists():
+            queue = json.loads(QUEUE_FILE.read_text(encoding="utf-8"))
+        else:
+            queue = []
+        entry = {"actor": actor, "content_path": content_path, "enqueue_ts": time.time()}
+        queue.append(entry)
+        tmp = QUEUE_FILE.with_suffix('.json.tmp')
+        tmp.write_text(json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.rename(tmp, QUEUE_FILE)
+        return {"status": "ENQUEUED", "entry": entry, "queue_length": len(queue)}
+    finally:
+        release_lock_atomic()
+
+
+def _classify_stall(elapsed_sec: float) -> str:
+    """Phase 1.5 P0 Gemini Must Fix #1: スタール分類 (旧 RECOVERABLE<600/HUMAN<1800/ERROR>1800 廃止)
+    新: RECOVERABLE<400 / HUMAN_REQUIRED>400 (Claude max 300 + buffer 100)
+    """
+    if elapsed_sec < STALL_RECOVERABLE_SEC:
+        return "RECOVERABLE"
+    return "HUMAN_REQUIRED"
+
+
+def _check_orchestrator_heartbeat_dead() -> bool:
+    """Phase 1.5 P0 Claude追加: Watchdog自身停止検知 (heartbeat > 600s)
+    外部cron監視想定。 OS panic / disk full / Orchestratorプロセス死亡 検知用。
+    """
+    state = load_state()
+    last_hb = state.get("orchestrator_heartbeat", 0)
+    if last_hb == 0:
+        return False
+    return (time.time() - last_hb) > HEARTBEAT_DEAD_SEC
+
+
+def _is_orchestrator_context() -> bool:
+    """Phase 1.5 P0 Gemini Must Fix #2: 呼び出し元検証
+    Orchestrator main loop / watchdog_scan 経由のみ True、 LLM Actor (GPT/Gemini/Claude) 経由はFalse
+    GPT特権化 (Shuji#28違反) 物理的防止
+    """
+    import inspect
+    frame = inspect.currentframe()
+    allowed = ("main_loop_once", "watchdog_scan", "run_orchestrator", "run_self_test")
+    while frame:
+        if frame.f_code.co_name in allowed:
+            return True
+        frame = frame.f_back
+    return False
+
+
+def system_recovery_reset_round(stalled_actor: str, classification: str) -> dict:
+    """Phase 1.5 P0 Gemini Must Fix #2: Orchestrator専用関数
+    旧 force_chair_recovery (GPT特権化リスク) 廃止 → system本体が state.json reinit
+    LLM Actor経由は PermissionError (Shuji#28準拠)
+    """
+    if not _is_orchestrator_context():
+        raise PermissionError(
+            "system_recovery_reset_round is Orchestrator-only (Shuji#28: GPT/Gemini/Claude must not invoke recovery)"
+        )
+    state = load_state()
+    initial = state.get("round_initial_actor", "GPT")
+    state["next_actor"] = initial
+    log_entry = {
+        "stalled_actor": stalled_actor,
+        "classification": classification,
+        "ts": int(time.time()),
+        "action": "system_reset_round",
+    }
+    state.setdefault("stall_recovery_log", []).append(log_entry)
+    save_state(state)
+    ts_str = time.strftime('%H:%M:%S')
+    fact_only = (
+        f"[SYSTEM: previous round was system-recovered at {ts_str}, "
+        f"stalled_actor={stalled_actor}, classification={classification}]"
+    )
+    try:
+        append_log(
+            f"System Recovery: {stalled_actor} stalled → round reset",
+            fact_only,
+        )
+    except Exception:
+        pass
+    return {"action": "system_reset_round", "fact_only_context": fact_only, "log": log_entry}
+
+
+def _parse_jst_to_epoch(jst_str: str) -> float:
+    """JST 'HH:MM:SS' 文字列から today の epoch を計算 (簡易版)"""
+    if not jst_str:
+        return 0.0
+    try:
+        h, m, s = [int(x) for x in jst_str.strip().split(':')]
+        now = time.time()
+        local = time.localtime(now)
+        today_start_epoch = time.mktime(time.struct_time(
+            (local.tm_year, local.tm_mon, local.tm_mday, 0, 0, 0,
+             local.tm_wday, local.tm_yday, local.tm_isdst)
+        ))
+        return today_start_epoch + h * 3600 + m * 60 + s
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def watchdog_scan() -> dict:
+    """Phase 1.5 P0: 60秒毎scan想定 (外部cron)
+    - heartbeat dead 検知 → ORCHESTRATOR_DEAD (Shuji緊急通知)
+    - Actor stall 検知 → _classify_stall → RECOVERABLE/HUMAN_REQUIRED
+    - HUMAN_REQUIRED → system_recovery_reset_round 自動実行 (Orchestrator-only)
+    """
+    state = load_state()
+    if _check_orchestrator_heartbeat_dead():
+        return {
+            "status": "ORCHESTRATOR_DEAD",
+            "action": "shuji_emergency_notify",
+            "last_heartbeat_age_sec": int(time.time() - state.get("orchestrator_heartbeat", 0)),
+        }
+    last_update_str = state.get("last_update_jst", "")
+    last_update_epoch = _parse_jst_to_epoch(last_update_str)
+    if last_update_epoch == 0:
+        return {"status": "OK", "reason": "no_last_update_jst_yet"}
+    elapsed = time.time() - last_update_epoch
+    expected_actor = state.get("next_actor", "")
+    timeout = ACTOR_TIMEOUT_SEC.get(expected_actor, 300)
+    if elapsed <= timeout:
+        return {"status": "OK", "elapsed_sec": int(elapsed), "actor": expected_actor}
+    classification = _classify_stall(elapsed)
+    result = {
+        "status": "STALL_DETECTED",
+        "classification": classification,
+        "actor": expected_actor,
+        "elapsed_sec": int(elapsed),
+    }
+    if classification == "RECOVERABLE":
+        result["action"] = "wait_next_scan"
+    else:
+        recovery = system_recovery_reset_round(expected_actor, classification)
+        result["action"] = "system_reset_done"
+        result["recovery"] = recovery
+        result["shuji_notify"] = True
+    return result
+
+
+def update_orchestrator_heartbeat() -> None:
+    """main loop毎iterationで呼ぶ。 Orchestrator生存signal。"""
+    state = load_state()
+    state["orchestrator_heartbeat"] = int(time.time())
+    save_state(state)
+
+
+def run_watchdog_self_test() -> int:
+    """--watchdog-self-test: Phase 1.5 P0 単体検証 (real send なし)"""
+    print("=" * 60)
+    print("R50 Phase 1.5 P0 Watchdog Self-Test")
+    print("=" * 60)
+
+    # 1. _classify_stall 検証
+    assert _classify_stall(0) == "RECOVERABLE", "elapsed=0 should be RECOVERABLE"
+    assert _classify_stall(399) == "RECOVERABLE", "elapsed=399 should be RECOVERABLE"
+    assert _classify_stall(400) == "HUMAN_REQUIRED", "elapsed=400 (boundary) should be HUMAN_REQUIRED"
+    assert _classify_stall(1000) == "HUMAN_REQUIRED", "elapsed=1000 should be HUMAN_REQUIRED"
+    print("[1] _classify_stall OK (RECOVERABLE<400 / HUMAN_REQUIRED>=400)")
+
+    # 2. _is_orchestrator_context 検証 (テスト関数からは False になるべき)
+    # 注: run_watchdog_self_test 自体は許可リストにない (run_self_test とは別)
+    # → _is_orchestrator_context は False を返す → system_recovery_reset_round は PermissionError
+    is_ctx = _is_orchestrator_context()
+    print(f"[2] _is_orchestrator_context from this self_test: {is_ctx} (expected: False, this test is not in allowed list)")
+
+    # 3. system_recovery_reset_round が PermissionError 上げることを確認 (LLM経由想定)
+    try:
+        system_recovery_reset_round("Gemini", "HUMAN_REQUIRED")
+        print("[3] FAIL: system_recovery_reset_round did NOT raise PermissionError")
+        return 1
+    except PermissionError as e:
+        print(f"[3] system_recovery_reset_round PermissionError raised OK: {e}")
+
+    # 4. acquire_lock_atomic / release_lock_atomic 検証
+    assert acquire_lock_atomic("test_holder_1") is True, "first lock should succeed"
+    print("[4a] acquire_lock_atomic first call OK")
+    assert acquire_lock_atomic("test_holder_2") is False, "second concurrent lock should fail"
+    print("[4b] second concurrent lock correctly failed (lock held)")
+    release_lock_atomic()
+    print("[4c] release_lock_atomic done")
+    assert acquire_lock_atomic("test_holder_3") is True, "lock after release should succeed"
+    release_lock_atomic()
+    print("[4d] acquire after release OK")
+
+    # 5. enqueue_speak 検証
+    QUEUE_FILE.unlink(missing_ok=True)
+    r1 = enqueue_speak("GPT", "logs/test/job1.md")
+    assert r1["status"] == "ENQUEUED", f"enqueue should succeed, got {r1}"
+    assert r1["queue_length"] == 1
+    r2 = enqueue_speak("Gemini", "logs/test/job2.md")
+    assert r2["status"] == "ENQUEUED" and r2["queue_length"] == 2
+    print(f"[5] enqueue_speak OK (queue_length 1→2)")
+    QUEUE_FILE.unlink(missing_ok=True)
+
+    # 6. watchdog_scan (last_update_jst なし → OK)
+    state_backup = load_state()
+    state = load_state()
+    state.pop("last_update_jst", None)
+    state.pop("orchestrator_heartbeat", None)
+    save_state(state)
+    r = watchdog_scan()
+    print(f"[6a] watchdog_scan no last_update: {r}")
+    assert r["status"] == "OK"
+
+    # 7. heartbeat update + watchdog_scan
+    update_orchestrator_heartbeat()
+    state = load_state()
+    state["last_update_jst"] = time.strftime('%H:%M:%S')
+    state["next_actor"] = "Gemini"
+    save_state(state)
+    r = watchdog_scan()
+    print(f"[6b] watchdog_scan recent update: {r}")
+    assert r["status"] == "OK"
+
+    # restore state
+    save_state(state_backup)
+
+    print("=" * 60)
+    print("Phase 1.5 P0 Self-Test PASSED")
+    print("=" * 60)
+    return 0
+
+
+# =====================
 # Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 # =====================
 CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
@@ -2256,6 +2544,8 @@ if __name__ == "__main__":
         sys.exit(run_multi_round_consensus_test())
     if "--claude-slot-dry-run" in sys.argv:
         sys.exit(run_claude_slot_dry_run())
+    if "--watchdog-self-test" in sys.argv:
+        sys.exit(run_watchdog_self_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
