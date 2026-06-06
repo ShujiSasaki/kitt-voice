@@ -9,8 +9,15 @@
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
-  "orchestrator_phase": "phase15_step2_p1_gemini_audit",
+  "next_actor": "Claude",
+  "orchestrator_phase": "phase15_step2_p1_gemini_audit_received",
+  "step2_p1_gemini_must_fix": {
+    "issue": "Regex false positive risk (他者案レビューや禁止例引用まで誤検知)",
+    "fix": "2-stage check: Regex detection → PROXY_WARNING message → Actor can reply with [JUSTIFY_PROXY_SAFE: cause] → Orchestrator bypasses",
+    "discarded_old_pattern": "Immediate HARD_REJECT on regex match (causes physical discussion stack)"
+  },
+  "step2_p1_gemini_passed": ["Q1 design sufficient", "Q2 tags mandatory妥当", "Q6 report pre-check妥当", "Q7-Q8 token strategy完璧", "Q9 token budget現実的"],
+  "step2_p1_gemini_must_fix_items": ["Q3-Q5 regex false positive 2-stage escape"],
   "current_step_step1_p0_reaudit": "STEP1 P0 resolved → STEP2 P1 in progress",
   "current_step": "STEP2 P1 Gemini audit",
   "step2_p1_claude_proposal_received": true,
@@ -88,7 +95,7 @@
     "Phase 2 trigger definition"
   ],
   "final_report_ready": false,
-  "blocker": "Awaiting Gemini audit of Claude STEP2 P1 proxy/token proposal",
+  "blocker": "Claude must revise proxy check with 2-stage JUSTIFY_PROXY_SAFE escape mechanism (Gemini Must Fix)",
   "gemini_phase15_audit_received": true,
   "gemini_phase15_recommendation": "候補E (GPT/Gemini 2者合意 + Claude実装ログ監査) 一択、 Phase 1完了報告 今すぐOK",
   "DRY_RUN": true,
@@ -127,6 +134,14 @@
   },
   "selected_architecture": "Local Playwright Orchestrator + Chrome CDP (port 9222)",
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
+  "endtime_drift_known": {
+    "detected_at_jst": "2026-06-06 19:18:27",
+    "issue": "All 3 AIs (Claude/GPT/Gemini) wrote EndTime-JST values estimated from conversation, not real system clock",
+    "drift_observed": "Section 68 GPT79 = 19:57:30 vs real 19:18:27 = +39min future",
+    "root_cause": "LLMs cannot access system clock; Claude (Code) should but was estimating",
+    "fix_going_forward": "Claude (Code) MUST get real time via Bash `date` for endtime stamps; GPT/Gemini EndTime treated as estimate only",
+    "past_logs": "Not retroactively corrected (history preservation)"
+  },
   "next_actor_tag_rule": true,
   "send_verification_rule": "editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
   "lock": false,

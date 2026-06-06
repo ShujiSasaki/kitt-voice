@@ -3059,3 +3059,43 @@ def create_session_handoff(round_n: int) -> str:
 `[GPT-Verify: R50-REISSUE-STEP2-P1-GEMINI-AUDIT-4158]`
 `[NextActor: Claude]`
 `[EndTime-JST: 19:57:30]`
+
+---
+
+## 69. Gemini 第24応答 verbatim (Phase 1.5 STEP2 P1監査) — 2026-06-06
+
+### Verify Token: `[Gemini-Verify: R50-PHASE15-STEP2-P1-AUDIT]`
+
+> 司会GPT懸念通り、 ガバナンス厳格化のあまり「正規の議論や過去Shujiさん発言の引用」 までシステム誤検知 (False Positive) して急停止リスクあり。 1点 Must Fix。
+
+### 1. ガバナンス監査 (P1-1: Shuji代弁プリチェック)
+
+- **Q1. 設計十分か**: ✅ 十分、 かつ強力 (タグ義務+regexスキャン二重チェックは「勝手な妄想・代弁」 を物理封じ込めに有効)
+- **Q2. 必須タグ義務化**: ✅ 妥当 (メタ認知でプロンプト遵守率向上)
+- **Q3 & Q4. Regex方式 + False Positive対策**: 🚨 **重大論点・修正必須**
+  - Regex単体での一発HARD_REJECTは議論を物理的にスタック化
+  - 誤検知例: 「Claude案のこの記述は、 Shujiさんの意図はそうではない、 と誤解されるリスクがありませんか？」 という**他者案レビュー** までregexに弾かれる
+- **Q5. HARD_REJECT + 連続3回 HUMAN_REQUIRED**: 単一Regex判定のままでは**不妥当** (仕組み修正で妥当化可能)
+  - 誤検知時 Actor が表現変えても禁止文字含む限り3回連続HARD_REJECT → 無実の罪で Shujiさん呼び鈴
+- **Q6. report作成前proxy check必須**: ✅ 非常に妥当 (最終防衛線で遮断)
+
+### 2. コンテキスト容量制御 (P1-2: Token超過戦略)
+- **Q7 & Q8. Chunking / Raw-Summary分離 / Handoff**: ✅ **完璧** (生ログの過去文脈引っ張り問題に対し、 合意済みsummary圧縮+未解決verbatim引継ぎは容量制御として100点満点)
+- **Q9. Token Budget (GPT 100K / Gemini 800K / Claude 160K)**: ✅ 非常に現実的 (Gemini 800Kバッファ+一番低いGPT 80%/90%基準でHandoffトリガーが最適解)
+
+### 3. 判定: `consensus_candidate = false`
+> Token戦略は文句なし合格、 ただし代弁プリチェックの誤検知対策が未実装。
+
+### 🛠 Must Fix: 2段階チェック (Regex + 自己弁明コンテキスト)
+- `SHUJI_PROXY_PATTERNS` 検知時、 即 HARD_REJECT を**廃止**
+- 新プロトコル:
+  - Orchestratorが Actorへメッセージ: 「`[PROXY_WARNING]` Shuji氏の代弁、 または推測と捉えられる表現を検知しました。 これが単なる引用や他者案レビューである場合は、 次の発言冒頭に `[JUSTIFY_PROXY_SAFE: 原因文]` を付与して再送信してください。 本当に代弁であった場合は表現を修正してください。」
+  - Actor が `[JUSTIFY_PROXY_SAFE: ...]` を返してきたら、 Orchestratorは「免除 (Bypass)」 扱いでリレー続行
+- → False Positiveによる議論完全スタックを回避
+
+### 次Actor (Claude) への宿題
+> 「代弁プリチェックの2段階エスケープ機構 (JUSTIFY_PROXY_SAFE)」 仕様+反映修正案を提示してください。 確認後、 STEP2 P1完全合意 → STEP3 P2 (5.運用負荷 / 6.Phase 2トリガー) 即時移行。
+
+`[Gemini-Verify: R50-PHASE15-STEP2-P1-AUDIT]`
+`[NextActor: Claude]`
+`[EndTime-JST (Gemini側): 19:45:00 (推定値、 実時刻 ~19:31)]`
