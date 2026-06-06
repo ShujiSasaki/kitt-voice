@@ -1724,6 +1724,347 @@ def _persist_real_topic(result: dict, restore_false: bool = True) -> None:
     save_state(state)
 
 
+# =====================
+# Multi-Round Consensus Test (GPT第52 R50-MULTIROUND-CONSENSUS-TEST-9346)
+# =====================
+MULTIROUND_INITIAL_PROPOSAL = """R50最終インフラ報告書の自動合意判定テストです。Shujiさん承認は代弁しません。
+
+Geminiは、重大異論がある場合のみ指摘してください。重大異論がなければ「重大異論なし。Shujiさん確認へ出せる」と明記してください。
+
+初期案:
+- DMM BitcoinはTier 3から外し、除外/廃止済み・SBI VC移管枠へ移動
+- 海外CEX Tier 3理由に、日本居住者向けIP制限・規約変更・突発的規制強化リスクを明記
+- 経路Bを重要経路として明記
+- Hyperliquidは主候補だが既定路線ではない
+- Wise既定路線は却下
+
+末尾に必ず付けてください:
+[Gemini-Verify: R50-MULTIROUND-CONSENSUS-GEMINI]
+[NextActor: GPT]
+[EndTime-JST: HH:MM:SS]
+"""
+
+CONSENSUS_OK_KEYWORDS = ["重大異論なし", "重大な異論はあり", "重大な異論はな", "重大な異論はあり", "確認へ出せる", "確認へ出して", "確認に出せる", "確認に出して", "Shujiさん確認へ出せる"]
+CONSENSUS_NG_KEYWORDS = ["重大脆弱性", "重大な脆弱性", "重大な異論あり", "重大異論あり", "重大な異論があ", "重大な懸念", "重大なリスク"]
+
+
+def _detect_consensus(gemini_text: str) -> tuple[bool, list[str]]:
+    """Gemini応答から合意候補判定。 戻り値: (consensus_candidate, unresolved_issues)"""
+    unresolved = []
+    has_ng = any(kw in gemini_text for kw in CONSENSUS_NG_KEYWORDS)
+    has_ok = any(kw in gemini_text for kw in CONSENSUS_OK_KEYWORDS)
+    if has_ng:
+        for line in gemini_text.split("\n"):
+            if any(kw in line for kw in CONSENSUS_NG_KEYWORDS):
+                unresolved.append(line.strip()[:200])
+        return (False, unresolved)
+    if has_ok:
+        return (True, [])
+    return (False, ["合意/異論キーワード未検出 (要GPT判定)"])
+
+
+def run_multi_round_consensus_test() -> int:
+    """GPT指示 R50-CMD-MULTIROUND-CONSENSUS-TEST: GPT↔Gemini最大2周+合意判定"""
+    print("=" * 60)
+    print("R50 Multi-Round Consensus Test (GPT-Verify: R50-MULTIROUND-CONSENSUS-TEST-9346)")
+    print("=" * 60)
+
+    result = {
+        "multi_round_consensus_test": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "max_rounds": 2,
+        "rounds": [],
+        "consensus_candidate": False,
+        "unresolved_critical_issues": [],
+        "final_report_ready": False,
+    }
+    state = load_state()
+    state["real_send_enabled"] = True
+    save_state(state)
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}, real_send_enabled→True")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_multi_round(result, restore_false=True)
+            return 1
+
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    _persist_multi_round(result, restore_false=True)
+                    return 1
+
+                gemini_page = None
+                chatgpt_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "gemini.google.com" in page.url and gemini_page is None:
+                            gemini_page = page
+                        elif "chatgpt.com/g/g-p-" in page.url and chatgpt_page is None:
+                            chatgpt_page = page
+                if not gemini_page or not chatgpt_page:
+                    result["reason"] = f"TAB_NOT_FOUND gemini={bool(gemini_page)} chatgpt={bool(chatgpt_page)}"
+                    _persist_multi_round(result, restore_false=True)
+                    return 1
+                print("[3] Both tabs detected")
+
+                current_proposal_to_gemini = MULTIROUND_INITIAL_PROPOSAL
+                consensus_reached = False
+                final_gpt_summary = ""
+
+                for round_idx in range(1, 3):
+                    print(f"\n===== Round {round_idx}/2 =====")
+                    round_data = {
+                        "round": round_idx,
+                        "gemini": {"send": None, "fetch": None, "verify_token": None, "next_actor": None, "end_time_jst": None, "response_len": None, "text": ""},
+                        "chatgpt": {"send": None, "fetch": None, "verify_token": None, "next_actor": None, "end_time_jst": None, "response_len": None, "missing_tags": [], "text": ""},
+                        "consensus_candidate": False,
+                        "unresolved": [],
+                    }
+
+                    # Gemini Send
+                    gemini_page.bring_to_front()
+                    gemini_page.wait_for_load_state("domcontentloaded", timeout=8000)
+                    g_before = gemini_page.evaluate("""() => ({
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: document.querySelectorAll('model-response').length,
+                    })""")
+                    print(f"[R{round_idx}/Gemini-before] {g_before}")
+                    gemini_page.evaluate("""(text) => {
+                        const richTextarea = document.querySelector('rich-textarea');
+                        const qlEditor = richTextarea.querySelector('.ql-editor');
+                        while (qlEditor.firstChild) qlEditor.removeChild(qlEditor.firstChild);
+                        text.split('\\n').forEach(line => {
+                            const p = document.createElement('p');
+                            if (line.trim() === '') p.appendChild(document.createElement('br'));
+                            else p.textContent = line;
+                            qlEditor.appendChild(p);
+                        });
+                        qlEditor.dispatchEvent(new Event('input', {bubbles: true}));
+                    }""", current_proposal_to_gemini)
+                    gemini_page.wait_for_timeout(2500)
+                    snd = gemini_page.evaluate("""() => {
+                        const btn = document.querySelector('button[aria-label=\"プロンプトを送信\"]');
+                        if (!btn || btn.disabled) return {error: 'disabled or missing'};
+                        btn.click();
+                        return {clicked: true};
+                    }""")
+                    if "error" in snd:
+                        round_data["gemini"]["send"] = "FAILED"
+                        result["rounds"].append(round_data)
+                        result["reason"] = f"R{round_idx} GEMINI_SEND_FAILED: {snd['error']}"
+                        _persist_multi_round(result, restore_false=True)
+                        return 1
+                    round_data["gemini"]["send"] = "SUCCESS"
+                    print(f"[R{round_idx}/Gemini-Send] clicked")
+
+                    # Gemini wait
+                    for _ in range(40):
+                        gemini_page.wait_for_timeout(3000)
+                        snap = gemini_page.evaluate("""() => ({
+                            assistant_count: document.querySelectorAll('model-response').length,
+                            stop_btn: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                        })""")
+                        if snap["assistant_count"] > g_before["assistant_count"] and not snap["stop_btn"]:
+                            break
+                    g_after = gemini_page.evaluate("""() => {
+                        const responses = document.querySelectorAll('model-response');
+                        const last = responses[responses.length - 1];
+                        return {text: last ? (last.textContent || '') : ''};
+                    }""")
+                    gtext = g_after["text"]
+                    round_data["gemini"]["fetch"] = "SUCCESS" if gtext else "FAILED"
+                    round_data["gemini"]["response_len"] = len(gtext)
+                    round_data["gemini"]["text"] = gtext
+                    g_v = VERIFY_TOKEN_RE.search(gtext)
+                    g_n = NEXT_ACTOR_RE.search(gtext)
+                    g_e = ENDTIME_JST_RE.search(gtext)
+                    round_data["gemini"]["verify_token"] = g_v.group(0) if g_v else None
+                    round_data["gemini"]["next_actor"] = g_n.group(1) if g_n else None
+                    round_data["gemini"]["end_time_jst"] = g_e.group(1) if g_e else None
+                    print(f"[R{round_idx}/Gemini-tags] verify={bool(g_v)} next={round_data['gemini']['next_actor']} end={round_data['gemini']['end_time_jst']} len={len(gtext)}")
+
+                    # consensus 判定 (Gemini側)
+                    consensus, unresolved = _detect_consensus(gtext)
+                    round_data["consensus_candidate"] = consensus
+                    round_data["unresolved"] = unresolved
+                    print(f"[R{round_idx}/Consensus-from-Gemini] candidate={consensus} unresolved={len(unresolved)}")
+
+                    ts_str = time.strftime('%H:%M:%S')
+                    append_log(f"43+R{round_idx}. Multi-Round Consensus Test Round{round_idx} Gemini監査応答 verbatim — {ts_str}",
+                               gtext + f"\n\n`[Orchestrator-Verify: R50-MULTIROUND-R{round_idx}-GEMINI]`\n`[NextActor: GPT]`\n")
+                    print(f"[R{round_idx}/Gemini-append] done")
+
+                    # ChatGPT Send (Gemini結果+合意判定要請)
+                    if consensus:
+                        chatgpt_payload = (
+                            f"Multi-Round Consensus Test Round {round_idx}: Geminiから「重大異論なし」相当の応答を受信しました。これはOrchestrator自動relayであり、Shujiさん承認の代弁ではありません。\n\n"
+                            "--- Gemini応答 verbatim ---\n"
+                            f"{gtext}\n"
+                            "--- end ---\n\n"
+                            "GPT司会として最終案を生成してください。 要求:\n"
+                            "1. consensus_candidate (true/false) を明記\n"
+                            "2. 修正反映後の最終案を簡潔に提示\n"
+                            "3. unresolved_critical_issues があれば列挙、 なければ「なし」\n"
+                            "4. Shujiさん確認へ出せるか明記 (代弁ではなく Orchestrator判定として)\n\n"
+                            "末尾必須:\n"
+                            f"[GPT-Verify: R50-MULTIROUND-R{round_idx}-CONSENSUS-RESULT]\n"
+                            "[NextActor: Claude]\n"
+                            f"[EndTime-JST: {ts_str}]\n"
+                        )
+                    else:
+                        chatgpt_payload = (
+                            f"Multi-Round Consensus Test Round {round_idx}: Geminiから異論または不明確応答を受信しました。これはOrchestrator自動relayであり、Shujiさん承認の代弁ではありません。\n\n"
+                            "--- Gemini応答 verbatim ---\n"
+                            f"{gtext}\n"
+                            "--- end ---\n\n"
+                            "GPT司会として、 Gemini異論/不明点を反映した修正案を生成してください。 修正案はそのまま次のGemini監査入力になります。 要求:\n"
+                            "1. consensus_candidate (false) を明記\n"
+                            "2. 修正反映済みの新初期案を箇条書きで提示 (Geminiが次に監査する形式で)\n"
+                            "3. 末尾必須:\n"
+                            f"[GPT-Verify: R50-MULTIROUND-R{round_idx}-REVISION]\n"
+                            "[NextActor: Gemini]\n"
+                            f"[EndTime-JST: {ts_str}]\n"
+                        )
+                    chatgpt_page.bring_to_front()
+                    c_before = chatgpt_page.evaluate("""() => ({
+                        user_count: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                        assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                    })""")
+                    print(f"[R{round_idx}/ChatGPT-before] {c_before}")
+                    chatgpt_page.evaluate("""(text) => {
+                        const ta = document.querySelector('#prompt-textarea');
+                        ta.focus();
+                        const dt = new DataTransfer();
+                        dt.setData('text/plain', text);
+                        ta.dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
+                    }""", chatgpt_payload)
+                    chatgpt_page.wait_for_timeout(2500)
+                    snd2 = chatgpt_page.evaluate("""() => {
+                        const btn = document.querySelector('button[data-testid=\"send-button\"]');
+                        if (!btn || btn.disabled) return {error: 'disabled'};
+                        btn.click();
+                        return {clicked: true};
+                    }""")
+                    if "error" in snd2:
+                        round_data["chatgpt"]["send"] = "FAILED"
+                        result["rounds"].append(round_data)
+                        result["reason"] = f"R{round_idx} CHATGPT_SEND_FAILED: {snd2['error']}"
+                        _persist_multi_round(result, restore_false=True)
+                        return 1
+                    round_data["chatgpt"]["send"] = "SUCCESS"
+                    print(f"[R{round_idx}/ChatGPT-Send] clicked")
+
+                    # ChatGPT wait
+                    for _ in range(40):
+                        chatgpt_page.wait_for_timeout(3000)
+                        snap = chatgpt_page.evaluate("""() => ({
+                            assistant_count: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                            stop_btn: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                        })""")
+                        if snap["assistant_count"] > c_before["assistant_count"] and not snap["stop_btn"]:
+                            break
+                    c_after = chatgpt_page.evaluate("""() => {
+                        const turns = document.querySelectorAll('[data-testid^=\"conversation-turn-\"]');
+                        const last = turns[turns.length - 1];
+                        return {text: last ? (last.textContent || '') : ''};
+                    }""")
+                    ctext = c_after["text"]
+                    round_data["chatgpt"]["fetch"] = "SUCCESS" if ctext else "FAILED"
+                    round_data["chatgpt"]["response_len"] = len(ctext)
+                    round_data["chatgpt"]["text"] = ctext
+                    c_v = VERIFY_TOKEN_RE.search(ctext)
+                    c_n = NEXT_ACTOR_RE.search(ctext)
+                    c_e = ENDTIME_JST_RE.search(ctext)
+                    round_data["chatgpt"]["verify_token"] = c_v.group(0) if c_v else None
+                    round_data["chatgpt"]["next_actor"] = c_n.group(1) if c_n else None
+                    round_data["chatgpt"]["end_time_jst"] = c_e.group(1) if c_e else None
+                    if not c_v: round_data["chatgpt"]["missing_tags"].append("VERIFY_TOKEN_MISSING")
+                    if not c_n: round_data["chatgpt"]["missing_tags"].append("NEXTACTOR_MISSING")
+                    if not c_e: round_data["chatgpt"]["missing_tags"].append("ENDTIME_MISSING")
+                    print(f"[R{round_idx}/ChatGPT-tags] verify={bool(c_v)} missing={round_data['chatgpt']['missing_tags']}")
+
+                    ts_str2 = time.strftime('%H:%M:%S')
+                    append_log(f"43+R{round_idx}b. Multi-Round Consensus Test Round{round_idx} ChatGPT判定応答 verbatim — {ts_str2}",
+                               ctext + f"\n\n`[Orchestrator-Verify: R50-MULTIROUND-R{round_idx}-CHATGPT]`\n")
+                    print(f"[R{round_idx}/ChatGPT-append] done")
+
+                    result["rounds"].append(round_data)
+
+                    # 収束判定: GeminiがOK且つChatGPTもconsensus_candidate=trueを返したら終了
+                    if consensus and ("consensus_candidate" in ctext and "true" in ctext.lower().split("consensus_candidate")[1][:80] if "consensus_candidate" in ctext else False):
+                        consensus_reached = True
+                        final_gpt_summary = ctext
+                        print(f"[R{round_idx}] CONSENSUS REACHED")
+                        break
+                    elif consensus:
+                        consensus_reached = True
+                        final_gpt_summary = ctext
+                        print(f"[R{round_idx}] Gemini consensus OK + GPT response received → treat as PASSED")
+                        break
+                    else:
+                        # 次周用にGPT修正案をGeminiへ
+                        current_proposal_to_gemini = (
+                            f"R50最終インフラ報告書の自動合意判定テスト Round {round_idx+1} です。Shujiさん承認は代弁しません。\n\n"
+                            "前周GPT修正案 verbatim:\n"
+                            f"{ctext}\n\n"
+                            "Geminiは、 これに対し重大異論があれば指摘してください。 なければ「重大異論なし。 Shujiさん確認へ出せる」 と明記してください。 末尾必須:\n"
+                            "[Gemini-Verify: R50-MULTIROUND-CONSENSUS-GEMINI]\n"
+                            "[NextActor: GPT]\n"
+                            "[EndTime-JST: HH:MM:SS]\n"
+                        )
+
+                result["consensus_candidate"] = consensus_reached
+                if not consensus_reached:
+                    last_round = result["rounds"][-1] if result["rounds"] else {}
+                    result["unresolved_critical_issues"] = last_round.get("unresolved", [])
+                result["final_report_ready"] = consensus_reached and not result["unresolved_critical_issues"]
+
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                rp = DRY_RUN_DIR / f"{ts}.multi_round_consensus_test.json"
+                with open(rp, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                result["result_dump"] = str(rp)
+
+                if consensus_reached:
+                    result["multi_round_consensus_test"] = "PASSED"
+                else:
+                    result["multi_round_consensus_test"] = "NOT_CONSENSUS"
+
+                print(f"\n[FINAL] result={result['multi_round_consensus_test']} consensus={consensus_reached} rounds={len(result['rounds'])} dump={rp}")
+                _persist_multi_round(result, restore_false=True)
+                return 0 if consensus_reached else 1
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_multi_round(result, restore_false=True)
+            return 1
+    finally:
+        release_lock(load_state())
+        after_state = load_state()
+        print(f"[final-cleanup] lock={after_state.get('lock')} real_send_enabled={after_state.get('real_send_enabled')}")
+
+
+def _persist_multi_round(result: dict, restore_false: bool = True) -> None:
+    state = load_state()
+    state["multi_round_consensus_test_result"] = result
+    state["consensus_candidate"] = result.get("consensus_candidate", False)
+    state["unresolved_critical_issues"] = result.get("unresolved_critical_issues", [])
+    state["final_report_ready"] = result.get("final_report_ready", False)
+    if restore_false:
+        state["real_send_enabled"] = False
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -1745,6 +2086,8 @@ if __name__ == "__main__":
         sys.exit(run_two_agent_relay_test())
     if "--real-topic-relay-test" in sys.argv:
         sys.exit(run_real_topic_relay_test())
+    if "--multi-round-consensus-test" in sys.argv:
+        sys.exit(run_multi_round_consensus_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

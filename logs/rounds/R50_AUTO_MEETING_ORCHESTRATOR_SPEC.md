@@ -164,6 +164,43 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 21. Multi-Round Consensus Test (GPT第52 R50-MULTIROUND-CONSENSUS-TEST-9346)
+
+Real Topic Auto Relay PASSED後、 **GPT↔Gemini複数周回+合意判定** を検証。
+
+### 目的
+- Shuji介在なし複数周回成立
+- Gemini異論あり/なし → GPT修正/収束判定
+- 合意判定 state.json記録
+
+### 制約
+- GPT↔Gemini 2者のみ、 Claude運用ループ外
+- 最大2周
+- R50最終インフラ報告書題材
+- Shuji承認代弁禁止、 R50正式終結なし
+- `real_send_enabled` テスト中のみ true → 終了後 false
+
+### Consensus criteria
+- Gemini「重大異論なし」 or 「修正後確認へ出せる」
+- GPT修正反映最終案生成
+- unresolved_critical_issues 空
+- state.json に `consensus_candidate=true`
+
+### Not consensus
+- Gemini重大脆弱性指摘 / タグ欠落 / 送信取得append失敗 / lock異常 / 2周以内未収束
+
+### 初期案 (Gemini監査対象)
+- DMM Bitcoin → Tier 3外し SBI VC移管枠へ
+- 海外CEX Tier 3理由に日本居住者IP制限/規約変更/規制リスク明記
+- 経路B 重要経路明記
+- Hyperliquid 主候補だが既定路線ではない
+- Wise既定路線 却下
+
+### Output
+- round_50_part2.md 各周 Gemini/GPT応答 append
+- `logs/dry_run/{ts}.multi_round_consensus_test.json`
+- state.json: `consensus_candidate` / `unresolved_critical_issues` / `final_report_ready`
+
 ## 20. Controlled Real Topic Auto Relay Test (GPT第51 R50-REAL-TOPIC-RELAY-TEST-6634)
 
 Two-Agent Auto Relay Test PASSED後、 本来議題 (R50最終インフラ報告書) を題材に **制御付き自動1周テスト**。
