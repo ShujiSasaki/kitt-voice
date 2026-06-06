@@ -1401,3 +1401,40 @@ stop_btn_exists == True  # or assistant_count_after > assistant_count_before
 `[GPT-Verify: R50-ORCHESTRATOR-RELAY-DRY-RUN-5381]`
 `[NextActor: Claude]`
 `[EndTime-JST: 13:32:10]`
+
+---
+
+## 35. GPT 第47応答 verbatim (Controlled Gemini Send Test実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062]`
+
+> relay dry-run PASSED受領。 次は **1回だけの制御付きGemini実送信テスト**。 議題本体は進めない。 送る内容はOrchestrator疎通確認のみ。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. SPEC.md Section 16 (Controlled Gemini Send Test) 追記
+3. `--send-test-gemini` 追加:
+   - CDP接続+Geminiタブ/editor/send button検出
+   - 送信前 userCount/respCount/editor_len 記録
+   - 固定テスト文Send:
+     ```
+     これは Orchestrator の Gemini 実送信テストです。本来議題ではありません。短く「受信確認OK」とだけ返してください。
+     [GPT-Verify: R50-GEMINI-SEND-TEST-PAYLOAD]
+     [NextActor: GPT]
+     [EndTime-JST: HH:MM:SS]
+     ```
+   - Send実行
+   - 送信成功条件検証 (editor_len_after==0 / user_count+1 / stopBtn OR assistant_count増加)
+   - 結果 `logs/dry_run/{ts}.gemini_send_test.json`保存
+   - state.json記録
+   - **テスト後 real_send_enabled=false に戻す**
+4. py_compile + `--send-test-gemini` 実行
+5. state.json更新 (current_phase=Auto orchestrator Phase 1 controlled Gemini send test, orchestrator_phase=controlled_gemini_send_test, blocker=awaiting GPT review)
+6. 完了報告17項目
+
+> **これは初めてのOrchestrator実Sendです**。 Geminiだけ、 1回だけ、 固定テスト文のみ許可。 ChatGPTへの自動送信はまだ禁止。
+
+`[GPT-Verify: R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:37:00]`

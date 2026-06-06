@@ -164,6 +164,34 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 16. Controlled Gemini Send Test (GPT第47 R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062)
+
+Relay Dry-runが成功したため、 次に **1回だけ** 制御付きでGemini実送信を行う。
+
+### 目的
+
+- Playwright OrchestratorがGemini editorへ入力できるか
+- Send buttonを押せるか
+- Send成功検証 (editor=0 + userCount+1 + stopBtn=true or response start) が機能するか
+
+### 制約
+
+- 送信先はGeminiのみ
+- 送信内容は疎通確認のみ
+- 本来議題は進めない
+- ChatGPTへの自動送信はまだ禁止
+- `real_send_enabled` はテスト中のみ明示的に `true`
+- **テスト終了後 `false` に戻す**
+
+### 実装
+
+`scripts/orchestrator_prototype.py --send-test-gemini`:
+- 送信前 metrics記録
+- 固定テスト文inject (TrustedHTML対策: `document.createElement('p').textContent`)
+- send button click
+- 3条件検証 (editor_len/userCount/stopBtn or assistant)
+- 結果 `logs/dry_run/{ts}.gemini_send_test.json`
+
 ## 15. Selector Candidates Adopted (GPT第46 R50-ORCHESTRATOR-RELAY-DRY-RUN-5381)
 
 ### ChatGPT

@@ -1,0 +1,23 @@
+{
+  "send_test_gemini": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "gemini_tab_detected": true,
+  "before": {
+    "editor_len": 0,
+    "user_count": 0,
+    "assistant_count": 0,
+    "stop_btn": false
+  },
+  "after": {
+    "editor_len": 0,
+    "user_count": 1,
+    "assistant_count": 1,
+    "stop_btn": false
+  },
+  "send_verification": {
+    "editor_zero": true,
+    "user_count_incremented": true,
+    "stop_btn_or_assistant_increased": true,
+    "all_passed": true
+  }
+}

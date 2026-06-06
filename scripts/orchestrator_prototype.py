@@ -749,6 +749,176 @@ def _persist_relay(result: dict) -> None:
     save_state(state)
 
 
+def run_send_test_gemini() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-GEMINI-SEND-TEST: 1回だけGemini実送信、 終了後real_send_enabled=falseに戻す"""
+    print("=" * 60)
+    print("R50 Orchestrator Controlled Gemini Send Test (GPT-Verify: R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062)")
+    print("=" * 60)
+
+    test_payload = (
+        "これは Orchestrator の Gemini 実送信テストです。本来議題ではありません。"
+        "短く「受信確認OK」とだけ返してください。\n\n"
+        "[GPT-Verify: R50-GEMINI-SEND-TEST-PAYLOAD]\n"
+        "[NextActor: GPT]\n"
+        f"[EndTime-JST: {time.strftime('%H:%M:%S')}]\n"
+    )
+
+    result = {
+        "send_test_gemini": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "gemini_tab_detected": False,
+        "before": {},
+        "after": {},
+        "send_verification": {},
+    }
+    state = load_state()
+    state["real_send_enabled"] = True
+    backup_path = backup_state(state)
+    save_state(state)
+    print(f"[1] backup: {backup_path}, real_send_enabled→True")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_send_test(result, restore_false=True)
+            return 1
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    _persist_send_test(result, restore_false=True)
+                    return 1
+
+                gemini_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "gemini.google.com" in page.url:
+                            gemini_page = page
+                            break
+                    if gemini_page:
+                        break
+                if not gemini_page:
+                    result["reason"] = "GEMINI_TAB_NOT_FOUND"
+                    _persist_send_test(result, restore_false=True)
+                    return 1
+                result["gemini_tab_detected"] = True
+                print("[3] Geminiタブ検出: True")
+
+                gemini_page.bring_to_front()
+                gemini_page.wait_for_load_state("domcontentloaded", timeout=8000)
+
+                before = gemini_page.evaluate("""() => {
+                    const editor = document.querySelector('rich-textarea .ql-editor');
+                    return {
+                        editor_len: editor ? (editor.textContent || '').length : -1,
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: document.querySelectorAll('model-response').length,
+                        stop_btn: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                    };
+                }""")
+                result["before"] = before
+                print(f"[4] before: {before}")
+
+                inject_result = gemini_page.evaluate("""(text) => {
+                    const richTextarea = document.querySelector('rich-textarea');
+                    if (!richTextarea) return {error: 'no rich-textarea'};
+                    const qlEditor = richTextarea.querySelector('.ql-editor');
+                    if (!qlEditor) return {error: 'no ql-editor'};
+                    while (qlEditor.firstChild) qlEditor.removeChild(qlEditor.firstChild);
+                    text.split('\\n').forEach(line => {
+                        const p = document.createElement('p');
+                        if (line.trim() === '') {
+                            p.appendChild(document.createElement('br'));
+                        } else {
+                            p.textContent = line;
+                        }
+                        qlEditor.appendChild(p);
+                    });
+                    qlEditor.dispatchEvent(new Event('input', {bubbles: true}));
+                    return {injected: true, len: (qlEditor.textContent || '').length, paragraphs: qlEditor.children.length};
+                }""", test_payload)
+                print(f"[5] inject: {inject_result}")
+                if "error" in inject_result:
+                    result["reason"] = f"INJECT_FAILED: {inject_result['error']}"
+                    _persist_send_test(result, restore_false=True)
+                    return 1
+
+                gemini_page.wait_for_timeout(2000)
+
+                click_result = gemini_page.evaluate("""() => {
+                    const btn = document.querySelector('button[aria-label=\"プロンプトを送信\"]');
+                    if (!btn) return {error: 'no send button'};
+                    if (btn.disabled) return {error: 'disabled'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                print(f"[6] click: {click_result}")
+                if "error" in click_result:
+                    result["reason"] = f"CLICK_FAILED: {click_result['error']}"
+                    _persist_send_test(result, restore_false=True)
+                    return 1
+
+                gemini_page.wait_for_timeout(4000)
+                after = gemini_page.evaluate("""() => {
+                    const editor = document.querySelector('rich-textarea .ql-editor');
+                    return {
+                        editor_len: editor ? (editor.textContent || '').length : -1,
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: document.querySelectorAll('model-response').length,
+                        stop_btn: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                    };
+                }""")
+                result["after"] = after
+                print(f"[7] after: {after}")
+
+                verify = {
+                    "editor_zero": after["editor_len"] == 0,
+                    "user_count_incremented": (after["user_count"] - before["user_count"]) == 1,
+                    "stop_btn_or_assistant_increased": after["stop_btn"] or (after["assistant_count"] > before["assistant_count"]),
+                }
+                verify["all_passed"] = all(verify.values())
+                result["send_verification"] = verify
+                print(f"[8] verification: {verify}")
+
+                if verify["all_passed"]:
+                    result["send_test_gemini"] = "PASSED"
+                else:
+                    result["send_test_gemini"] = "FAILED"
+
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                result_path = DRY_RUN_DIR / f"{ts}.gemini_send_test.json"
+                with open(result_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                result["result_dump"] = str(result_path)
+                print(f"[9] result dump: {result_path}")
+
+                _persist_send_test(result, restore_false=True)
+                return 0 if verify["all_passed"] else 1
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_send_test(result, restore_false=True)
+            return 1
+    finally:
+        release_lock(load_state())
+        after_state = load_state()
+        print(f"[final] lock={after_state.get('lock')}, real_send_enabled={after_state.get('real_send_enabled')}")
+
+
+def _persist_send_test(result: dict, restore_false: bool = True) -> None:
+    state = load_state()
+    state["gemini_send_test_result"] = result
+    if restore_false:
+        state["real_send_enabled"] = False
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -760,6 +930,8 @@ if __name__ == "__main__":
         sys.exit(run_selector_discovery())
     if "--relay-dry-run" in sys.argv:
         sys.exit(run_relay_dry_run())
+    if "--send-test-gemini" in sys.argv:
+        sys.exit(run_send_test_gemini())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
