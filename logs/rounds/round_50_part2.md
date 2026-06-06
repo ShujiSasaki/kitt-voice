@@ -2751,3 +2751,286 @@ def watchdog_scan() -> dict:
 `[Gemini-Verify: R50-PHASE15-STEP1-P0-REAUDIT]`
 `[NextActor: Claude]`
 `[EndTime-JST: 19:15:36]`
+
+---
+
+## 66. GPT 第75応答 verbatim (STEP1 P0確定 + Claude STEP2 P1提案要求 再発) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REISSUE-STEP2-P1-CLAUDE-PROPOSAL-8276]`
+
+> Gemini第23 verbatim受領。 STEP1 P0完全解決確定。 次はClaude STEP2 P1提案 (Shuji代弁プリチェック+token超過戦略)。
+
+### STEP1 P0 確定
+- race condition resolved
+- stall Watchdog resolved
+- overall consensus_candidate=false 維持
+- 残課題4点: Shuji代弁プリチェック (P1) / token超過戦略 (P1) / Claude常時起動 (P2) / Phase 2トリガー (P2)
+
+### Claude 3スロット指示
+- 1. 前1人監査 (Gemini第23)
+- 2. 前2人監査 (GPT司会整理)
+- 3. 自己ターン: A.Shuji代弁プリチェック / B.token超過戦略 / C.擬似コード / D.合意可否
+
+### 禁止
+- Shuji承認の代弁、 3者合意成立の先取り、 実装作業、 本来議題復帰
+
+`[GPT-Verify: R50-REISSUE-STEP2-P1-CLAUDE-PROPOSAL-8276]`
+`[NextActor: Claude]`
+`[EndTime-JST: 19:37:30]`
+
+---
+
+## 67. Claude 第16応答 (Phase 1.5 STEP2 P1 提案: Shuji代弁プリチェック + token超過戦略) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-STEP2-P1-PROPOSAL]`
+
+### 1. 前1人監査 — Gemini第23 (R50-PHASE15-STEP1-P0-REAUDIT)
+
+**全Q (Q1-Q9) 妥当性**: ✅ 全て合理的判定
+- Q1-Q2 (閾値+ORCHESTRATOR_DEAD): Defense in Depth原則適合の評価は鋭い
+- Q3-Q6 (force_chair_recovery廃止+Orchestrator専用+fact-only+stack frame検証): Shuji#28 100%適合判定は妥当
+- Q7-Q9 (STEP1 P0解決+残修正なし+STEP2進行): 議論プロセスとして正しい収束
+
+**論理整合性**: Gemini自身がQ5で「GPTは『自分が実行した』 ではなく『システムによって実行された事実』 を事後通知」 と Shuji#28適合判定 → STEP2の「Shuji代弁プリチェック」 もこの「事実 vs 推測」 の境界判定で共通 → 一貫性ある進行
+
+**懸念**: Gemini第23末尾の宿題 「Shuji代弁プリチェックをどうシステム的に縛るかの具体策」 はクリティカル。 自己ターンで詳細提示
+
+### 2. 前2人監査 — GPT第75 (R50-REISSUE-STEP2-P1-CLAUDE-PROPOSAL-8276)
+
+**司会権限維持**: ✅ 維持
+- 「STEP1 P0確定」 「STEP2 P1提案要求」 は議論進行行為
+- GPT自身は「Shuji代弁プリチェックはこう実装すべき」 等の提案・決済をしていない (Claudeに具体案要求のみ)
+
+**Shuji#28準拠の進行**: ✅ 準拠
+- 「3者合意成立の先取り禁止」「Shuji承認代弁禁止」 を Claudeへ明示
+
+**懸念**: Claudeへの「実装作業禁止」 は妥当だが、 「擬似コード作成」 は実装作業ではない (設計提示=思考活動) → 区別が必要、 GPT指示の意図はOK
+
+### 3. 自己ターン — STEP2 P1具体化
+
+#### A. Shuji代弁プリチェック案
+
+**設計原則**: 「事実引用OK、 推測代弁NG」 を機械的に区別
+
+**A-1. 各Actor出力末尾必須タグ**:
+```
+[is_shuji_represented: false]
+[no_proxy_violation: true]
+```
+- LLMが自己申告 (validate機構の起点)
+- false以外を返した場合は即 HARD_REJECT
+
+**A-2. Shuji発言の許可/禁止区別**:
+- ✅ **許可**: verbatim引用 (`Shuji#N`+原文ブロック / `Shujiさん発言 'XXX'`)
+- ❌ **禁止**: 推測・代弁 (`Shujiさんはこう考えるはず` / `Shuji意図ではこうだろう` / `Shujiさんならこう判断する`)
+
+**A-3. 禁止語パターン (regex)**:
+```
+SHUJI_PROXY_PATTERNS = [
+    r"Shuji.{0,5}考えるはず",
+    r"Shuji.{0,5}意図",
+    r"Shuji.{0,5}望む",
+    r"Shuji.{0,5}期待",
+    r"Shujiさんなら",
+    r"Shuji.{0,5}ハズ",
+    r"Shuji.{0,5}思うだろう",
+    r"Shuji.{0,5}判断する",  # 推測判断
+]
+SHUJI_VERBATIM_OK_PATTERNS = [
+    r"Shuji#\d+",
+    r"Shujiさん発言",
+    r"Shuji.{0,5}verbatim",
+    r"Shujiさん.{0,5}言った",  # 過去事実
+]
+```
+
+**A-4. 違反検出時の処理 (HARD_REJECT)**:
+1. 出力を議事録append**せず**
+2. 該当Actor (GPT/Gemini/Claude) に再生成要求 (新prompt: 「proxy violation検出、 代弁部分修正してください」)
+3. `state.proxy_violation_log` に記録: `{actor, ts, pattern, snippet, action}`
+4. **連続3回違反** → HUMAN_REQUIRED (Shujiさん通知、 Watchdog経由 fact-only context)
+
+**A-5. report作成前最終チェック**:
+- `build_shuji_report_candidate()` は内部で `check_proxy_violation()` 必須実行
+- 違反検出 → report作成中止 → Orchestratorが「proxy violation検出、 報告中止、 再生成必要」 を appendして次round処理
+
+#### B. token超過戦略案
+
+**設計原則**: 議事録分割+合意済み圧縮+引き継ぎファイル+閾値warn
+
+**B-1. 議事録肥大時の圧縮ルール**:
+- 既存パターン継承: `round_{N}_part{M}.md` 単位分割 (現在 round_50_part2.md)
+- 1 part最大: **50KB** (約12,000-15,000字)
+- 超過時: `round_{N}_part{M+1}.md` 自動切替
+
+**B-2. 生ログと要約の分離**:
+- **生ログ**: `logs/rounds/round_{N}_part{M}.md` (verbatim保持)
+- **要約**: `logs/rounds/round_{N}_summary.md` (合意済みsectionだけ1行summary)
+
+**B-3. 合意済みsectionの圧縮**:
+- 例: STEP1 P0解決 → 1行 「STEP1 P0: race condition + stall Watchdog 解決 (Section 59-65, Gemini第23 Q7承認)」
+- **未解決論点**: verbatim保持 (要約しない、 詳細を失わない)
+
+**B-4. compact引き継ぎファイル**:
+- `logs/rounds/round_{N}_handoff_{ts}.md`
+- schema:
+  - 現在phase / current_step
+  - 残課題 (unresolved_critical_issues)
+  - 直近3者発言要約 (1行ずつ)
+  - state.json snapshot
+- 次round開始時に各LLM (GPT/Gemini/Claude) に **冒頭注入**
+
+**B-5. token警告閾値** (各LLM別):
+- GPT: 100K (128K - 28K余裕)
+- Gemini: 800K (1M - 200K余裕)
+- Claude: 160K (200K - 40K余裕)
+- **80%超過** → `WARN` (次round開始前にcompact準備)
+- **90%超過** → `CRITICAL` (即時compact強制 + handoff生成)
+
+**B-6. context overflow時の停止/再開**:
+- CRITICAL検出 → Orchestrator が新 `session_handoff.md` 生成
+- 各LLM cleared session (next round で fresh context)
+- 各LLMの最初のpromptに handoff全文注入
+- 冒頭マーカー: `[CONTEXT-COMPACTED] previous round summarized in handoff_{ts}.md, resume from current_step={...}`
+
+#### C. 最小擬似コード
+
+```python
+# Shuji代弁プリチェック
+
+import re
+
+SHUJI_PROXY_PATTERNS = [
+    r"Shuji.{0,5}考えるはず",
+    r"Shuji.{0,5}意図",
+    r"Shuji.{0,5}望む",
+    r"Shuji.{0,5}期待",
+    r"Shujiさんなら",
+    r"Shuji.{0,5}ハズ",
+    r"Shuji.{0,5}思うだろう",
+    r"Shuji.{0,5}判断する",
+]
+SHUJI_VERBATIM_OK_PATTERNS = [
+    r"Shuji#\d+",
+    r"Shujiさん発言",
+    r"Shuji.{0,5}verbatim",
+    r"Shujiさん.{0,5}言った",
+]
+
+def check_proxy_violation(text: str) -> dict:
+    """Shuji代弁検出。 違反箇所の周辺50字に許可patternがあれば免除"""
+    violations = []
+    for pat in SHUJI_PROXY_PATTERNS:
+        for m in re.finditer(pat, text):
+            surrounding = text[max(0, m.start()-50):m.end()+50]
+            if not any(re.search(ok, surrounding) for ok in SHUJI_VERBATIM_OK_PATTERNS):
+                violations.append({"pattern": pat, "snippet": surrounding[:120]})
+    return {
+        "violations": violations,
+        "is_shuji_represented": len(violations) > 0,
+        "no_proxy_violation": len(violations) == 0,
+    }
+
+def validate_actor_output(actor: str, text: str) -> dict:
+    """各Actor発言受信時の事前検証。 違反時HARD_REJECT。"""
+    result = check_proxy_violation(text)
+    if result["violations"]:
+        state = load_state()
+        log_entry = {
+            "actor": actor,
+            "ts": int(time.time()),
+            "violations": result["violations"],
+            "action": "HARD_REJECT_request_regenerate",
+        }
+        state.setdefault("proxy_violation_log", []).append(log_entry)
+        save_state(state)
+        # 連続3回違反でHUMAN_REQUIRED
+        recent = [e for e in state["proxy_violation_log"]
+                  if e["actor"] == actor and time.time() - e["ts"] < 600]
+        if len(recent) >= 3:
+            return {"status": "HARD_REJECT_HUMAN_REQUIRED", "violations": result["violations"]}
+        return {"status": "HARD_REJECT_regenerate", "violations": result["violations"]}
+    return {"status": "ACCEPT", "validated": True}
+
+def build_proxy_safe_report(round_summary: dict) -> str:
+    """Shuji報告ドラフト生成。 内部でcheck_proxy_violation必須。"""
+    draft = render_report_template(round_summary)
+    check = check_proxy_violation(draft)
+    if check["violations"]:
+        raise ValueError(f"Proxy violation in report draft: {check['violations']}")
+    return draft
+
+# token超過戦略
+
+TOKEN_BUDGETS = {"GPT": 100_000, "Gemini": 800_000, "Claude": 160_000}
+TOKEN_WARN_RATIO = 0.80
+TOKEN_CRITICAL_RATIO = 0.90
+PART_FILE_MAX_BYTES = 50 * 1024
+
+def token_budget_check(actor: str, estimated_tokens: int) -> dict:
+    budget = TOKEN_BUDGETS.get(actor, 100_000)
+    ratio = estimated_tokens / budget
+    if ratio >= TOKEN_CRITICAL_RATIO:
+        return {"status": "CRITICAL", "ratio": ratio, "action": "force_compact"}
+    if ratio >= TOKEN_WARN_RATIO:
+        return {"status": "WARN", "ratio": ratio, "action": "prepare_compact"}
+    return {"status": "OK", "ratio": ratio}
+
+def compact_resolved_sections(round_n: int) -> str:
+    """合意済みsectionをsummary化。 未解決はverbatim保持。"""
+    state = load_state()
+    summary_path = LOGS_DIR / "rounds" / f"round_{round_n}_summary.md"
+    lines = [f"# Round {round_n} Compacted Summary", ""]
+    for sec in state.get("resolved_sections", []):
+        lines.append(f"- {sec['title']} (Section {sec['section_range']}): {sec['one_line']}")
+    lines.append("\n# Unresolved (verbatim preserved)")
+    for issue in state.get("unresolved_critical_issues", []):
+        lines.append(f"- {issue}")
+    summary_path.write_text("\n".join(lines))
+    return str(summary_path)
+
+def create_session_handoff(round_n: int) -> str:
+    """context overflow時の引き継ぎ。 各LLMに冒頭注入。"""
+    state = load_state()
+    handoff_path = LOGS_DIR / "rounds" / f"round_{round_n}_handoff_{int(time.time())}.md"
+    handoff = (
+        f"# Session Handoff (Round {round_n})\n\n"
+        f"## Current phase\n{state.get('current_phase', '')}\n\n"
+        f"## Current step\n{state.get('current_step', '')}\n\n"
+        f"## Unresolved critical issues\n{json.dumps(state.get('unresolved_critical_issues', []), ensure_ascii=False, indent=2)}\n\n"
+        f"## state.json snapshot\n{json.dumps({k: v for k, v in state.items() if k in ('next_actor', 'orchestrator_phase', 'consensus_candidate', 'agreement_status', 'blocker')}, ensure_ascii=False, indent=2)}\n\n"
+        f"## Resume instruction\n[CONTEXT-COMPACTED] resume from current_step={state.get('current_step', '')}, next_actor={state.get('next_actor', '')}.\n"
+    )
+    handoff_path.write_text(handoff)
+    return str(handoff_path)
+```
+
+#### D. Claude合意可否 (STEP2 P1)
+
+- **A. Shuji代弁プリチェック**: ✅ agree
+  - HARD_REJECT機構 + proxy_violation_log + 連続3回でHUMAN_REQUIRED + build_proxy_safe_report内部検証
+  - これでShuji#28「代弁禁止」 を機械的に縛れる
+- **B. token超過戦略**: ✅ agree
+  - 50KB chunking + WARN/CRITICAL閾値 + compact_resolved_sections (未解決はverbatim保持) + create_session_handoff
+
+**STEP2 P1方針**: agree (Gemini監査次第で完全合意候補化)
+**Claude-Approve-or-Disagree-STEP2-P1**: **true**
+
+**unresolved_critical_issues 更新** (STEP2解決見込み後):
+- ~~3. Shuji代弁プリチェック~~ → 解決見込み (Gemini監査次第)
+- ~~4. token超過戦略~~ → 解決見込み (Gemini監査次第)
+- 5. Claude Code常時起動運用負荷 (STEP3 P2)
+- 6. Phase 2トリガー定義 (STEP3 P2)
+
+**overall consensus_candidate**: **false 維持** (STEP3 P2未着手のため)
+- ただしSTEP2 P1合意候補成立見込み (Gemini再監査でクローズ後、 STEP3移行)
+
+---
+
+`[Claude-Verify: R50-PHASE15-STEP2-P1-PROPOSAL]`
+`[NextActor: GPT]`
+`[EndTime-JST: 19:48:00]`
+`[Claude-Approve-or-Disagree-STEP2-P1: true]`
+`[overall-consensus_candidate: false]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
