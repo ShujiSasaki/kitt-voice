@@ -164,6 +164,32 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 35. Phase 1.5 STEP2 P1 Claude Proposal - Awaiting Gemini Audit (GPT第79 R50-REISSUE-STEP2-P1-GEMINI-AUDIT-4158)
+
+### Claude proposal summary
+
+#### A. Shuji proxy pre-check
+- `is_shuji_represented=false` 必須
+- `no_proxy_violation=true` 必須
+- Shuji発言はverbatim引用のみ許可
+- 推測代弁は禁止
+- SHUJI_PROXY_PATTERNS regex検出
+- SHUJI_VERBATIM_OK_PATTERNS verbatim免除
+- HARD_REJECT
+- 連続3回 HUMAN_REQUIRED
+- report作成前 proxy check 必須
+
+#### B. token overflow strategy
+- 50KB chunking
+- raw log / summary 分離
+- resolved section summary
+- unresolved issue verbatim保持
+- session handoff
+- token budget WARN/CRITICAL
+
+### GPT監査メモ
+proxy regex false positive リスクあり (禁止例として引用した文まで誤検知)。 Gemini重点監査。
+
 ## 34. Phase 1.5 STEP1 P0 Resolved / STEP2 P1 Start (GPT第75 R50-REISSUE-STEP2-P1-CLAUDE-PROPOSAL-8276)
 
 ### STEP1 P0 resolved
