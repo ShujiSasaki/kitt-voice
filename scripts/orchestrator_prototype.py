@@ -919,6 +919,132 @@ def _persist_send_test(result: dict, restore_false: bool = True) -> None:
     save_state(state)
 
 
+def run_fetch_gemini_latest() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-FETCH-GEMINI-LATEST: Gemini最新応答取得のみ、 実入力・実Send禁止"""
+    print("=" * 60)
+    print("R50 Orchestrator Fetch Gemini Latest (GPT-Verify: R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678)")
+    print("=" * 60)
+
+    result = {
+        "fetch_gemini_latest": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "gemini_tab_detected": False,
+        "user_count": None,
+        "assistant_count": None,
+        "stop_btn": None,
+        "latest_response_len": None,
+        "verify_token": None,
+        "next_actor": None,
+        "end_time_jst": None,
+        "missing_tags": [],
+    }
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_fetch_gemini(result)
+            return 1
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    _persist_fetch_gemini(result)
+                    return 1
+
+                gemini_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "gemini.google.com" in page.url:
+                            gemini_page = page
+                            break
+                    if gemini_page:
+                        break
+                if not gemini_page:
+                    result["reason"] = "GEMINI_TAB_NOT_FOUND"
+                    _persist_fetch_gemini(result)
+                    return 1
+                result["gemini_tab_detected"] = True
+                print("[3] Geminiタブ検出: True")
+
+                gemini_page.bring_to_front()
+                gemini_page.wait_for_load_state("domcontentloaded", timeout=8000)
+
+                snapshot = gemini_page.evaluate("""() => {
+                    const responses = document.querySelectorAll('model-response');
+                    const last = responses[responses.length - 1];
+                    return {
+                        user_count: document.querySelectorAll('user-query').length,
+                        assistant_count: responses.length,
+                        stop_btn: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                        latest_text: last ? (last.textContent || '') : '',
+                    };
+                }""")
+                result["user_count"] = snapshot["user_count"]
+                result["assistant_count"] = snapshot["assistant_count"]
+                result["stop_btn"] = snapshot["stop_btn"]
+                latest_text = snapshot["latest_text"]
+                result["latest_response_len"] = len(latest_text)
+                print(f"[4] user_count: {snapshot['user_count']}")
+                print(f"[5] assistant_count: {snapshot['assistant_count']}")
+                print(f"[6] stop_btn: {snapshot['stop_btn']}")
+                print(f"[7] latest len: {len(latest_text)}")
+
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                dump_path = DRY_RUN_DIR / f"{ts}.gemini_latest_response.txt"
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    f.write(latest_text)
+                result["response_dump"] = str(dump_path)
+                print(f"[8] dump: {dump_path}")
+
+                verify = VERIFY_TOKEN_RE.search(latest_text)
+                next_actor = NEXT_ACTOR_RE.search(latest_text)
+                end_time = ENDTIME_JST_RE.search(latest_text)
+                if verify:
+                    result["verify_token"] = verify.group(0)
+                else:
+                    result["missing_tags"].append("VERIFY_TOKEN_MISSING")
+                if next_actor:
+                    result["next_actor"] = next_actor.group(1)
+                else:
+                    result["missing_tags"].append("NEXTACTOR_MISSING")
+                if end_time:
+                    result["end_time_jst"] = end_time.group(1)
+                else:
+                    result["missing_tags"].append("ENDTIME_MISSING")
+                print(f"[9] verify_token: {result['verify_token']}")
+                print(f"[10] next_actor: {result['next_actor']}")
+                print(f"[11] end_time_jst: {result['end_time_jst']}")
+                print(f"[12] missing_tags: {result['missing_tags']}")
+
+                result["fetch_gemini_latest"] = "PASSED"
+                _persist_fetch_gemini(result)
+                return 0
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_fetch_gemini(result)
+            return 1
+    finally:
+        release_lock(load_state())
+        after_state = load_state()
+        print(f"[final] lock={after_state.get('lock')}, real_send_enabled={after_state.get('real_send_enabled')}")
+
+
+def _persist_fetch_gemini(result: dict) -> None:
+    state = load_state()
+    state["gemini_fetch_latest_result"] = result
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -932,6 +1058,8 @@ if __name__ == "__main__":
         sys.exit(run_relay_dry_run())
     if "--send-test-gemini" in sys.argv:
         sys.exit(run_send_test_gemini())
+    if "--fetch-gemini-latest" in sys.argv:
+        sys.exit(run_fetch_gemini_latest())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

@@ -164,6 +164,19 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 17. Gemini Response Fetch Test (GPT第48 R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678)
+
+Controlled Gemini Send Test が成功したため、 次に Gemini 最新応答取得テスト。
+
+### 目的
+- Gemini 最新 `model-response` を取得できるか
+- 応答本文を `logs/dry_run/` に保存できるか
+- response complete 判定が機能するか
+- Verify Token / NextActor / EndTime-JST の有無を検査できるか (missing許容)
+
+### 制約
+- 実入力禁止 / 実Send禁止 / 読み取りのみ / ChatGPT自動送信禁止
+
 ## 16. Controlled Gemini Send Test (GPT第47 R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062)
 
 Relay Dry-runが成功したため、 次に **1回だけ** 制御付きでGemini実送信を行う。

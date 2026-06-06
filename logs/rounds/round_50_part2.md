@@ -1438,3 +1438,24 @@ stop_btn_exists == True  # or assistant_count_after > assistant_count_before
 `[GPT-Verify: R50-ORCHESTRATOR-GEMINI-SEND-TEST-7062]`
 `[NextActor: Claude]`
 `[EndTime-JST: 13:37:00]`
+
+---
+
+## 36. GPT 第48応答 verbatim (Gemini Response Fetch Test実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678]`
+
+> Gemini実送信テスト成功受領。 次は **Gemini応答取得テスト**。 送信成功だけでは不十分: 送信→相手AI応答完了検知→本文取得→Verify/NextActor/EndTime検証→議事録append まで必要。 今回はGemini最新応答を読み取るだけ。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. SPEC.md Section 17 (Gemini Response Fetch Test) 追記
+3. `--fetch-gemini-latest` 追加 (model-response最新本文取得+dump+タグ抽出、 missing許容、 実入力・実Send禁止)
+4. py_compile + 実行
+5. state.json更新 (current_phase, orchestrator_phase=gemini_response_fetch_test)
+6. 完了報告19項目
+
+`[GPT-Verify: R50-ORCHESTRATOR-FETCH-GEMINI-LATEST-2678]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:46:20]`
