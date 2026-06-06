@@ -30,9 +30,29 @@ from enum import Enum
 from pathlib import Path
 
 DRY_RUN = True
-CDP_ENDPOINT = "http://127.0.0.1:9222"
+CDP_ENDPOINT = os.environ.get("CDP_ENDPOINT", "http://127.0.0.1:9222")
 DOM_TIMEOUT_SEC = 30
 STALL_NOTIFY_SEC = 1800
+
+CDP_SETUP_HINT = """
+================================================================
+CDP接続失敗 - Chrome起動手順 (Mac):
+  open -na "Google Chrome" --args \\
+    --remote-debugging-port=9222 \\
+    --user-data-dir=/tmp/chrome-cdp-profile
+
+接続確認:
+  curl http://127.0.0.1:9222/json/version
+
+注意:
+- 既存Chromeには後付けで接続できません
+- 必ず専用プロファイル (--user-data-dir) を使ってください
+- 最初だけ ChatGPT/Gemini へ手動ログインが必要
+- ログイン後 'python3 scripts/orchestrator_prototype.py --cdp-smoke-test' を再実行
+
+環境変数 CDP_ENDPOINT で接続先URLを上書き可能 (未指定は http://127.0.0.1:9222)
+================================================================
+"""
 
 
 # =====================
@@ -404,7 +424,7 @@ def run_cdp_smoke_test() -> int:
                 except Exception as e:
                     result["reason"] = f"CDP_CONNECTION_FAILED: {type(e).__name__}: {e}"
                     print(f"[3] FAIL: {result['reason']}")
-                    print(f"    Start Chrome with: google-chrome --remote-debugging-port=9222")
+                    print(CDP_SETUP_HINT)
                     _persist_smoke_test_result(result)
                     return 1
 
@@ -459,11 +479,19 @@ def _persist_smoke_test_result(result: dict) -> None:
     save_state(state)
 
 
+def print_cdp_setup() -> int:
+    print(CDP_SETUP_HINT)
+    print(f"Current CDP_ENDPOINT (env CDP_ENDPOINT or default): {CDP_ENDPOINT}")
+    return 0
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
     if "--cdp-smoke-test" in sys.argv:
         sys.exit(run_cdp_smoke_test())
+    if "--print-cdp-setup" in sys.argv:
+        sys.exit(print_cdp_setup())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

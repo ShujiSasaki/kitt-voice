@@ -1254,3 +1254,29 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[GPT-Verify: R50-ORCHESTRATOR-CDP-SMOKE-TEST-8804]`
 `[NextActor: Claude]`
 `[EndTime-JST: 10:11:08]`
+
+---
+
+## 30. GPT 第42応答 verbatim (CDP環境セットアップ手順整備+Shuji起動手順提示) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-CDP-ENV-SETUP-GUIDE-5162]`
+
+> CDP接続失敗原因: Chromeが `--remote-debugging-port=9222` 付きで起動していない。 **別アプローチへはまだ分岐しない**。 まず CDP用Chrome起動手順整備→ Shujiさん1回起動・ログイン → cdp-smoke-test再実行。
+>
+> **既存Chromeには後からCDP接続できません**。 最初から remote-debugging-port付きで起動必要。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md に `## CDP Environment Setup` 追記:
+   - Mac起動例: `open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-cdp-profile`
+   - 接続確認: `http://127.0.0.1:9222/json/version`
+   - 注意: 既存Chrome無理に操作しない / 専用プロファイル / 最初だけ手動ログイン / ログイン後 cdp-smoke-test 再実行
+3. orchestrator_prototype.py 更新: CDP endpoint環境変数 `CDP_ENDPOINT` 読込 (未指定なら http://127.0.0.1:9222) + 接続失敗時ヒント表示 + `--print-cdp-setup` オプション
+4. py_compile + `--print-cdp-setup` 実行
+5. state.json更新
+6. **Shujiさんへ CDP起動手順 提示**
+
+`[GPT-Verify: R50-CDP-ENV-SETUP-GUIDE-5162]`
+`[NextActor: Claude]`
+`[EndTime-JST: 10:15:10]`

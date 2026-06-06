@@ -164,6 +164,41 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 13. CDP Environment Setup (GPT第42 R50-CDP-ENV-SETUP-GUIDE-5162)
+
+CDP接続には、 Chromeを `--remote-debugging-port=9222` 付きで起動する必要がある。 **既に通常起動しているChromeには後付けで接続できない**。
+
+### 推奨
+
+専用プロファイルでChromeを起動し、 ChatGPT/Geminiへ一度ログインする。
+
+### Mac起動例
+
+```bash
+open -na "Google Chrome" --args \
+  --remote-debugging-port=9222 \
+  --user-data-dir=/tmp/chrome-cdp-profile
+```
+
+### 接続確認
+
+ブラウザまたは curl で:
+
+```
+http://127.0.0.1:9222/json/version
+```
+
+### 注意
+
+- 既存Chromeを無理に操作しない (タブ閉じ・データ破損リスク)
+- 必ず専用プロファイル (`--user-data-dir`) を使う
+- 最初だけ ChatGPT / Gemini へ手動ログインが必要
+- ログイン後に `python3 scripts/orchestrator_prototype.py --cdp-smoke-test` 再実行
+
+### 環境変数
+
+`CDP_ENDPOINT` で接続先URLを上書き可能 (未指定は `http://127.0.0.1:9222`)。
+
 ## 12. Phase 2
 
 OpenAI / Gemini / Claude API化。 Web UI依存を減らす。
