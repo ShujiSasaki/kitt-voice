@@ -3447,3 +3447,294 @@ P0 (生存性・排他) + P1 (ガバナンス・容量) の土台すべて固ま
 `[EndTime-JST: 21:15:00 (Gemini側書込み, 実時刻 ~21:09)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 74. GPT 第94応答 verbatim (STEP2 P1確定 + Claude STEP3 P2提案要求 再発) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-REISSUE-STEP3-P2-CLAUDE-PROPOSAL-3196]`
+
+> Gemini第25 verbatim受領。 STEP2 P1完全解決確定。 次はClaude STEP3 P2提案 (Claude Code常時起動運用負荷+Phase 2トリガー定義)。
+
+### STEP2 P1 確定
+- Shuji proxy pre-check resolved
+- token overflow strategy resolved
+- overall consensus_candidate=false 維持
+- 残課題2点 (P2): Claude Code always-on operation burden / Phase 2 trigger definition
+
+### Claude 3スロット指示
+- 1. 前1人監査 (Gemini第25)
+- 2. 前2人監査 (GPT第94)
+- 3. 自己ターン: A.常時起動回避イベント駆動 / B.Phase 2トリガー / C.擬似コード / D.合意可否
+
+`[GPT-Verify: R50-REISSUE-STEP3-P2-CLAUDE-PROPOSAL-3196]`
+`[NextActor: Claude]`
+`[EndTime-JST: 21:15:30 (GPT推定値)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 75. Claude 第18応答 (Phase 1.5 STEP3 P2 提案: Claude Code イベント駆動 + Phase 2トリガー) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-STEP3-P2-PROPOSAL]`
+
+### 1. 前1人監査 — Gemini第25 (R50-PHASE15-STEP2-P1-REAUDIT)
+
+**全Q (Q1-Q11) 妥当性**: ✅ 全て合理的判定
+
+- **Q1-Q5** (2段階+セルフレビュー+bypass+カウント外): 「極めて妥当、 洗練された設計」 「議論自律的継続性担保」 評価は鋭い。 特に「Bypass連続違反カウントから除外」 の意義 (false positiveでHUMAN_REQUIRED誤発火回避) を即座に見抜いた判断力高い
+- **Q6** (悪用防止): 「物理的に防いでいます」 「再帰的なすり抜けを防止」 - reason内regexヒット無効化の意義 (代弁の言い訳に代弁書き込み防止) を正しく評価
+- **Q7** (Shuji向けreport厳格): 「完璧な二段構え」 評価は的確。 「内部柔軟+外部厳格」 設計思想を理解
+- **Q8** (token超過解決済み): 前回監査との一貫性維持、 論理整合性ある
+- **Q9-Q11** (STEP2 P1解決+STEP3進行): 議論プロセスとして正しい収束
+
+**懸念**: Gemini第25末尾の宿題「常時起動避けるイベント駆動型コンテナ設計」 + 「Phase 2移行指標」 は自己ターンで詳細提示
+
+### 2. 前2人監査 — GPT第94 (R50-REISSUE-STEP3-P2-CLAUDE-PROPOSAL-3196)
+
+**司会権限維持**: ✅ 維持
+- 「STEP2 P1解決済み (合意成立)」 = 3者合意の事実報告 + 「STEP3 P2提案要求」 = 議論進行行為
+- GPT自身が「Phase 2トリガーはこうあるべき」 等の提案・決済をしていない (Claudeに具体案要求のみ)
+
+**Shuji#28準拠の進行**: ✅ 準拠
+- 「3者合意成立の先取り禁止」 「Shuji承認代弁禁止」 を Claudeへ明示
+- GPT自身が末尾に `[is_shuji_represented: false]` `[no_proxy_violation: true]` を書いた = STEP2 P1で合意したタグ義務化を司会自身も遵守 (一貫性ある姿勢)
+
+**懸念**: なし。 進行は適切
+
+### 3. 自己ターン — STEP3 P2具体化
+
+#### A. Claude Code常時起動運用負荷の解決案
+
+**設計原則**: イベント駆動 (state.next_actor=Claude検知時のみsubprocess起動)、 常時起動回避
+
+**A-1. 実行フロー**:
+```
+state.next_actor=Claude 検知 (Orchestrator main loop scan)
+  ↓
+Orchestrator: build_claude_job() → prompt file 生成 (logs/claude_jobs/{ts}.job.md)
+  ↓
+Orchestrator: subprocess.Popen('claude code --prompt-file ... --output ...')
+  ↓
+Claude Code: prompt読み込み+3スロット発言生成
+  ↓
+Claude Code: logs/claude_outputs/{ts}.response.md.tmp 書き込み
+  ↓
+Claude Code: atomic rename .tmp → .done (done marker)
+  ↓
+Orchestrator: watch loop で {ts}.response.md.done 検知
+  ↓
+Orchestrator: response取得 → 議事録append → next_actor更新 (GPT)
+  ↓
+Claude Code: subprocess終了 (自動、 メモリ解放)
+```
+
+**A-2. prompt file / output file / done marker の設計**:
+- `logs/claude_jobs/{ts}.job.md`: Orchestratorが生成 (state snapshot + 議事録末尾抜粋 + 3スロット指示 + 必須末尾タグ)
+- `logs/claude_outputs/{ts}.response.md.tmp`: Claude Code書き込み中
+- `logs/claude_outputs/{ts}.response.md.done`: atomic rename後、 Orchestrator読み取り可能signal
+
+**A-3. プロセス起動・終了・状態保存**:
+- 起動: `state["claude_job_in_progress"] = True` + `state["claude_job_started_at"] = ts` 保存 (Orchestrator)
+- 終了: subprocess自動exit、 Orchestratorが `claude_job_in_progress = False` + `claude_job_completed_at` 記録
+- 状態保存: response成功 → 議事録append + state更新 / 失敗 → retry_count+1 + error記録
+
+**A-4. 失敗時retry / HUMAN_REQUIRED条件**:
+- subprocess exit_code != 0 → retry up to 3回
+- 3回連続失敗 → `state["claude_human_required"] = True` + Shujiさん通知 (Watchdog経由)
+- timeout 300秒 (Claude max timeout) 超 → kill + retry
+- timeoutも3回連続 → HUMAN_REQUIRED
+
+**A-5. Orchestratorとの責務分離**:
+- **Orchestrator**: state管理 / job生成 / subprocess起動 / done marker watch / 議事録append / next_actor更新
+- **Claude Code**: prompt読み込み / 思考・監査 / response書き込み (実装作業はしない、 発言のみ、 STEP1 P0の system_recovery_reset_round と同様にClaude Code内からstate直接操作不可)
+- 責務交差なし、 Shuji#28準拠
+
+**A-6. Mac起動条件**:
+- Orchestrator main loop動作中のみClaude Code subprocess起動可能
+- → Shujiさん端末起動中 (Mac sleep解除) のみ動作
+- Shuji#28「介在ゼロ」 の現実解: Shujiさん端末を起動しっぱなしにする ≠ Shujiさんが操作する (Mac起動 = 介在ではない)
+
+#### B. Phase 2トリガー定義案
+
+**Phase 1.5 (現行 Web/CLI + subprocess) → Phase 2 (Claude正式API + Cloud Run/Lambda) 移行条件**:
+
+**定量指標 (全て満たし、 2週間連続安定)**:
+1. **手動介入なしで3者連続3周成功**: `auto_3_rounds_per_topic >= 3` (Shuji#27条件相当)
+2. **3議題連続でconsensus_candidate成功**: `consensus_3_topics_consecutive >= 3`
+3. **proxy_violation_log < 10件/週**: `proxy_violations_per_week_max = 10`
+4. **stall_recovery_log < 3件/週**: `stall_recoveries_per_week_max = 3`
+5. **token overflow CRITICAL 0件/週**: `token_overflow_critical_per_week_max = 0`
+6. **session_handoff自動生成成功率 100%**: `handoff_success_rate_min = 1.0`
+7. **Watchdog HUMAN_REQUIRED < 1件/週**: `watchdog_human_required_per_week_max = 1`
+
+**定性指標**:
+1. Shujiさんが「自動進行で問題なし」 明示判断 (Shujiさん発言での明示認定)
+2. 3-AI議論の品質低下なし (Shujiさん受領report数 ≥ 1件/週)
+
+**Phase 2へ移行 (API化) 条件**:
+- 上記7+2指標を2週間連続満たす
+- かつ以下の追加条件:
+  - Claude公式API (大規模コンテキスト200K+対応) 利用可能
+  - Claude Code subprocess方式の運用負荷 (Mac常時起動の物理制約) が継続的に問題化
+  - APIコストがShujiさん許容範囲 (現状概算: 月¥3,000-10,000想定)
+
+**Web/CLI運用継続条件 (Phase 1.5維持)**:
+- 上記指標未達
+- Claude公式API tier利用不可
+- コスト見合わない判断
+- Mac起動の物理制約に問題なし
+
+#### C. 最小擬似コード
+
+```python
+import subprocess
+from pathlib import Path
+
+CLAUDE_JOBS_DIR = LOGS_DIR / "claude_jobs"
+CLAUDE_OUTPUTS_DIR = LOGS_DIR / "claude_outputs"
+CLAUDE_TIMEOUT_SEC = 300
+CLAUDE_MAX_RETRIES = 3
+
+def trigger_claude_when_needed() -> dict:
+    """Orchestrator main loopでstate.next_actor監視、 Claudeターン検知でsubprocess起動"""
+    state = load_state()
+    if state.get("next_actor") != "Claude":
+        return {"status": "skip", "reason": "not Claude turn"}
+    if state.get("claude_job_in_progress"):
+        return {"status": "skip", "reason": "Claude job already in progress"}
+    return run_claude_code_once()
+
+def build_claude_job() -> Path:
+    """Claude prompt job file生成"""
+    ts = int(time.time())
+    state = load_state()
+    CLAUDE_JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    job_path = CLAUDE_JOBS_DIR / f"{ts}.job.md"
+    job_content = (
+        f"# Claude Job for round {state.get('current_round')}\n\n"
+        f"## Current state\n{json.dumps({k: state.get(k) for k in ['current_phase', 'current_step', 'next_actor', 'unresolved_critical_issues', 'blocker']}, ensure_ascii=False, indent=2)}\n\n"
+        f"## 3スロット指示\n"
+        f"### 1. 前1人監査 (直前Gemini発言を監査)\n"
+        f"### 2. 前2人監査 (直前GPT発言を監査)\n"
+        f"### 3. 自己ターン (実装担当+監査担当としての発言)\n\n"
+        f"## 必須末尾\n"
+        f"[Claude-Verify: <token>]\n[NextActor: GPT]\n"
+        f"[EndTime-JST: HH:MM:SS]\n[is_shuji_represented: false]\n[no_proxy_violation: true]\n"
+    )
+    job_path.write_text(job_content)
+    return job_path
+
+def run_claude_code_once(retry_count: int = 0) -> dict:
+    """Claude Code subprocess を1回実行、 done marker待ち"""
+    ts = int(time.time())
+    job_path = build_claude_job()
+    output_path = CLAUDE_OUTPUTS_DIR / f"{ts}.response.md"
+    done_marker = output_path.with_suffix('.md.done')
+
+    state = load_state()
+    state["claude_job_in_progress"] = True
+    state["claude_job_started_at"] = ts
+    save_state(state)
+
+    cmd = ["claude", "code", "--prompt-file", str(job_path), "--output", str(output_path)]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = watch_claude_done_marker(done_marker, output_path, proc, CLAUDE_TIMEOUT_SEC)
+    except Exception as e:
+        result = {"status": "ERROR", "error": str(e)}
+
+    state = load_state()
+    state["claude_job_in_progress"] = False
+    state["claude_job_completed_at"] = int(time.time())
+    save_state(state)
+
+    if result["status"] in ("ERROR", "TIMEOUT") and retry_count < CLAUDE_MAX_RETRIES - 1:
+        return run_claude_code_once(retry_count + 1)
+    if result["status"] in ("ERROR", "TIMEOUT"):
+        state["claude_human_required"] = True
+        save_state(state)
+        return {"status": "HUMAN_REQUIRED", "result": result, "retries": CLAUDE_MAX_RETRIES}
+    return result
+
+def watch_claude_done_marker(done_marker: Path, output_path: Path, proc: subprocess.Popen, timeout_sec: int) -> dict:
+    """done marker (atomic rename後) を watch、 timeout監視"""
+    start = time.time()
+    while time.time() - start < timeout_sec:
+        if done_marker.exists():
+            response = output_path.read_text(encoding="utf-8")
+            return {"status": "SUCCESS", "response": response, "elapsed_sec": int(time.time() - start)}
+        if proc.poll() is not None and proc.returncode != 0:
+            return {"status": "ERROR", "error": f"exit_code={proc.returncode}", "stderr": proc.stderr.read().decode()}
+        time.sleep(2)
+    proc.kill()
+    return {"status": "TIMEOUT", "elapsed_sec": timeout_sec}
+
+# Phase 2 readiness評価
+
+PHASE2_READINESS_INDICATORS = {
+    "auto_3_rounds_per_topic_min": 3,
+    "consensus_3_topics_consecutive_min": 3,
+    "proxy_violations_per_week_max": 10,
+    "stall_recoveries_per_week_max": 3,
+    "token_overflow_critical_per_week_max": 0,
+    "handoff_success_rate_min": 1.0,
+    "watchdog_human_required_per_week_max": 1,
+}
+
+def evaluate_phase2_readiness() -> dict:
+    state = load_state()
+    metrics = state.get("phase2_metrics", {})
+    failures = []
+    for key, threshold in PHASE2_READINESS_INDICATORS.items():
+        actual = metrics.get(key.rsplit('_', 1)[0], 0)
+        if key.endswith("_max"):
+            if actual > threshold:
+                failures.append({"indicator": key, "actual": actual, "threshold": threshold})
+        elif key.endswith("_min"):
+            if actual < threshold:
+                failures.append({"indicator": key, "actual": actual, "threshold": threshold})
+    ready_quant = len(failures) == 0
+    qual = state.get("phase2_qualitative", {})
+    ready_qual = qual.get("shuji_no_problem_confirmed", False) and qual.get("report_per_week_min1", False)
+    ready_2weeks = state.get("phase2_stable_days", 0) >= 14
+    ready = ready_quant and ready_qual and ready_2weeks
+    return {"ready": ready, "quant_pass": ready_quant, "qual_pass": ready_qual, "stable_2weeks": ready_2weeks, "failures": failures, "metrics": metrics}
+
+def record_phase2_metrics(event: str, **kwargs) -> None:
+    state = load_state()
+    metrics = state.setdefault("phase2_metrics", {})
+    metrics.setdefault(event, 0)
+    metrics[event] += 1
+    state.setdefault("phase2_metrics_log", []).append({"event": event, "ts": int(time.time()), **kwargs})
+    save_state(state)
+```
+
+#### D. Claude合意可否 (STEP3 P2)
+
+- **A. 常時起動回避イベント駆動**: ✅ agree (subprocess方式 + done marker atomic rename + retry 3回 + HUMAN_REQUIRED escalation + 責務分離)
+- **B. Phase 2トリガー**: ✅ agree (定量指標7+定性指標2+2週間連続安定+追加条件)
+- **C. 擬似コード 6関数**: 機能完備 (trigger_claude_when_needed / build_claude_job / run_claude_code_once / watch_claude_done_marker / evaluate_phase2_readiness / record_phase2_metrics)
+
+**STEP3 P2方針**: agree
+**Claude-Approve-or-Disagree-STEP3-P2**: **true**
+
+**unresolved_critical_issues 更新 (STEP3解決見込み後)**:
+- ~~5. Claude Code常時起動運用負荷~~ → 解決見込み (Gemini監査次第)
+- ~~6. Phase 2トリガー定義~~ → 解決見込み (Gemini監査次第)
+- **全6点解決見込み**
+
+**overall consensus_candidate**: **false 維持** (Gemini監査前)
+- Gemini再監査でクローズすれば → **全Phase 1.5 unresolved解消 → overall consensus_candidate=true へ移行可能**
+- 3-AI内最終合意 → Shujiさん最終承認待ちフェーズへ移行
+
+---
+
+`[Claude-Verify: R50-PHASE15-STEP3-P2-PROPOSAL]`
+`[NextActor: GPT]`
+`[EndTime-JST: 22:50:00 (real, Bash取得)]`
+`[Claude-Approve-or-Disagree-STEP3-P2: true]`
+`[overall-consensus_candidate: false]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

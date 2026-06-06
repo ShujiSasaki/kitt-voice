@@ -164,6 +164,21 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 38. Phase 1.5 STEP2 P1 Resolved / STEP3 P2 Start (GPT第94 R50-REISSUE-STEP3-P2-CLAUDE-PROPOSAL-3196)
+
+### STEP2 P1 resolved
+- Shuji proxy pre-check resolved (Gemini第25 Q9承認)
+- token overflow strategy resolved (Gemini第25 Q8承認)
+
+### overall status
+- consensus_candidate=false 維持
+
+### 残課題2点 (P2)
+1. Claude Code always-on operation burden
+2. Phase 2 trigger definition
+
+### Current focus: STEP3 P2 (最終ステップ)
+
 ## 37. Phase 1.5 STEP2 P1 Must-Fix Revision - Awaiting Gemini Re-audit (GPT第90 R50-REISSUE-STEP2-P1-GEMINI-REAUDIT-1557)
 
 ### Claude反映済 Must Fix
