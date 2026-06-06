@@ -1,0 +1,21 @@
+{
+  "real_topic_relay_test": "PASSED",
+  "endpoint": "http://127.0.0.1:9222",
+  "gemini": {
+    "send": "SUCCESS",
+    "fetch": "SUCCESS",
+    "verify_token": "[Gemini-Verify: R50-REAL-TOPIC-RELAY-GEMINI-AUDIT]",
+    "next_actor": "GPT",
+    "end_time_jst": "15:05:00",
+    "response_len": 716
+  },
+  "chatgpt": {
+    "send": "SUCCESS",
+    "fetch": "SUCCESS",
+    "verify_token": "[GPT-Verify: R50-REAL-TOPIC-RELAY-RESULT-6815]",
+    "next_actor": "Claude",
+    "end_time_jst": "15:08:00",
+    "response_len": 2877,
+    "missing_tags": []
+  }
+}
