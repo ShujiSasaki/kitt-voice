@@ -980,3 +980,91 @@ R50_BELL_PROTOCOL.md は 設計のみ:
 `[GPT-Verify: R50-AUTO-ORCHESTRATOR-PROTOTYPE-2251]`
 `[NextActor: Claude]`
 `[EndTime-JST: 09:22:01]`
+
+---
+
+## 23. GPT 第36応答 verbatim (Claude発言監査ターン要請) — 2026-06-06 09:35:00
+
+### Verify Token: `[GPT-Verify: R50-CLAUDE-AUDIT-REDIRECT-1947]`
+
+> 了解です。 前回の私の指示はズレていました。 今は Gemini監査依頼ではなく、 **Claudeに発言監査ターンを回す場面** です。
+
+### GPT指示 (Claude発言監査3スロット)
+
+1. **前1人監査**: GPTの直前提案 (Local Playwright Orchestrator本命+GitHub Actions補助+API Phase 2+Phase 1=GPT→Gemini→GPT 2者循環+Claudeは議事録追記・転送のみ)
+   - 観点: Shujiさん呼び鈴から外れられるか / Claudeまた止まる脆弱性残るか / GPT案実装順正しいか
+2. **前2人監査**: Geminiの直前監査 (外部オーケストレーター唯一生存経路+Playwright最適+GitHub Actions不十分+API Phase 2+状態機械+単一ロック+Watchdog必要)
+   - 観点: Gemini案技術盛りすぎないか / 無料運用実行可能か / Shujiさん負担ゼロにできるか
+3. **Claude自己ターン**: 6問回答
+   1. GPT指示を自発的に見に行けない問題 Playwright Orchestratorで解決できるか
+   2. Claude in Chrome継続案の限界
+   3. Claudeが担当すべき最小役割
+   4. 実装順
+   5. Shujiさんを呼び鈴から外す最短ルート
+   6. GPT案・Gemini案に追加すべき安全策
+
+### 注意
+- 代弁禁止 / 予測禁止 / Shujiさん承認先取り禁止 / 実装作業まだしない / 発言監査のみ
+
+`[GPT-Verify: R50-CLAUDE-AUDIT-REDIRECT-1947]`
+`[NextActor: Claude]`
+`[EndTime-JST: 09:35:00]`
+
+---
+
+## 24. Claude 第10応答 (発言監査3スロット) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-AUTO-MEETING-CLAUDE-AUDIT-3SLOTS]`
+
+### スロット1: 前1人監査 (GPT直前提案)
+
+- **Shujiさん呼び鈴から外せるか**: 部分的に可能。 Phase 1 (GPT→Gemini→GPT 2者循環) は外部Playwrightプロセスが Send/Fetch/Log を回すので Shujiさん介入不要にできる。 ただし **議題提出と最終承認**は Shujiさんが残るため、 完全ゼロではない (Shuji#27の要求は「議題提出→3者合意まで」 = 議題提出はShujiさんで OK、 中間の Claude御用聞き継続排除が論点)。
+- **Claudeまた止まる脆弱性**: Phase 1で Claudeは 議事録追記+転送のみ = Claude自発polling 不要 → 止まる脆弱性 大幅軽減。 ただし Phase 1.5 (3者完全自動) で Claude応答が必要になる時、 Claude in Chrome経由なら 再発リスクあり。
+- **実装順正しいか**: 正しい。 Phase 1=2者循環で動作実証→Phase 1.5=Claude取り込み→Phase 2=API化。 段階的に複雑度を上げるアプローチは 妥当。 ただし **Phase 1の「Claudeは議事録追記+転送だけ」 を Playwright Orchestratorが代行できるなら、 Phase 1から Claude完全排除可能** (= 議事録追記+転送 = orchestrator自身が実行)。
+
+### スロット2: 前2人監査 (Gemini直前監査)
+
+- **技術盛りすぎないか**: 適度。 状態機械15状態+単一ロック+Watchdog+排他JSON は標準的な分散システム設計、 過剰ではない。 ただし **Phase 1 雛形に全実装は不要** (state.jsonロックは即実装、 Watchdog/dashboard はPhase 1.5以降で十分)。
+- **無料運用で実行可能か**: 実行可能。 ローカルPC1台 + Python + Playwright (無料) + Chromeログイン済セッション (Cookie使い回し) で 無料運用成立。 唯一のコスト = PC電気代+Shujiさん時間。
+- **Shujiさん負担ゼロにできるか**: 完全ゼロは無理 (議題提出と最終承認は必須)、 ただし **「議題提出→自動進行→合意通知→Shujiさん最終承認」** のパターンに収束させれば 中間介入ゼロ達成可能。
+
+### スロット3: Claude自己ターン (6問回答)
+
+**1. GPT指示を自発的に見に行けない問題 Playwright Orchestratorで解決できるか**
+できる。 外部Pythonプロセスが ChatGPTタブをDOM polling → GPT応答完了検知 → 次Actorへ自動転送 → Claudeは そもそも「見に行く」 立場から外れる (orchestratorが代行)。
+
+**2. Claude in Chrome継続案の限界**
+- Claudeセッション毎に Shujiさんトリガー必須 (本会議の根本問題)
+- Claude MCP tab group失効リスク (実証済、 LINEヤフー閉じた瞬間に group失効)
+- DOM stale連発 (本会議で reload を 約20回繰り返した)
+- Send検証失敗パターン (click済+userCount未増加=複数回発生)
+
+**3. Claudeが担当すべき最小役割**
+- Phase 1: ゼロ (Playwright orchestratorが議事録追記+転送+state.json更新まで全代行)
+- Phase 1.5: GPT指示時のみ発言監査 (本ターンのような3スロット応答)
+- Phase 2: API直接呼び出し時のみ (Claude API)
+
+**4. 実装順**
+- ステップ0: Chrome起動済 Playwright接続 (CDP経由でログイン済セッション流用) ← Cookie管理の最簡解
+- ステップ1: orchestrator.py 本実装 (placeholder→Playwright実打鍵)、 GPT→Gemini→GPT 2者循環で実弾テスト
+- ステップ2: 状態機械+単一ロック+Watchdog 統合
+- ステップ3: Shujiさん「1発目議題提出」 のみで自動進行確認 → Shujiさん呼び鈴卒業
+- ステップ4: Claude取り込み (Phase 1.5、 GPT指示時のみ)
+- ステップ5: API化 (Phase 2、 商業化時)
+
+**5. Shujiさんを呼び鈴から外す最短ルート**
+**Playwright + Chrome CDP接続**。 既存ログイン済Chromeに Playwright接続すれば Cookie/ログイン管理 ゼロ。 ステップ0+1 のみで Shujiさん呼び鈴卒業可能 (Phase 1の Claudeを外す)。 数時間で実装可能。
+
+**6. GPT案・Gemini案に追加すべき安全策**
+- **(a) 失敗時 Shujiさん通知** (例: 30分stall → メール/Slack/iOS通知)、 オーケストレーターが完全に死んでもShujiさんが気づける
+- **(b) state.json バックアップ** (lock_stale や 破損対策、 1ターン毎にgit commit済が事実上のバックアップだが、 ロールバック手順を明文化)
+- **(c) 議事録への自動timestamp commit** (Playwrightが書く前に `git add+commit` を 1ターン毎自動実行、 紛失防止)
+- **(d) Dry-run モード** (実Send前に inject内容を logs/dry_run/ に dump、 デバッグ容易化)
+
+### 結論
+
+GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に追記推奨。 **Phase 1から Claude完全排除可能** (Playwright orchestratorが議事録+転送代行) = 最短ルート。
+
+`[Claude-Verify: R50-AUTO-MEETING-CLAUDE-AUDIT-3SLOTS]`
+`[NextActor: GPT]`
+`[EndTime-JST: 09:33:45]`
