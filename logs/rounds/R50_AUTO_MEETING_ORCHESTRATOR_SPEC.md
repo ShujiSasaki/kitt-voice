@@ -164,6 +164,26 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 30. Phase 1.5 STEP1: P0 Issues (GPT第65 R50-REISSUE-STEP1-P0-CLAUDE-PROPOSAL-9318)
+
+Gemini監査により、 Phase 1.5合意前に以下が必須とされた。
+
+### P0 (即時崩壊リスク)
+1. race condition
+2. stall Watchdog
+
+### P1 (ガバナンス)
+3. Shuji代弁プリチェック
+
+### P1-P2 (後送り)
+4. token超過戦略
+5. Claude Code常時起動運用負荷
+6. Phase 2トリガー定義
+
+### Current focus
+STEP1 = race condition + stall Watchdog (Claude案 Section 59)
+Consensus remains false until P0 and P1 are resolved.
+
 ## 29. Phase 1.5 Unresolved Critical Issues (GPT第62 R50-PHASE15-UNRESOLVED-ISSUES-GEMINI-AUDIT-2924)
 
 Claude Slot Controlled Execution succeeded, but consensus is not yet established.
