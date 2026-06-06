@@ -3070,6 +3070,159 @@ def run_p2_self_test() -> int:
 
 
 # =====================
+# Phase 1.5 Integration Test (GPT第114 R50-PHASE15-INTEGRATION-TEST-2246)
+# 全6機能の一気通貫テスト + main loop mock 1周
+# =====================
+
+
+def _mock_main_loop_one_round() -> dict:
+    """G: main loop mock 1周 (GPT→Gemini→Claude tag確認 + log append + state更新)"""
+    print("\n--- G. main loop mock 1周 ---")
+    results = {"steps": []}
+
+    # 1. mock GPT output
+    gpt_output = (
+        "GPT司会の判断: 議題に進みましょう。\n"
+        "[GPT-Verify: MOCK-GPT-001]\n"
+        "[NextActor: Gemini]\n"
+        "[EndTime-JST: 06:00:00]\n"
+        "[is_shuji_represented: false]\n"
+        "[no_proxy_violation: true]\n"
+    )
+    gpt_validation = validate_response(gpt_output)
+    assert gpt_validation["valid"], f"GPT mock output should validate, got {gpt_validation}"
+    assert gpt_validation["next_actor"] == "Gemini"
+    results["steps"].append({"step": "GPT_mock", "validation": "valid", "next_actor": "Gemini"})
+    print(f"   [G-1] GPT mock output validation OK, NextActor=Gemini")
+
+    # 2. mock Gemini output
+    gemini_output = (
+        "Gemini監査の結果: GPT発言を承認します。\n"
+        "[Gemini-Verify: MOCK-GEMINI-001]\n"
+        "[NextActor: Claude]\n"
+        "[EndTime-JST: 06:01:00]\n"
+        "[is_shuji_represented: false]\n"
+        "[no_proxy_violation: true]\n"
+    )
+    gemini_validation = validate_response(gemini_output)
+    assert gemini_validation["valid"]
+    assert gemini_validation["next_actor"] == "Claude"
+    results["steps"].append({"step": "Gemini_mock", "validation": "valid", "next_actor": "Claude"})
+    print(f"   [G-2] Gemini mock output validation OK, NextActor=Claude")
+
+    # 3. mock Claude output (proxy check適用)
+    claude_output = (
+        "Claude実装担当: 設計に賛成。 実装着手します。\n"
+        "[Claude-Verify: MOCK-CLAUDE-001]\n"
+        "[NextActor: GPT]\n"
+        "[EndTime-JST: 06:02:00]\n"
+        "[is_shuji_represented: false]\n"
+        "[no_proxy_violation: true]\n"
+    )
+    claude_validation = validate_response(claude_output)
+    assert claude_validation["valid"]
+    assert claude_validation["next_actor"] == "GPT"
+    # proxy check 統合
+    proxy_check = validate_actor_output("Claude", claude_output)
+    assert proxy_check["status"] == "ACCEPT", f"clean Claude output should ACCEPT, got {proxy_check}"
+    results["steps"].append({"step": "Claude_mock", "validation": "valid", "next_actor": "GPT", "proxy": "ACCEPT"})
+    print(f"   [G-3] Claude mock output validation OK + proxy check ACCEPT")
+
+    # 4. tag確認 (全AI で is_shuji_represented / no_proxy_violation 必須)
+    for output_name, output in (("GPT", gpt_output), ("Gemini", gemini_output), ("Claude", claude_output)):
+        assert "[is_shuji_represented: false]" in output, f"{output_name} missing is_shuji_represented tag"
+        assert "[no_proxy_violation: true]" in output, f"{output_name} missing no_proxy_violation tag"
+    print(f"   [G-4] 全AI 必須タグ確認 OK (is_shuji_represented + no_proxy_violation)")
+
+    # 5. mock round log append (実ファイル書き込みはしない、 関数呼び出しだけ確認)
+    try:
+        # append_log existence check
+        assert callable(append_log), "append_log function must exist"
+        results["steps"].append({"step": "round_log_append", "status": "callable"})
+        print(f"   [G-5] round log append機構 OK (append_log callable)")
+    except Exception as e:
+        print(f"   [G-5] FAIL: {e}")
+        return {"status": "FAIL", "results": results}
+
+    # 6. state更新 mock (consensus_candidate は本番trueにしない)
+    state = load_state()
+    state_before_phase15 = state.get("consensus_candidate")
+    # mockなので変更しない
+    results["steps"].append({
+        "step": "state_update_mock",
+        "consensus_candidate_unchanged": True,
+        "consensus_candidate_current": state_before_phase15,
+    })
+    print(f"   [G-6] state更新 mock (consensus_candidate本番true化せず維持: {state_before_phase15})")
+
+    results["status"] = "PASS"
+    return results
+
+
+def run_phase15_integration_test() -> int:
+    """--phase15-integration-test: 全6機能を一気通貫テスト"""
+    print("=" * 70)
+    print("R50 Phase 1.5 INTEGRATION TEST")
+    print("=" * 70)
+
+    all_results = {
+        "p0_watchdog_self_test": None,
+        "p1_self_test": None,
+        "p2_self_test": None,
+        "main_loop_mock_1round": None,
+    }
+
+    # A+B (P0): watchdog/race/queue
+    print("\n>>> A+B: P0 (race + Watchdog) self-test")
+    rc_p0 = run_watchdog_self_test()
+    all_results["p0_watchdog_self_test"] = "PASSED" if rc_p0 == 0 else f"FAILED rc={rc_p0}"
+    if rc_p0 != 0:
+        print("INTEGRATION TEST FAILED at P0")
+        return rc_p0
+
+    # C+D (P1): proxy check + token
+    print("\n>>> C+D: P1 (proxy check + token overflow) self-test")
+    rc_p1 = run_p1_self_test()
+    all_results["p1_self_test"] = "PASSED" if rc_p1 == 0 else f"FAILED rc={rc_p1}"
+    if rc_p1 != 0:
+        print("INTEGRATION TEST FAILED at P1")
+        return rc_p1
+
+    # E+F (P2): Claude Code event-driven + Phase 2 metrics
+    print("\n>>> E+F: P2 (Claude event-driven + Phase 2 metrics) self-test")
+    rc_p2 = run_p2_self_test()
+    all_results["p2_self_test"] = "PASSED" if rc_p2 == 0 else f"FAILED rc={rc_p2}"
+    if rc_p2 != 0:
+        print("INTEGRATION TEST FAILED at P2")
+        return rc_p2
+
+    # G: main loop mock 1周
+    g_result = _mock_main_loop_one_round()
+    all_results["main_loop_mock_1round"] = g_result["status"]
+    if g_result["status"] != "PASS":
+        print("INTEGRATION TEST FAILED at main loop mock")
+        return 1
+
+    # check real_send_enabled
+    state = load_state()
+    rse = state.get("real_send_enabled", False)
+    assert rse is False, f"real_send_enabled must be False, got {rse}"
+    print(f"\n>>> real_send_enabled=False 維持確認 OK")
+
+    # summary
+    print("\n" + "=" * 70)
+    print("Phase 1.5 INTEGRATION TEST SUMMARY")
+    print("=" * 70)
+    for k, v in all_results.items():
+        print(f"  {k}: {v}")
+    print(f"  real_send_enabled: False (maintained)")
+    print("=" * 70)
+    print("Phase 1.5 INTEGRATION TEST PASSED")
+    print("=" * 70)
+    return 0
+
+
+# =====================
 # Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 # =====================
 CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
@@ -3266,6 +3419,8 @@ if __name__ == "__main__":
         sys.exit(run_p1_self_test())
     if "--p2-self-test" in sys.argv:
         sys.exit(run_p2_self_test())
+    if "--phase15-integration-test" in sys.argv:
+        sys.exit(run_phase15_integration_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

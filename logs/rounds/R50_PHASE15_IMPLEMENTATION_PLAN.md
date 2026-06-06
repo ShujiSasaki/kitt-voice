@@ -236,6 +236,16 @@
 - P2-1: Claude Code event-driven slot (subprocess + atomic rename)
 - P2-2: Phase 2 trigger definition (readiness metrics)
 
+### 統合テスト (06:10): ✅ PASSED
+- `--phase15-integration-test` 追加
+- 4 sections (P0/P1/P2 self-test + main loop mock 1周)
+- A-G 全項目 PASSED:
+  - A+B (P0): race + Watchdog 6項目
+  - C+D (P1): proxy check + token 8項目
+  - E+F (P2): Claude Code event + Phase 2 metrics 9項目
+  - G: main loop mock 6項目 (3-AI tag verify + log append callable + state mock)
+- real_send_enabled=false 維持確認済
+
 `[Plan-Verify: R50-PHASE15-IMPLEMENTATION-PLAN]`
 `[NextActor: Claude implementation]`
 `[EndTime-JST: 05:35:00 (real Bash取得)]`

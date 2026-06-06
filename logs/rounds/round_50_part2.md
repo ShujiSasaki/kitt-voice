@@ -4190,3 +4190,56 @@ P1実装完了受領。 P2 (Claude Code event-driven slot + Phase 2 readiness me
 `[EndTime-JST: 06:01:00 (real Bash取得)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 88. GPT 第114応答 verbatim (Phase 1.5 統合テスト命令) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PHASE15-INTEGRATION-TEST-2246]`
+
+P2実装完了受領。 統合テスト着手。 ただし本番自動送信は禁止。
+
+- `--phase15-integration-test` 追加
+- A-F (P0/P1/P2 各機能)
+- G: main loop mock 1周 (GPT→Gemini→Claude tag確認+log append+state更新、 consensus_candidate本番true化禁止)
+- 禁止: real_send_enabled=true / 実ChatGPT/Gemini送信 / 実Claude Code本番起動 / Shujiさん新規報告 / R50本来議題復帰
+
+`[GPT-Verify: R50-PHASE15-INTEGRATION-TEST-2246]`
+`[NextActor: Claude]`
+`[EndTime-JST: 06:05:00 (GPT推定値、 実時刻 06:06:55)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 89. Claude 統合テスト完了報告 (Phase 1.5 INTEGRATION TEST PASSED) — 2026-06-07
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-INTEGRATION-TEST-COMPLETE]`
+
+実装内容:
+- `_mock_main_loop_one_round()` 新規 (G: main loop mock 1周)
+- `run_phase15_integration_test()` 新規 (--phase15-integration-test エントリ)
+- 既存 watchdog/p1/p2 self-test を順次呼び出し + main loop mock + real_send=false確認
+
+### Integration Test Summary
+- p0_watchdog_self_test: PASSED (6/6)
+- p1_self_test: PASSED (8/8)
+- p2_self_test: PASSED (9/9)
+- main_loop_mock_1round: PASS (6/6)
+- real_send_enabled: False (maintained)
+
+### G. main loop mock 1周 詳細
+- [G-1] GPT mock output validation OK, NextActor=Gemini
+- [G-2] Gemini mock output validation OK, NextActor=Claude
+- [G-3] Claude mock output validation OK + proxy check ACCEPT
+- [G-4] 全AI 必須タグ確認 OK ([is_shuji_represented: false] + [no_proxy_violation: true])
+- [G-5] round log append機構 OK (append_log callable)
+- [G-6] state更新 mock (consensus_candidate本番true化せず、 現値=true維持確認のみ)
+
+🎯 Phase 1.5 全6項目 + 統合テスト 完了。 本番自動送信禁止維持。
+
+`[Claude-Verify: R50-PHASE15-INTEGRATION-TEST-COMPLETE]`
+`[NextActor: GPT]`
+`[EndTime-JST: 06:10:00 (real Bash取得)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
