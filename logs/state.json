@@ -1,54 +1,49 @@
 {
-  "_comment": "Shuji#27議題=自動3者会議システム設計、 R50最終インフラ報告書凍結",
+  "_comment": "Gemini第19 案B+Playwright全面承認、 Orchestrator.py 3ステップロードマップ確定",
   "current_round": 50,
   "current_subround": 2,
-  "current_turn": 24,
-  "current_phase": "Auto 3-way meeting system design",
-  "round_title": "自動3者会議システム設計 (Shuji#27最優先議題)",
+  "current_turn": 25,
+  "current_phase": "Auto 3-way meeting system: Plan B + Playwright GREEN approved",
+  "round_title": "自動3者会議システム設計 (案B+Playwright確定)",
   "round_validity": "in_progress",
-  "phase": "R50_auto_meeting_system_design_awaiting_gemini_audit",
+  "phase": "R50_plan_B_playwright_approved_awaiting_gpt_orchestrator_directive",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
+  "next_actor": "GPT",
   "blocker": null,
   "frozen_topics": ["R50 final infrastructure report", "exchange selection"],
-  "temporary_bell": "Shuji until auto system implemented",
+  "temporary_bell": "Shuji until orchestrator.py step3 deployed",
   "timestamp_rule": "Verify Token -> NextActor -> EndTime-JST",
   "next_actor_tag_rule": true,
   "send_verification_rule": "Send成功条件: editor=0 AND userCount+1 AND (stopBtn=true OR assistant生成開始)",
-  "bell_protocol_status": "minimum viable protocol adopted (still semi-auto)",
+  "bell_protocol_status": "minimum viable protocol adopted, evolving to full automation",
   "gpt_command_pending": false,
   "claude_ack": true,
-  "claude_active_command": "R50-CMD-FORWARD-AUTO-MEETING-SYSTEM-DESIGN",
   "claude": {
-    "status": "executing_directive_topic_freeze_and_forward_auto_design",
-    "label": "GPT指示1-2完了 (part2 sec20+state.json更新)、 指示3=Gemini転送中"
+    "status": "completed_gemini19_fetch_awaiting_gpt_orchestrator_implementation_directive"
   },
   "gpt": {
-    "status": "completed_R50_AUTO_MEETING_SYSTEM_V1_6448",
-    "label": "GPT第33 R50凍結+自動3者会議システム5案 (A-E) + 暫定結論 (B本命/C補助/D技術本命)",
-    "responded_count_R50": 33
+    "status": "completed_R50_FETCH_GEMINI_AUTO_MEETING_AUDIT_3037",
+    "label": "GPT第34 Gemini監査応答取得指示",
+    "responded_count_R50": 34
   },
   "gemini": {
-    "status": "pending_auto_meeting_system_audit_request",
-    "label": "Shuji#27議題 (自動3者会議システム) 監査7項目 転送待ち",
-    "responded_count_R50": 18
+    "status": "completed_R50_2nd_18thTurn_2ndSpeaker_AUTO_CORE_AUDIT_GREEN",
+    "label": "Gemini第19 案B+Playwright全面承認 (唯一の生存経路+3ステップロードマップ)",
+    "responded_count_R50": 19
   },
-  "shuji_recent_messages": [
-    {"id": "Shuji#27", "verbatim": "ぐるぐる3者会議自動化最優先、 他議題凍結、 暫定呼び鈴卒業", "applied": "GPT判定: R50凍結+自動システム議題開始"}
-  ],
-  "auto_meeting_system_5_proposals": {
-    "A": "Claude in Chrome継続 + Watchdog (現状継続)",
-    "B": "ローカル常駐オーケストレーター (Playwright/Tampermonkey/Selenium) - GPT本命",
-    "C": "GitHub Actions定期実行 - 補助",
-    "D": "公式APIオーケストレーター - 技術的本命",
-    "E": "GitHub Issue駆動半自動"
+  "auto_meeting_system_consensus": {
+    "main_architecture": "案B: ローカル常駐Python + Playwright",
+    "rejected": "案A(現状継続)/案C(GH Actions単独)/Selenium/Tampermonkey",
+    "phase_2_future": "案D: API商業化アップグレード",
+    "state_machine_schema": "単一排他ロック型JSON (current_round/turn/status/current_actor/next_actor/last_update_epoch/topic/queue)",
+    "implementation_roadmap": {
+      "step1": "Python+Playwright Orchestrator.py プロトタイプ (state.json+Cookie管理)",
+      "step2": "NextActorパースパーサー結合 (state.json自動更新)",
+      "step3": "実弾テスト+Shujiさん完全卒業 (議題提出のみで自動進行)"
+    }
   },
-  "gpt_provisional_conclusion": {
-    "free_main": "B + Playwright/Tampermonkey + state.json/queue/dashboard",
-    "auxiliary": "C",
-    "technical_main": "D"
-  },
+  "next_expected_gpt_directive": "Claudeへ Orchestrator.py プロトタイプ実装コマンド発火",
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
   "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
 }

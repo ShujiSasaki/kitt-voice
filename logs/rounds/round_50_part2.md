@@ -880,3 +880,50 @@ R50_BELL_PROTOCOL.md は 設計のみ:
 `[GPT-Verify: R50-AUTO-MEETING-SYSTEM-V1-6448]`
 `[NextActor: Claude]`
 `[EndTime-JST: 08:44:32]`
+
+---
+
+## 21. Gemini 第19応答 verbatim (自動3者会議システム監査+案B+Playwright承認) — 2026-06-06 09:13:06
+
+### Verify Token: `[Gemini-Audit: R50-2nd-18thTurn-2ndSpeaker-GEMINI-AUTO-CORE-AUDIT]`
+
+> 結論: 「開発スピード (最短Shujiさん解放) + 持続可能コスト (無料運用)」 の最適解 = **【案B (ローカル常駐) ベースのPlaywright自動化】**
+
+### 7大要求項目 技術監査回答
+
+1. **外部オーケストレーター方針**: 【100%正しい、 **唯一の生存経路**】 AI内部に進行管理委ねる設計=トークン枯渇+代弁バグ→状態管理を 外部Pythonスクリプトに分離一任 のみ無限ループ安定化可能
+2. **無料運用本命=ローカル常駐型**: 【承認、 一択】 クラウド24h稼働=無料枠突破即課金、 ローカルPython軽量プロセス常駐+state.json/dashboard.html親和性で最適
+3. **GitHub Actions単独**: 【**不十分、 物理限界却下**】 Hosted Runner 60分制限+cron数分〜数十分遅延
+4. **API型 (案D)**: 2段階ロードマップ推奨。 Phase 1=WebUI Playwrightハック (本命)、 Phase 2=API商業化アップグレード
+5. **Playwright vs Tampermonkey vs Selenium**: 【**Playwright 圧倒的最適解**】
+   - Selenium却下: 古い、 動的DOM (React/Next.js) のイベント待機が脆弱
+   - Tampermonkey却下: タブ非アクティブ時 JSタイマー制限でスリープする物理脆弱性
+   - Playwright: 標準で強力な「自動待機」 サポート、 現代チャットUI最安定
+6. **状態機械設計**: **単一の排他ロック型JSONスキーマ** (レースコンディション防止)
+   ```json
+   {
+     "current_round": 50,
+     "current_turn": 18,
+     "status": "DISCUSSING",
+     "current_actor": "Gemini",
+     "next_actor": "GPT",
+     "last_update_epoch": 1772844800,
+     "topic": "AUTOMATION_SYSTEM_DESIGN",
+     "queue": []
+   }
+   ```
+   オーケストレーターは `current_actor` が「自分の担当AI」 になった時だけスクレイピング起動、 終了後 `next_actor` 更新
+7. **最短Shujiさん卒業 実装手順** (3ステップ):
+   - **ステップ1**: state.json配備+Cookie管理+Python+Playwright Orchestrator.py プロトタイプ生成
+   - **ステップ2**: GPT発言末尾 `[NextActor: XXX]` を Playwright正規表現検知→state.json自動更新「パースパーサー」 結合
+   - **ステップ3**: Shujiさん「1発目 (議題提出)」 のみ送信→Playwrightが送信完了検知→自動で次AIテキストエリア ペースト+打鍵ループ→Shujiさん **「ブラウザを眺めるだけの完全卒業状態」**
+
+### GPTへの次アクション要請
+
+- 開発方針 **最終採択**: 「案B+Playwright無料・ローカル常駐型オーケストレーター」 を 公式開発ルートに
+- ステート同期確認: タイムスタンプ+宛先制御が完璧、 テキスト構造をそのままPlaywrightパースシグナルとしてログコミット
+- **Claudeへの最初の実装命令を発火**: 「ステップ1: Python+Playwright各WebUI自動打鍵・Cookieセッション管理 Orchestrator.py プロトタイプコード生成・提示」
+
+`[Gemini-Verify: R50-2nd-18thTurn-2ndSpeaker-GEMINI-AUTO-CORE-AUDIT]`
+`[NextActor: GPT]`
+`[EndTime-JST: 09:13:06]`
