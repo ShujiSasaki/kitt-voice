@@ -485,6 +485,148 @@ def print_cdp_setup() -> int:
     return 0
 
 
+SELECTOR_DISCOVERY_JS = r"""() => {
+    const result = {chatgpt: {}, gemini: {}, url: location.href, title: document.title};
+    const isChatGPT = /chatgpt\.com/.test(location.href);
+    const isGemini = /gemini\.google\.com/.test(location.href);
+    const bucket = isChatGPT ? result.chatgpt : (isGemini ? result.gemini : null);
+    if (!bucket) return result;
+
+    bucket.url = location.href;
+    bucket.title = document.title;
+
+    const textareas = Array.from(document.querySelectorAll('textarea')).map(t => ({
+        id: t.id, name: t.name, placeholder: t.placeholder, ariaLabel: t.getAttribute('aria-label'),
+        classes: t.className.substring(0, 80)
+    }));
+    bucket.textareas = textareas;
+
+    const contenteditables = Array.from(document.querySelectorAll('[contenteditable="true"]')).slice(0, 10).map(e => ({
+        tagName: e.tagName, ariaLabel: e.getAttribute('aria-label'),
+        classes: e.className.substring(0, 80), parentTag: e.parentElement?.tagName
+    }));
+    bucket.contenteditables = contenteditables;
+
+    const buttons = Array.from(document.querySelectorAll('button')).filter(b => {
+        const al = (b.getAttribute('aria-label') || '').toLowerCase();
+        const testid = (b.getAttribute('data-testid') || '').toLowerCase();
+        const txt = (b.textContent || '').toLowerCase();
+        return /send|stop|送信|停止|プロンプト|回答|submit/.test(al + ' ' + testid + ' ' + txt);
+    }).slice(0, 20).map(b => ({
+        ariaLabel: b.getAttribute('aria-label'),
+        dataTestid: b.getAttribute('data-testid'),
+        disabled: b.disabled,
+        text: (b.textContent || '').substring(0, 40),
+        classes: b.className.substring(0, 80)
+    }));
+    bucket.send_or_stop_buttons = buttons;
+
+    if (isChatGPT) {
+        const turns = document.querySelectorAll('[data-testid^="conversation-turn-"]');
+        bucket.conversation_turns_count = turns.length;
+        bucket.assistant_messages_count = document.querySelectorAll('[data-message-author-role="assistant"]').length;
+        bucket.user_messages_count = document.querySelectorAll('[data-message-author-role="user"]').length;
+        bucket.editor_selector_candidate = '#prompt-textarea';
+        bucket.send_button_selector_candidate = 'button[data-testid="send-button"]';
+        bucket.stop_button_selector_candidate = 'button[data-testid="stop-button"]';
+    } else if (isGemini) {
+        bucket.user_queries_count = document.querySelectorAll('user-query').length;
+        bucket.model_responses_count = document.querySelectorAll('model-response').length;
+        bucket.editor_selector_candidate = 'rich-textarea .ql-editor';
+        bucket.send_button_selector_candidate = 'button[aria-label="プロンプトを送信"]';
+        bucket.stop_button_selector_candidate = 'button[aria-label="回答を停止"]';
+    }
+    return result;
+}"""
+
+
+def run_selector_discovery() -> int:
+    """GPT指示 R50-CMD-ORCHESTRATOR-SELECTOR-DISCOVERY: 実入力・実送信なし、 DOM読み取りのみ"""
+    print("=" * 60)
+    print("R50 Orchestrator Selector Discovery (GPT-Verify: R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382)")
+    print("=" * 60)
+    assert DRY_RUN is True
+
+    result = {
+        "selector_discovery": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "chatgpt_tab_detected": False,
+        "gemini_tab_detected": False,
+        "pages": [],
+    }
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] state.json backup: {backup_path}")
+    acquire_lock(state)
+    print(f"[2] lock acquired")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            _persist_selector_discovery(result)
+            return 1
+
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    print(CDP_SETUP_HINT)
+                    _persist_selector_discovery(result)
+                    return 1
+
+                pages_info = []
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        try:
+                            url = page.url
+                        except Exception:
+                            continue
+                        if "chatgpt.com" in url or "gemini.google.com" in url:
+                            try:
+                                page.bring_to_front()
+                                page.wait_for_load_state("domcontentloaded", timeout=8000)
+                                info = page.evaluate(SELECTOR_DISCOVERY_JS)
+                            except Exception as e:
+                                info = {"url": url, "error": str(e)}
+                            pages_info.append(info)
+                            if "chatgpt.com" in url:
+                                result["chatgpt_tab_detected"] = True
+                            if "gemini.google.com" in url:
+                                result["gemini_tab_detected"] = True
+
+                result["pages"] = pages_info
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                selectors_path = DRY_RUN_DIR / f"{ts}.selectors.json"
+                with open(selectors_path, "w", encoding="utf-8") as f:
+                    json.dump(pages_info, f, ensure_ascii=False, indent=2)
+                result["selectors_dump"] = str(selectors_path)
+                result["selector_discovery"] = "PASSED"
+                print(f"[3] ChatGPTタブ検出: {result['chatgpt_tab_detected']}")
+                print(f"[4] Geminiタブ検出: {result['gemini_tab_detected']}")
+                print(f"[5] selectors dump: {selectors_path}")
+                _persist_selector_discovery(result)
+                return 0
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            _persist_selector_discovery(result)
+            return 1
+    finally:
+        release_lock(load_state())
+        after = load_state()
+        print(f"[final] lock released: lock={after.get('lock')}")
+
+
+def _persist_selector_discovery(result: dict) -> None:
+    state = load_state()
+    state["selector_discovery_result"] = result
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
@@ -492,6 +634,8 @@ if __name__ == "__main__":
         sys.exit(run_cdp_smoke_test())
     if "--print-cdp-setup" in sys.argv:
         sys.exit(print_cdp_setup())
+    if "--selector-discovery" in sys.argv:
+        sys.exit(run_selector_discovery())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 

@@ -1280,3 +1280,27 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[GPT-Verify: R50-CDP-ENV-SETUP-GUIDE-5162]`
 `[NextActor: Claude]`
 `[EndTime-JST: 10:15:10]`
+
+---
+
+## 31. GPT 第44応答 verbatim (selector discovery phase 実装命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382]`
+
+> CDP環境準備完了受領。 Phase 1 Orchestrator 次段階へ。 **ただし完全自動送信にはまだ進まない**。 次は **selector discovery dry-run**。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. R50_AUTO_MEETING_ORCHESTRATOR_SPEC.md に `## 14. Selector Discovery Phase` 追記
+3. `--selector-discovery` オプション追加 (editor/send button/stop button/assistant/user message候補抽出、 `logs/dry_run/{timestamp}.selectors.json` 保存、 **実入力・実送信禁止**)
+4. py_compile + `--selector-discovery` 実行
+5. 成功条件: py_compile OK / exit 0 / ChatGPT・Gemini両タブ検出 / selectors.json生成 / real_send_enabled=false / lock解除
+6. state.json更新 (current_phase, orchestrator_phase=selector_discovery, blocker=awaiting GPT review)
+7. 完了報告13項目
+
+### 実Sendは禁止
+
+`[GPT-Verify: R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:18:05]`

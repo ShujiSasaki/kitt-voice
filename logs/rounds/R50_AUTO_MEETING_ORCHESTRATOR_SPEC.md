@@ -164,6 +164,36 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 14. Selector Discovery Phase (GPT第44 R50-ORCHESTRATOR-SELECTOR-DISCOVERY-3382)
+
+CDP接続成功後、 次は ChatGPT/Gemini各タブのDOMセレクタ探索。
+
+### 目的: 候補抽出
+
+- editor selector (入力欄)
+- send button selector (送信ボタン)
+- assistant message selector (応答メッセージ)
+- user message count (ユーザー投稿数)
+- response count (応答数)
+- stop button selector (生成停止ボタン)
+
+### 制約
+
+- **実Sendは禁止**
+- **実入力も禁止**
+- DOM読み取りのみ
+- 結果は `logs/dry_run/{timestamp}.selectors.json` に保存
+
+### 実装
+
+`scripts/orchestrator_prototype.py --selector-discovery`:
+- CDP接続
+- ChatGPT/Geminiタブ検出 (URLパターンフィルタ)
+- 各タブの title/url 保存
+- textarea / contenteditable / button要素列挙
+- editor候補 / send button候補 / stop button候補 / assistant message候補 / user message候補抽出
+- `real_send_enabled=false` 維持
+
 ## 13. CDP Environment Setup (GPT第42 R50-CDP-ENV-SETUP-GUIDE-5162)
 
 CDP接続には、 Chromeを `--remote-debugging-port=9222` 付きで起動する必要がある。 **既に通常起動しているChromeには後付けで接続できない**。

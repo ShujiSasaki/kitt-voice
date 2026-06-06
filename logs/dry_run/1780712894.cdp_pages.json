@@ -1,0 +1,10 @@
+[
+  {
+    "title": "最新情報",
+    "url": "chrome://whats-new/"
+  },
+  {
+    "title": "新しいタブ",
+    "url": "chrome://new-tab-page/"
+  }
+]

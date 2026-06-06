@@ -1,0 +1,135 @@
+[
+  {
+    "chatgpt": {
+      "url": "https://chatgpt.com/",
+      "title": "ChatGPT",
+      "textareas": [
+        {
+          "id": "",
+          "name": "prompt-textarea",
+          "placeholder": "質問してみましょう",
+          "ariaLabel": "ChatGPT とチャットする",
+          "classes": "wcDTda_fallbackTextarea"
+        }
+      ],
+      "contenteditables": [
+        {
+          "tagName": "DIV",
+          "ariaLabel": "ChatGPT とチャットする",
+          "classes": "ProseMirror ProseMirror-focused",
+          "parentTag": "DIV"
+        }
+      ],
+      "send_or_stop_buttons": [],
+      "conversation_turns_count": 0,
+      "assistant_messages_count": 0,
+      "user_messages_count": 0,
+      "editor_selector_candidate": "#prompt-textarea",
+      "send_button_selector_candidate": "button[data-testid=\"send-button\"]",
+      "stop_button_selector_candidate": "button[data-testid=\"stop-button\"]"
+    },
+    "gemini": {},
+    "url": "https://chatgpt.com/",
+    "title": "ChatGPT"
+  },
+  {
+    "chatgpt": {},
+    "gemini": {
+      "url": "https://gemini.google.com/app",
+      "title": "Google Gemini",
+      "textareas": [],
+      "contenteditables": [
+        {
+          "tagName": "DIV",
+          "ariaLabel": "Gemini へのプロンプトを入力",
+          "classes": "ql-editor ql-blank textarea new-input-ui",
+          "parentTag": "RICH-TEXTAREA"
+        },
+        {
+          "tagName": "DIV",
+          "ariaLabel": null,
+          "classes": "ql-clipboard",
+          "parentTag": "RICH-TEXTAREA"
+        }
+      ],
+      "send_or_stop_buttons": [
+        {
+          "ariaLabel": "プロンプトを送信",
+          "dataTestid": null,
+          "disabled": false,
+          "text": "",
+          "classes": "mdc-icon-button mat-mdc-icon-button mat-mdc-button-base mat-badge mat-unthemed m"
+        }
+      ],
+      "user_queries_count": 0,
+      "model_responses_count": 0,
+      "editor_selector_candidate": "rich-textarea .ql-editor",
+      "send_button_selector_candidate": "button[aria-label=\"プロンプトを送信\"]",
+      "stop_button_selector_candidate": "button[aria-label=\"回答を停止\"]"
+    },
+    "url": "https://gemini.google.com/app",
+    "title": "Google Gemini"
+  },
+  {
+    "chatgpt": {
+      "url": "https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1ef3cf-1bb8-83a9-8fcf-feb32d28b4c7",
+      "title": "BTC danjer判断AI - 3者会議再始動議論",
+      "textareas": [
+        {
+          "id": "",
+          "name": "prompt-textarea",
+          "placeholder": "質問してみましょう",
+          "ariaLabel": "ChatGPT とチャットする",
+          "classes": "wcDTda_fallbackTextarea"
+        }
+      ],
+      "contenteditables": [
+        {
+          "tagName": "DIV",
+          "ariaLabel": "ChatGPT とチャットする",
+          "classes": "ProseMirror ProseMirror-focused",
+          "parentTag": "DIV"
+        }
+      ],
+      "send_or_stop_buttons": [
+        {
+          "ariaLabel": "回答をコピーする",
+          "dataTestid": "copy-turn-action-button",
+          "disabled": false,
+          "text": "",
+          "classes": "text-token-text-secondary hover:bg-token-bg-secondary rounded-lg"
+        },
+        {
+          "ariaLabel": "回答をコピーする",
+          "dataTestid": "copy-turn-action-button",
+          "disabled": false,
+          "text": "",
+          "classes": "text-token-text-secondary hover:bg-token-bg-secondary rounded-lg"
+        },
+        {
+          "ariaLabel": "回答をコピーする",
+          "dataTestid": "copy-turn-action-button",
+          "disabled": false,
+          "text": "",
+          "classes": "text-token-text-secondary hover:bg-token-bg-secondary rounded-lg"
+        },
+        {
+          "ariaLabel": "回答をコピーする",
+          "dataTestid": "copy-turn-action-button",
+          "disabled": false,
+          "text": "",
+          "classes": "text-token-text-secondary hover:bg-token-bg-secondary rounded-lg"
+        }
+      ],
+      "conversation_turns_count": 158,
+      "assistant_messages_count": 4,
+      "user_messages_count": 3,
+      "editor_selector_candidate": "#prompt-textarea",
+      "send_button_selector_candidate": "button[data-testid=\"send-button\"]",
+      "stop_button_selector_candidate": "button[data-testid=\"stop-button\"]"
+    },
+    "gemini": {},
+    "url": "https://chatgpt.com/g/g-p-6a0d37223dec8191a05d1d4bfe9cdb12-btc-danjerpan-duan-ai/c/6a1ef3cf-1bb8-83a9-8fcf-feb32d28b4c7",
+    "title": "BTC danjer判断AI - 3者会議再始動議論"
+  }
+]
