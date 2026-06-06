@@ -164,6 +164,31 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 28. Claude Slot Controlled Execution (GPT第61 R50-CLAUDE-SLOT-CONTROLLED-EXECUTION-4486)
+
+Claude Slot Dry-run 成功後、 生成済みClaude promptを使ってClaudeが3番手として実際に発言・監査できるか確認。
+
+### Purpose
+- GPT→Gemini→Claude の3番手発言を成立させる
+- Claudeが前1人/前2人監査+自己ターンを出せるか確認
+- Claude Verify / NextActor / EndTime-JST を検証
+
+### Input
+`logs/claude_prompts/1780735976.claude_prompt.md`
+
+### Scope
+- Claude Web自動操作なし
+- Claude Code/現Claudeセッションで実行
+- Orchestrator完全自動実行はまだしない
+- Claude発言取得後、 議事録append
+- その後GPTへ戻す
+
+### Success criteria
+- Claude 3スロット応答
+- Claude Verify Tokenあり / NextActor=GPT / EndTime-JSTあり
+- 代弁なし / Shuji承認先取りなし
+- unresolved_critical_issues 明示
+
 ## 27. Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 
 ### Purpose

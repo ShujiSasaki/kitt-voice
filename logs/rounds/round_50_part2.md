@@ -1971,3 +1971,104 @@ Claude自身の実装担当・監査担当として、 実装可能性、 脆弱
 `[GPT-Verify: R50-CLAUDE-SLOT-DRY-RUN-9174]`
 `[NextActor: Claude]`
 `[EndTime-JST: 17:01:00]`
+
+---
+
+## 54. GPT 第61応答 verbatim (Claude Slot Controlled Execution命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-CLAUDE-SLOT-CONTROLLED-EXECUTION-4486]`
+
+> Claude Slot dry-run PASSED受領。 次は **Claude Slot Controlled Execution**。 生成済み `logs/claude_prompts/1780735976.claude_prompt.md` を Claudeが実際に読み、 3番手として発言・監査できるか確認。 完全自動実行ではない。
+
+### Scope
+- Claude Web自動操作なし
+- Claude Code/現Claudeセッションで実行
+- Orchestrator完全自動実行はまだしない
+
+### Success criteria
+- Claude 3スロット応答 / Verify Tokenあり / NextActor=GPT / EndTime-JSTあり / 代弁なし / Shuji承認先取りなし / unresolved_critical_issues明示
+
+### Claudeへの指示
+1. promptを読む
+2. 3スロットで発言 (実装作業なし、 発言・監査のみ)
+3. 末尾タグ
+4. round_50_part2.md verbatim追記
+5. state更新 + SPEC Section 28追記
+6. 完了報告
+
+`[GPT-Verify: R50-CLAUDE-SLOT-CONTROLLED-EXECUTION-4486]`
+`[NextActor: Claude]`
+`[EndTime-JST: 17:09:30]`
+
+---
+
+## 55. Claude 第13応答 verbatim (Controlled Execution = 3スロット発言・監査) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-CLAUDE-SLOT-CONTROLLED-EXECUTION]`
+
+### 1. 前1人監査 — Gemini第20 (R50-SHUJI28-ROLES-RESPONSE)
+
+**技術・脆弱性**:
+- 「状態管理型Orchestrator+Token(NextActor)トリガーコンテキストリレー」 は妥当。 既に Section 14 (State Machine) と一致
+- ただし「Claude API/Code自動キック」 の具体的方式 (subprocess / file watcher / ScheduleWakeup) が未確定。 実装時に分岐リスク
+- 「コンテキスト同期 = 3者メッセージ履歴Markdownストリーム結合」 は良い設計だが、 token制限 (Claude 200K/Gemini 1M/GPT 128K) によって 古い議論の要約 or truncation必要。 未定義
+
+**過剰同意チェック**: なし。 Gemini独自視点 (三枝鼎立監査 / Markdownストリーム結合) で再構成済み
+
+**論理整合性**: 良好。 `Consensus = (GPT_approved ∧ Gemini_approved ∧ Claude_approved)` で 司会主観排除を機械化
+
+**直前GPT発言との矛盾**: なし。 GPT第58 (3番手Claude / 3者循環) と整合
+
+### 2. 前2人監査 — GPT第60 (R50-CLAUDE-SLOT-DRY-RUN-9174)
+
+**司会権限逸脱**: なし。 「次は Claude Slot dry-run 実装」 と議論を回す役に徹している
+
+**決済代弁**: なし。 「まだ本番3者自動運用はしない」 と決済保留明示
+
+**Shuji代弁**: なし
+
+**Gemini監査受領の妥当性**: Section 49でGemini第20を受領、 Shuji#28との整合性チェックも行っている。 妥当
+
+**懸念点**: dry-runの「Claude prompt生成」 → 次「Claude実行」 → 次「3者循環自動化」 のステップ刻みは慎重で良いが、 Phase 1.5全体スケジュール (推定実装時間/Shujiさんへの中間報告タイミング) が示されていない
+
+### 3. 自己ターン — Claude発言・監査
+
+**3-1. 実装可能性 (Claude Code/CLI/file-based方式)**:
+
+- **既実装/動作確認済**: `--claude-slot-dry-run` で CDP→GPT/Gemini最新取得→prompt生成→file出力 が動作 (4897字prompt生成成功)
+- **Claude応答取得方式の選択肢**:
+  - Option A (推奨): **現Claude Codeセッション self-trigger ループ** — Claude Code が `ScheduleWakeup` で wakeup → state.json `next_actor=Claude` 検出 → 議事録appendで応答 → Orchestrator pollで検知
+  - Option B (フォールバック): file watcher (Orchestrator が `logs/claude_outputs/` を polling) + Claude Code側で手動書き込み (今回 Section 55 がまさにこの形)
+  - Option C (将来): Claude正式API化 (Phase 2)
+- **工数見積もり**: state機械判定+Claude slot+response watcher+合意検出+報告draft+Watchdog = 3-4時間 (Claude単独実装)
+- **今回 Section 55 = Option B の最初の実証** (Claudeが prompt読み込み→手動書き込みで応答成立)
+
+**3-2. 脆弱性**:
+
+- ✅ **DOMバグ** (Playwright経由 GPT/Gemini取得): 既存実装で 1時間以上連続動作実証。 ただし Gemini WebUI規約変更で半年に1回程度の selector破壊リスクあり
+- ⚠️ **stall**: Claude応答待ち (Option B file watch) で timeout必要。 30分stall → Watchdog → Shujiさん通知。 **未実装**
+- ⚠️ **race condition**: Claude応答書き込み中の Orchestrator読み取りで partial read リスク → tmp+atomic rename pattern必要 (`{ts}.claude_response.md.tmp` → rename to `{ts}.claude_response.md`)。 **未実装**
+- ⚠️ **Shuji代弁リスク**: 各AIが`consensus_approved: true/false` 末尾必須にすることで GPT主観排除済。 ただし AI発言内に「Shuji」 含む文字列の pre-check (warn) が **未実装**。 Phase 1.5実装で `detect_proxy_violation()` 追加推奨
+- ⚠️ **token超過**: 3者議論履歴が長くなると Markdownストリーム結合で各LLMのtoken制限超過。 古い議論の要約/truncation戦略が **未定義**
+
+**3-3. 合意可否**: `consensus_approved: true`
+
+GPT第61とGemini第20の Phase 1.5 Claude Slot設計に対し、 Claudeは agree。 Orchestrator state.json/file経路でClaude発言を組み込む方式は実装可能、 dry-run+今回 Controlled Executionで実証進行中。
+
+**3-4. unresolved_critical_issues**:
+
+1. **Claude応答 race condition対策** (tmp+atomic rename) 未実装
+2. **stall Watchdog** (Claude待ち30分→Shuji通知) 未実装
+3. **Shuji代弁プリチェック** (`detect_proxy_violation()`) 未実装
+4. **token超過時の履歴要約戦略** 未定義
+5. **Claude Code常時起動の運用負荷確認** Shujiさんに明示してない (Mac起動しっぱなし前提)
+6. **Phase 2 (Claude正式API化) のトリガー定義** 未定 (公開時 / API tier利用可能時 / コスト閾値)
+
+これら6点は Phase 1.5本実装 (--claude-slot-controlled / 3者自動循環) 着手前に解決する優先課題。
+
+---
+
+`[Claude-Verify: R50-CLAUDE-SLOT-CONTROLLED-EXECUTION]`
+`[NextActor: GPT]`
+`[EndTime-JST: 17:14:00]`
+`[Claude-Approve-or-Disagree: true]`
