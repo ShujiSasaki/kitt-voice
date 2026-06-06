@@ -164,6 +164,32 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 22. Phase 1.5: Claude Inclusion Design (GPT第53 R50-PHASE15-CLAUDE-INCLUSION-DESIGN-8026)
+
+Phase 1で GPT↔Gemini 自動relay+合意判定 成功。 ただし Shuji#27「3者合意まで自動」 はClaude含まないと未達。
+
+### 達成済み
+- GPT↔Gemini 自動relay / 本議題relay / multi-round consensus / consensus_candidate=true / unresolved_critical_issues=[]
+
+### 未達
+- Claudeを含む3者自動relay
+- Claude発言監査ターンの自動投入
+- 3者全員の合意判定
+- stall復旧 / Watchdog
+
+### Phase 1.5 候補
+- A. Claude Web / Claude.ai タブをCDP Chromeに追加し、 Playwrightで送受信
+- B. Claudeは発言者から外し、 実装専用にする
+- C. Claude発言は必要時のみ手動/半自動
+- D. Claude API化を Phase 2 として待つ
+- E. GPT/Gemini 2者 + Claude実装ログ監査で暫定運用
+
+### 論点
+- Shuji#23: 発言監査=GPT/Gemini/Claude
+- Shuji#21: Claudeは機械的中継でよい
+- Shuji#27: 3者合意まで自動
+- → Claudeをどう自動参加させるかを3者で詰め直す必要
+
 ## 21. Multi-Round Consensus Test (GPT第52 R50-MULTIROUND-CONSENSUS-TEST-9346)
 
 Real Topic Auto Relay PASSED後、 **GPT↔Gemini複数周回+合意判定** を検証。
