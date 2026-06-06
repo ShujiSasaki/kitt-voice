@@ -9,9 +9,18 @@
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
+  "next_actor": "Claude",
   "orchestrator_phase": "phase15_unresolved_critical_issues_review",
   "claude_slot_status": "executed_but_unresolved",
+  "gemini_phase15_unresolved_audit_received": true,
+  "gemini_p0_p1_p2_classification": {
+    "P0_immediate_collapse": ["race condition", "stall Watchdog"],
+    "P1_governance": ["Shuji proxy pre-check", "token overflow strategy"],
+    "P2_optimization": ["Claude Code always-on operation burden", "Phase 2 trigger definition"]
+  },
+  "gemini_required_before_phase15_consensus": ["race condition", "stall Watchdog", "Shuji proxy pre-check"],
+  "gemini_deferrable_to_post_phase15": ["token overflow strategy", "Claude Code always-on operation burden", "Phase 2 trigger definition"],
+  "gemini_resolution_order": "STEP1: 1+2 (排他+生存) → STEP2: 3+4 (ガバナンス+容量) → STEP3: 5+6 (運用+次フェーズ)",
   "shuji29_response_verbatim": "A",
   "shuji29_response": "A",
   "phase15_approved_by_shuji": true,
@@ -51,7 +60,7 @@
     "Phase 2 trigger definition"
   ],
   "final_report_ready": false,
-  "blocker": "Awaiting Gemini audit of Claude unresolved critical issues",
+  "blocker": "Claude must propose concrete code/protocol for race condition + stall Watchdog (Gemini第21 Step1宿題)",
   "gemini_phase15_audit_received": true,
   "gemini_phase15_recommendation": "候補E (GPT/Gemini 2者合意 + Claude実装ログ監査) 一択、 Phase 1完了報告 今すぐOK",
   "DRY_RUN": true,

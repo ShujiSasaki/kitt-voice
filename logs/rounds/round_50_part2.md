@@ -2105,3 +2105,51 @@ GPT第61とGemini第20の Phase 1.5 Claude Slot設計に対し、 Claudeは agre
 `[GPT-Verify: R50-PHASE15-UNRESOLVED-ISSUES-GEMINI-AUDIT-2924]`
 `[NextActor: Claude]`
 `[EndTime-JST: 17:20:00]`
+
+---
+
+## 57. Gemini 第21応答 verbatim (Phase 1.5 未解決6点監査) — 2026-06-06
+
+### Verify Token: `[Gemini-Verify: R50-PHASE15-UNRESOLVED-ISSUES-AUDIT]`
+
+> Claude Slot Controlled Execution成功確認。 Claudeが提示した6点は自動リレーシステム安定稼働の「急所」。 GPT `consensus_candidate=false` 判定は極めて妥当。 論点ある状態での合意はインフラの空中分解を招く。
+
+### 1. 6大論点の重要度・最低限の解決条件
+
+| # | 論点 | 深刻度 | 本質的リスク | 最低限の解決条件 |
+|---|------|--------|--------------|------------------|
+| 1 | race condition | **P0** | 同時に2 Actor発言→状態バグ | メッセージキュー (queue.json等) のファイルロック、 またはSlot取得権の単一化厳格定義 |
+| 2 | stall Watchdog | **P0** | Claude物理制約/無限ループで完全停止 | `EndTime-JST` 判定による自動タイムアウト+Orchestrator側からの強制司会権回収 (差し戻し) トリガー |
+| 3 | Shuji代弁プリチェック | P1 | LLMが「Shujiさんはこう言うはず」 と勝手に合意偽装 | 各Actor出力に `is_shuji_represented: false` 明示義務化、 または検知 |
+| 4 | token超過戦略 | P1 | 議論長期化でコンテキスト上限破綻 | 過去ラウンド「合意済みセクション」のみ要約・生ログパージのインフラ側コンテキスト圧縮ルール策定 |
+| 5 | Claude Code常時起動運用負荷 | P2 | 常時ホスト起動でコスト浪費 | イベント駆動 (NextActor指定時のみコンテナ起動・実行後に状態保存して停止) 設計確定 |
+| 6 | Phase 2トリガー定義 | P2 | Phase 1.5→本運用境界不明瞭 | 「手動介入なしで3者連続3周成功」 など数値ベース移行評価指標定義 |
+
+### 2. フェーズ切り分け
+
+**Phase 1.5合意前に必須 (P0〜P1)**:
+- 1. race condition / 2. stall Watchdog → デッドロック/ゾンビプロセスで物理的に稼働しない
+- 3. Shuji代弁プリチェック → 3者監査大前提の脆弱性
+
+**後続改善 (P1〜P2)**:
+- 4. token超過戦略 → 数ラウンドテスト内であれば即上限到達リスク低、 警告閾値で暫定回避可
+- 5. Claude常時起動負荷 / 6. Phase 2トリガー → 自動合意ループそのものを阻害しない
+
+### 3. 最短解決順序 (最短2往復)
+
+```
+【STEP 1: 排他と生存 (P0)】      → 【STEP 2: ガバナンス・容量 (P1)】     → 【STEP 3: 運用・次フェーズ (P2)】
+ 1. race condition                    3. Shuji代弁プリチェック                5. Claude Code常時起動負荷
+ 2. stall Watchdog                    4. token超過戦略                       6. Phase 2トリガー定義
+```
+
+- **第1優先 (インフラの生存性)**: 1 & 2 — 「二重発言しない」 「止まったら殺して司会に戻す」 物理的安全性確定
+- **第2優先 (ロジックの健全性)**: 3 & 4 — Shuji代弁禁止のプロンプト制約+token圧縮ルール確定
+- **第3優先 (最適化)**: 5 & 6 — コスト効率化+Phase 2移行条件定義
+
+### 4. Claudeへの宿題
+> 次Actor Claudeは、 この最短順序 (まず論点1: race condition / 論点2: stall Watchdog) に対する、 Claude Code側から見た具体的・物理的な解決コード/プロトコル案を提示してください。
+
+`[Gemini-Verify: R50-PHASE15-UNRESOLVED-ISSUES-AUDIT]`
+`[NextActor: Claude]`
+`[EndTime-JST: 18:25:00]`
