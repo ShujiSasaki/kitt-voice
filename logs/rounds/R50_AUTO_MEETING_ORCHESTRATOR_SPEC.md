@@ -164,6 +164,51 @@ Phase 1が安定してから:
 - dashboard強化
 - stall通知 (Phase 1から繰上もあり)
 
+## 24. Phase 1.5 Revised by Shuji#28 (GPT第58+Gemini第20+Claude第12)
+
+### Shuji#28
+- 思考・監査 = GPT + Gemini + Claude
+- 実装 = Claude
+- 司会 = GPT (議論を回す役割のみ)
+- GPTに決済権限なし
+- 3人が合意したらShujiさんへ報告
+- 最終承認はShujiさん
+
+### Phase 1.5 revised
+- Claudeを思考・監査から外さない
+- 順序: GPT → Gemini → Claude → GPT (固定循環)
+- Claudeは毎周3番手で発言・監査
+- Claude Web自動操作は高リスクのため、 **Claude Code/CLI または file 入出力方式を第一候補**
+- GPTは合意を決裁しない
+- GPTは3者合意候補を検出+Shuji報告ドラフト作成 (機械的)
+
+### Agreement logic
+- `GPT_approved ∧ Gemini_approved ∧ Claude_approved`
+- `unresolved_critical_issues = []`
+- no proxy / no Shuji代弁
+- → state.json: `three_ai_consensus_candidate = true`
+- final approval = Shujiさん only
+
+### Claude参加方式 (Claude統合提案)
+- Claude Codeセッション中の self-trigger ループ (推奨)
+  - Claude Code が `ScheduleWakeup` で定期 wakeup
+  - Orchestrator state.json `next_actor=Claude` 検出
+  - Claude発言生成 → Playwrightで GPT/Geminiに転送
+- 既存Claude Codeチャネル流用、 Shujiさん認証不要
+
+### Shuji報告 (両者折衷)
+- ドラフト生成 = Orchestrator (機械的、 3者発言ログから直接)
+- 提示 = Claude (Claude Codeチャネル、 既存運用継続)
+
+### 実装ステップ
+- Step 1: 仕様書修正 (本Section)
+- Step 2: orchestratorに Claude slot追加 (SEND_TO_CLAUDE / WAIT_CLAUDE / LOG_CLAUDE / CHECK_THREE_AI_CONSENSUS)
+- Step 3: `build_claude_prompt()`
+- Step 4: `watch_claude_output_file()` + ScheduleWakeup self-trigger
+- Step 5: `detect_three_ai_consensus()` (consensus_approved タグ AND)
+- Step 6: `build_shuji_report_candidate()` (機械生成→Claude提示)
+- Step 7: stall復旧 Watchdog (Claude待ち30分→Shujiさん通知)
+
 ## 23. Phase 1 Completion and Phase 1.5 Candidate E (GPT第57 R50-REISSUE-PHASE1-COMPLETE-CANDIDATE-E-7208)
 
 ### Phase 1 completed

@@ -1726,3 +1726,161 @@ consensus_candidate = trueunresolved_critical_issues = []final_report_ready = tr
 `[GPT-Verify: R50-REISSUE-PHASE1-COMPLETE-CANDIDATE-E-7208]`
 `[NextActor: Claude→Shuji]`
 `[EndTime-JST: 16:23:30]`
+
+---
+
+## 47. Shujiさん 発言 #28 verbatim (役割定義修正+司会権限明確化) — 2026-06-06
+
+> 思考=GPT+Gemini+claude / 実装=Claude
+> これで進めて
+> あと、司会は議論(発言)を回す役割です。なんの決済権限も持ちません。司会権限は議論を回すことです。3人が合意したら私へ報告です。
+
+### 確定事項
+- **思考・監査**: GPT + Gemini + Claude (3者全員)
+- **実装**: Claude
+- **司会**: GPT (議論・発言を回す役割のみ。 決済権限なし)
+- **合意者**: 3者全員一致
+- **最終承認**: Shujiさん (3者合意後の報告を受けて)
+
+### 影響
+- 候補E修正: 「Claudeは発言者から外す」 部分は無効。 **Claudeも思考・監査に参加** (発言する)
+- Shuji#23「司会・進行=GPT、 Claude=GPT御用聞き」 一部更新: 司会=GPT継続だが、 司会には決済権限なし、 Claudeは思考メンバー
+- 「司会判断でShujiさん報告」 は無効。 必ず3者合意後にShujiさんへ報告
+
+`[Shuji#28-Verify: R50-ROLES-AND-CHAIR-AUTHORITY-CLARIFIED]`
+`[NextActor: Claude→GPT/Gemini]`
+`[EndTime-JST: 16:32:00]`
+
+---
+
+## 48. GPT 第58応答 verbatim (Shuji#28 Phase 1.5再設計) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-SHUJI28-ROLES-RESPONSE]`
+
+> 前回の候補Eは Shuji#28と不整合 (Claude思考から外した部分)。 Shuji#28正本: 思考=GPT+Gemini+Claude / 実装=Claude / 司会=GPT (議論回す役のみ決済権限なし) / 3者合意でShuji報告。
+
+### Phase 1.5 再設計 (GPT案)
+
+**1. Claudeの参加タイミング**: 毎周3番手 (GPT→Gemini→Claude→GPT 固定循環)。
+- GPT: 司会+発言+監査 (決済権限なし)
+- Gemini: 発言+監査 (技術・脆弱性・過剰同意チェック)
+- Claude: 発言+監査 (実装可能性・運用負荷・ファイル/スクリプト/ログ整合性チェック)
+- Claudeが勝手に議論進める/合意宣言/Shuji承認代弁は禁止
+
+**2. 実装方式**:
+- Phase 1.5-A (第一候補): **Claude Code CLI を3番手発言者として呼ぶ** (Playwrightで claude.ai操作する代わりに、 ローカルClaude Code/CLIにプロンプト渡し、 stdoutかファイルで応答取得)
+- 構成: orchestrator.py → GPT Web → Gemini Web → Claude Code/CLI → 議事録append → 次周GPT
+- Phase 1.5-B (フォールバック): Orchestratorがdashboard/state.jsonにClaude待ち状態出力 → Claudeが応答ファイル生成 → Orchestrator検知 → 次へ
+- いずれもShujiさん中間介入なし
+
+**3. 合意判定ロジック**:
+- GPT/Gemini/Claude 全員 `agree / no critical objection`
+- `unresolved_critical_issues = []`
+- Shujiさん発言の代弁・改変なし
+- → state.json: `three_ai_consensus_candidate=true`, `requires_shuji_final_approval=true`
+- GPTは「合意候補を検出するだけ」、 「合意成立」 と断定する場合も 3AI内の合意 = 最終決裁ではない
+
+**4. Shujiさん報告形式**:
+- 報告文 = GPT作成 (3者発言ログから機械的生成ドラフト)
+- 実際の提示 = Claude (GitHub・議事録・実務窓口だから)
+- 形式: 議題/3者結論/未解決重大脆弱性/Shujiさん原文ズレ/実装影響/Shujiさん確認A承認/B修正/C差し戻し
+- 末尾: 「3AIの合意候補であり、 Shujiさん承認の代弁ではありません。 正式決定はShujiさん確認後です。」
+
+**5. 実装順 (Phase 1.5)**:
+- Step 1: 仕様書修正 (Section 24追加)
+- Step 2: orchestratorにClaude slot追加 (SEND_TO_CLAUDE / WAIT_CLAUDE / LOG_CLAUDE / CHECK_THREE_AI_CONSENSUS)
+- Step 3: build_claude_prompt()
+- Step 4: watch_claude_output_file()
+- Step 5: detect_three_ai_consensus()
+- Step 6: build_shuji_report_candidate()
+
+`[GPT-Verify: R50-SHUJI28-ROLES-RESPONSE]`
+`[NextActor: Claude]`
+`[EndTime-JST: 16:39:14]`
+
+---
+
+## 49. Gemini 第20応答 verbatim (Shuji#28 Phase 1.5再設計) — 2026-06-06
+
+### Verify Token: `[Gemini-Verify: R50-SHUJI28-ROLES-RESPONSE]`
+
+> Shuji#28に基づくPhase 1.5「3者思考・監査+Claude実装」 確定再設計案。 司会GPT決済権限完全排除、 3者完全対等合意形成ループ自動化の具体的実装設計。
+
+**1. Claude参加タイミング**: Claude (Claude Code/API) は GPT・Geminiと同列の「独立した監査・思考エンジン」 として全ラウンド参加。 思考・監査フェーズ=3者全員、 実装フェーズ=合意後Claudeが実装エンジンとしてバックグラウンド実行、 結果ログを再び3者監査。
+
+**2. 自動進行+Claude発言組み込み**: Web自動操縦 (Playwright) の脆弱性回避、 「状態管理型Orchestrator (インフラ側)」 が Token (NextActor) トリガーでコンテキストリレー。
+- リレーフロー: `[NextActor: GPT]` → `[NextActor: Gemini]` → `[NextActor: Claude]` (Claude API/Code自動キック)
+- コンテキスト同期: 3者メッセージ履歴を1つのMarkdownストリームとして結合・保持、 各LLM APIへ入力 → WebUIバグに依存しない確実な自動リレー
+
+**3. 合意判定ロジック** (司会GPT決済権なし):
+- 司会は議論回すだけ (NextActor指定+要約)
+- 合意判定 = 「状態フラグの論理積 (AND)」 で自動処理
+- 各Actorは末尾に `unresolved_critical_issues` 有無 + `consensus_approved: true/false` 明記
+- 自動確定: `Consensus = (GPT_approved ∧ Gemini_approved ∧ Claude_approved)`
+- 司会GPT主観ではなく、 Orchestratorがストリームから3者全員trueを検出した瞬間に自動的に合意形成判定
+- 1人でも false → 自動的に次の議論ラウンド
+
+**4. Shuji報告形式**:
+- 3者全員一致 (Consensus=true) で Orchestratorシステムが自動的にサマリー生成・Shujiさんへ通知
+- **報告者 = Orchestrator (システム自動、 特定LLMに決済・報告権限を持たせない)**
+- 形式: 議題/合意ステータス/確定プロトコル/Shujiさん確認エリア (承認/差し戻し)
+
+→ Shuji#28「3者合意で報告」 を 手動介入ゼロ完全自動パイプラインとして実装可能。
+
+`[Gemini-Verify: R50-SHUJI28-ROLES-RESPONSE]`
+`[NextActor: Claude]`
+`[EndTime-JST: 16:39:13]`
+
+---
+
+## 50. Claude 第12応答 (Shuji#28 Phase 1.5再設計 3番手監査+発言) — 2026-06-06
+
+### Verify Token: `[Claude-Verify: R50-SHUJI28-ROLES-RESPONSE-CLAUDE]`
+
+### Claude (実装担当) 視点での監査+発言
+
+**GPT/Gemini両者ほぼ一致** (順序GPT→Gemini→Claude / Claude発言参加 / Web操作回避 / Claude Code CLI/API経由 / 合意=3者AND / 司会=議論回す役のみ / 最終承認=Shujiさん)。
+
+**相違点**: Shuji報告者
+- GPT案: GPTドラフト→Claude提示
+- Gemini案: Orchestrator自動生成 (特定LLMに報告権限なし)
+
+**Claude統合提案 (両者折衷)**:
+- ドラフト生成 = Orchestrator (機械的、 3者発言ログから直接構造化)
+- Shujiさんへの提示 = Claude (Claude Codeチャネル経由、 既存運用継続)
+- → 「特定LLMに報告権限なし」 (Gemini要件) + 「実務窓口はClaude」 (GPT要件) 両立
+
+### 実装上の重要観点 (Claude=実装担当だから)
+
+**Claude参加方式**:
+- Claude.ai Webタブ Playwright: ✗ (Cloudflare+DOM変更+Shuji#16既知バグ)
+- Claude Code CLI/SDK呼び出し: ✗ (Shujiさん認証必要、 非対話起動が現状非現実的)
+- **Claude Code セッション中に self-trigger ループ (推奨)**: Claude Code (今このプロセス) が `ScheduleWakeup` で定期 wakeup → Orchestrator state.jsonの `next_actor=Claude` を検出 → Claude発言生成して file/Playwrightで GPT/Geminiに転送
+  - 利点: 既存Claude Codeチャネル流用、 Shujiさん認証不要、 Playwright基盤既に動作
+  - 課題: Shujiさんが Claude Code セッションを起動しっぱなしにする必要 (Mac常時起動前提)
+
+**Phase 1.5実装ステップ (GPT案にClaude視点で追加)**:
+- Step 2a: state.jsonに `next_actor` 機械判定追加 (現在は手動更新も多い)
+- Step 3a: `build_claude_prompt()` に「直前GPT発言」「直前Gemini発言」「議事録参照パス」「Claudeの役割=実装可能性監査」を明記
+- Step 4a: ScheduleWakeup pattern で Claude side selfポーリング
+- Step 5a: `consensus_approved` タグ末尾必須化 (GPT/Gemini/Claude全員)
+- Step 7 (追加): **stall復旧**: Claude待ち30分→Watchdog→Shujiさんへ通知 (呼び鈴復活、 ただし stall時のみ)
+
+### Claudeの合意表明
+
+- GPT再設計案: **agree**
+- Gemini再設計案: **agree** (報告者統合は Claude折衷案で吸収)
+- `unresolved_critical_issues`: **空 (なし)**
+- Shuji発言代弁: **なし** (Shuji#28原文のみ参照)
+- `consensus_approved: true`
+
+### 残課題 (Shujiさん最終承認時に確認推奨)
+
+1. Claude Code セッション常時起動 (Shujiさんが Mac起動しっぱなし) でOKか? 
+2. Phase 1.5 実装期間目安 (Claude推定: state.json+slot+prompt gen+watcher+合意検出+報告draft = 3-4時間 Claude単独)
+3. Phase 2 (Claude正式API化) のタイミング判断はいつか?
+
+`[Claude-Verify: R50-SHUJI28-ROLES-RESPONSE-CLAUDE]`
+`[NextActor: GPT (3者合意候補検出→Shuji報告draft作成)]`
+`[EndTime-JST: 16:42:00]`
+`[Claude-Approve: R50-SHUJI28-PHASE15-REDESIGN]`
