@@ -3223,6 +3223,338 @@ def run_phase15_integration_test() -> int:
 
 
 # =====================
+# Phase 1.5 Controlled Real 3AI Relay Smoke Test (GPT第116 R50-PHASE15-CONTROLLED-REAL-3AI-RELAY-SMOKE-TEST-5628)
+# 制御付き: real_send_enabled=true テスト中のみ、 終了後 false復帰
+# 1周のみ: GPT → Gemini → Claude → GPT (Claude slotはmock)
+# =====================
+
+CONTROLLED_RELAY_PAYLOAD_GPT = (
+    "[Phase 1.5 Controlled Real Relay Smoke Test]\n"
+    "これはPhase 1.5 controlled real relay smoke testです。 本来議題ではありません。\n"
+    "GPTは短く受信確認し、 末尾に必須タグを付けて返してください:\n"
+    "[GPT-Verify: R50-PHASE15-SMOKE-TEST-OK]\n"
+    "[NextActor: Gemini]\n"
+    "[EndTime-JST: HH:MM:SS]\n"
+    "[is_shuji_represented: false]\n"
+    "[no_proxy_violation: true]\n"
+)
+
+
+def run_phase15_controlled_real_relay_test() -> int:
+    """--phase15-controlled-real-relay-test
+    1周のみ: GPT → Gemini → Claude slot (mock) → GPT
+    real_send_enabled=true テスト中のみ、 終了後 false復帰
+    """
+    print("=" * 70)
+    print("R50 Phase 1.5 Controlled Real 3AI Relay Smoke Test")
+    print("=" * 70)
+
+    result = {
+        "test": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "gpt_send": None,
+        "gemini_send": None,
+        "gemini_fetch": None,
+        "claude_slot_response": None,
+        "claude_to_gpt_send": None,
+        "tag_validation": {},
+        "log_appends": [],
+        "state_updates": [],
+        "lock_acquired": False,
+        "real_send_restored_false": False,
+    }
+
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] backup: {backup_path}")
+    state["real_send_enabled"] = True
+    save_state(state)
+    print(f"[2] real_send_enabled → True")
+
+    # P0 lock取得
+    lock_holder = "controlled_real_relay_test"
+    if acquire_lock_atomic(lock_holder):
+        result["lock_acquired"] = True
+        print(f"[3] lock acquired by {lock_holder}")
+    else:
+        result["reason"] = "LOCK_ACQUIRE_FAILED"
+        _restore_real_send_false(result)
+        return 1
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            return 1
+
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {e}"
+                    return 1
+
+                gemini_page = None
+                chatgpt_page = None
+                for ctx in browser.contexts:
+                    for page in ctx.pages:
+                        if "gemini.google.com" in page.url and gemini_page is None:
+                            gemini_page = page
+                        elif "chatgpt.com/g/g-p-" in page.url and chatgpt_page is None:
+                            chatgpt_page = page
+                if not gemini_page or not chatgpt_page:
+                    result["reason"] = f"TAB_NOT_FOUND gemini={bool(gemini_page)} chatgpt={bool(chatgpt_page)}"
+                    return 1
+
+                # Step 1: GPT へテストpayload送信
+                print(f"\n--- Step 1: GPT へテストpayload送信 ---")
+                chatgpt_page.bring_to_front()
+                c_before = chatgpt_page.evaluate("""() => ({
+                    u: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                    a: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                })""")
+                chatgpt_page.evaluate("""(text) => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    ta.focus();
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    ta.dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
+                }""", CONTROLLED_RELAY_PAYLOAD_GPT)
+                chatgpt_page.wait_for_timeout(2500)
+                snd1 = chatgpt_page.evaluate("""() => {
+                    const btn = document.querySelector('button[data-testid=\"send-button\"]');
+                    if (!btn || btn.disabled) return {error: 'disabled'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                if "error" in snd1:
+                    result["reason"] = f"GPT_SEND_FAILED: {snd1['error']}"
+                    return 1
+                result["gpt_send"] = "SUCCESS"
+                print(f"[Step 1] GPT Send: clicked")
+
+                # GPT応答待ち
+                for _ in range(40):
+                    chatgpt_page.wait_for_timeout(3000)
+                    snap = chatgpt_page.evaluate("""() => ({
+                        a: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                        s: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                    })""")
+                    if snap["a"] > c_before["a"] and not snap["s"]:
+                        break
+                gpt_response_text = chatgpt_page.evaluate("""() => {
+                    const turns = document.querySelectorAll('[data-testid^=\"conversation-turn-\"]');
+                    const last = turns[turns.length - 1];
+                    return last ? (last.textContent || '') : '';
+                }""")
+                print(f"[Step 1] GPT response_len: {len(gpt_response_text)}")
+                gpt_validation = validate_response(gpt_response_text)
+                result["tag_validation"]["gpt"] = {
+                    "valid": gpt_validation["valid"],
+                    "verify_token": gpt_validation.get("verify_token"),
+                    "next_actor": gpt_validation.get("next_actor"),
+                }
+
+                # log append
+                append_log("Phase 1.5 controlled real relay smoke test: GPT response", gpt_response_text[:500])
+                result["log_appends"].append("gpt_response")
+
+                # Step 2: Gemini へ payload (GPT応答を引き継ぎ)
+                print(f"\n--- Step 2: Gemini へ payload送信 ---")
+                gemini_payload = (
+                    "[Phase 1.5 Controlled Real Relay Smoke Test - Round 2/3]\n"
+                    "GPT発言の受信確認です。 Geminiは短く受信確認し、 末尾に必須タグを付けてください:\n"
+                    "[Gemini-Verify: R50-PHASE15-SMOKE-TEST-OK]\n"
+                    "[NextActor: Claude]\n"
+                    "[EndTime-JST: HH:MM:SS]\n"
+                    "[is_shuji_represented: false]\n"
+                    "[no_proxy_violation: true]\n"
+                )
+                gemini_page.bring_to_front()
+                g_before = gemini_page.evaluate("""() => ({
+                    u: document.querySelectorAll('user-query').length,
+                    a: document.querySelectorAll('model-response').length,
+                })""")
+                gemini_page.evaluate("""(text) => {
+                    const richTextarea = document.querySelector('rich-textarea');
+                    const qlEditor = richTextarea.querySelector('.ql-editor');
+                    while (qlEditor.firstChild) qlEditor.removeChild(qlEditor.firstChild);
+                    text.split('\\n').forEach(line => {
+                        const p = document.createElement('p');
+                        if (line.trim() === '') p.appendChild(document.createElement('br'));
+                        else p.textContent = line;
+                        qlEditor.appendChild(p);
+                    });
+                    qlEditor.dispatchEvent(new Event('input', {bubbles: true}));
+                }""", gemini_payload)
+                gemini_page.wait_for_timeout(2500)
+                snd2 = gemini_page.evaluate("""() => {
+                    const btn = document.querySelector('button[aria-label=\"プロンプトを送信\"]');
+                    if (!btn || btn.disabled) return {error: 'disabled'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                if "error" in snd2:
+                    result["reason"] = f"GEMINI_SEND_FAILED: {snd2['error']}"
+                    return 1
+                result["gemini_send"] = "SUCCESS"
+                print(f"[Step 2] Gemini Send: clicked")
+
+                # Gemini応答待ち
+                for _ in range(40):
+                    gemini_page.wait_for_timeout(3000)
+                    snap = gemini_page.evaluate("""() => ({
+                        a: document.querySelectorAll('model-response').length,
+                        s: !!document.querySelector('button[aria-label=\"回答を停止\"]'),
+                    })""")
+                    if snap["a"] > g_before["a"] and not snap["s"]:
+                        break
+                gemini_response_text = gemini_page.evaluate("""() => {
+                    const responses = document.querySelectorAll('model-response');
+                    const last = responses[responses.length - 1];
+                    return last ? (last.textContent || '') : '';
+                }""")
+                result["gemini_fetch"] = "SUCCESS" if gemini_response_text else "FAILED"
+                print(f"[Step 2] Gemini response_len: {len(gemini_response_text)}")
+                gemini_validation = validate_response(gemini_response_text)
+                result["tag_validation"]["gemini"] = {
+                    "valid": gemini_validation["valid"],
+                    "verify_token": gemini_validation.get("verify_token"),
+                    "next_actor": gemini_validation.get("next_actor"),
+                }
+                append_log("Phase 1.5 controlled real relay smoke test: Gemini response", gemini_response_text[:500])
+                result["log_appends"].append("gemini_response")
+
+                # Step 3: Claude slot 起動 (CLI仕様未確認のため mock使用)
+                print(f"\n--- Step 3: Claude slot 起動 (mock) ---")
+                # state.next_actor を Claude に
+                s = load_state()
+                s["next_actor"] = "Claude"
+                s["claude_job_in_progress"] = False
+                save_state(s)
+                result["state_updates"].append({"step": "step3_pre", "next_actor": "Claude"})
+
+                os.environ["CLAUDE_MOCK_MODE"] = "success"
+                claude_result = trigger_claude_when_needed()
+                os.environ.pop("CLAUDE_MOCK_MODE", None)
+                result["claude_slot_response"] = claude_result.get("status")
+                print(f"[Step 3] Claude slot (mock): {claude_result.get('status')}")
+                if claude_result.get("status") == "SUCCESS":
+                    claude_text = claude_result.get("response", "")
+                    append_log("Phase 1.5 controlled real relay smoke test: Claude (mock) response", claude_text[:500])
+                    result["log_appends"].append("claude_mock_response")
+                    # mock response にタグあり (Claude-Verify: MOCK / NextActor: GPT / EndTime: 00:00:00)
+                    claude_validation = validate_response(claude_text)
+                    result["tag_validation"]["claude_mock"] = {
+                        "valid": claude_validation["valid"],
+                        "verify_token": claude_validation.get("verify_token"),
+                        "next_actor": claude_validation.get("next_actor"),
+                    }
+
+                # Step 4: Claude→GPT実送信 (mock Claude応答をGPTへ通知)
+                print(f"\n--- Step 4: Claude→GPT 実送信 ---")
+                claude_to_gpt_payload = (
+                    "[Phase 1.5 Controlled Real Relay Smoke Test - Round 3/3]\n"
+                    "Claude slot (mock) 完了。 GPTへサイクル完了通知です。\n"
+                    "GPTは短く受信確認し、 末尾に必須タグを付けてください:\n"
+                    "[GPT-Verify: R50-PHASE15-SMOKE-TEST-ROUND-COMPLETE]\n"
+                    "[NextActor: Shuji]\n"
+                    "[EndTime-JST: HH:MM:SS]\n"
+                    "[is_shuji_represented: false]\n"
+                    "[no_proxy_violation: true]\n"
+                )
+                chatgpt_page.bring_to_front()
+                c_before2 = chatgpt_page.evaluate("""() => ({
+                    u: document.querySelectorAll('[data-message-author-role=\"user\"]').length,
+                    a: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                })""")
+                chatgpt_page.evaluate("""(text) => {
+                    const ta = document.querySelector('#prompt-textarea');
+                    ta.focus();
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    ta.dispatchEvent(new ClipboardEvent('paste', {bubbles: true, cancelable: true, clipboardData: dt}));
+                }""", claude_to_gpt_payload)
+                chatgpt_page.wait_for_timeout(2500)
+                snd3 = chatgpt_page.evaluate("""() => {
+                    const btn = document.querySelector('button[data-testid=\"send-button\"]');
+                    if (!btn || btn.disabled) return {error: 'disabled'};
+                    btn.click();
+                    return {clicked: true};
+                }""")
+                if "error" in snd3:
+                    result["reason"] = f"CLAUDE_TO_GPT_SEND_FAILED: {snd3['error']}"
+                    return 1
+                result["claude_to_gpt_send"] = "SUCCESS"
+                print(f"[Step 4] Claude→GPT Send: clicked")
+
+                # 最終GPT応答待ち
+                for _ in range(40):
+                    chatgpt_page.wait_for_timeout(3000)
+                    snap = chatgpt_page.evaluate("""() => ({
+                        a: document.querySelectorAll('[data-message-author-role=\"assistant\"]').length,
+                        s: !!document.querySelector('button[data-testid=\"stop-button\"]'),
+                    })""")
+                    if snap["a"] > c_before2["a"] and not snap["s"]:
+                        break
+                final_gpt_response = chatgpt_page.evaluate("""() => {
+                    const turns = document.querySelectorAll('[data-testid^=\"conversation-turn-\"]');
+                    const last = turns[turns.length - 1];
+                    return last ? (last.textContent || '') : '';
+                }""")
+                print(f"[Step 4] Final GPT response_len: {len(final_gpt_response)}")
+                final_gpt_validation = validate_response(final_gpt_response)
+                result["tag_validation"]["gpt_final"] = {
+                    "valid": final_gpt_validation["valid"],
+                    "verify_token": final_gpt_validation.get("verify_token"),
+                    "next_actor": final_gpt_validation.get("next_actor"),
+                }
+                append_log("Phase 1.5 controlled real relay smoke test: Final GPT response", final_gpt_response[:500])
+                result["log_appends"].append("gpt_final_response")
+
+                # 成功判定
+                tag_all_valid = all(t.get("valid") for t in result["tag_validation"].values())
+                result["test"] = "PASSED" if tag_all_valid else "PARTIAL_PASS"
+
+                # dump
+                ts = int(time.time())
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                rp = DRY_RUN_DIR / f"{ts}.controlled_real_relay_test.json"
+                with open(rp, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                result["result_dump"] = str(rp)
+                print(f"\n[5] result dump: {rp}")
+
+                return 0 if tag_all_valid else 1
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED: {type(e).__name__}: {e}"
+            import traceback
+            traceback.print_exc()
+            return 1
+    finally:
+        # real_send_enabled復帰
+        s = load_state()
+        s["real_send_enabled"] = False
+        s["controlled_real_relay_test_result"] = result
+        save_state(s)
+        result["real_send_restored_false"] = True
+        print(f"[final] real_send_enabled=False 復帰")
+        # lock解除
+        release_lock_atomic()
+        print(f"[final] lock解除")
+
+
+def _restore_real_send_false(result: dict) -> None:
+    s = load_state()
+    s["real_send_enabled"] = False
+    s["controlled_real_relay_test_result"] = result
+    save_state(s)
+    result["real_send_restored_false"] = True
+
+
+# =====================
 # Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 # =====================
 CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
@@ -3421,6 +3753,8 @@ if __name__ == "__main__":
         sys.exit(run_p2_self_test())
     if "--phase15-integration-test" in sys.argv:
         sys.exit(run_phase15_integration_test())
+    if "--phase15-controlled-real-relay-test" in sys.argv:
+        sys.exit(run_phase15_controlled_real_relay_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
