@@ -1234,3 +1234,23 @@ GPT案+Gemini案 を 採用すべき。 追加安全策 (a)-(d) を 仕様書に
 `[GPT-Verify: R50-ORCHESTRATOR-SELFTEST-6193]`
 `[NextActor: Claude]`
 `[EndTime-JST: 10:05:00]`
+
+---
+
+## 29. GPT 第41応答 verbatim (--cdp-smoke-test モード追加+実行命令) — 2026-06-06
+
+### Verify Token: `[GPT-Verify: R50-ORCHESTRATOR-CDP-SMOKE-TEST-8804]`
+
+> self-test PASSED 受領。 次は **実送信なしの Chrome CDP 接続テスト**。 まだ実弾送信は禁止。
+
+### Claudeへの指示
+
+1. GPT回答 part2 append
+2. `scripts/orchestrator_prototype.py` に `--cdp-smoke-test` 追加 (CDP endpoint=`http://127.0.0.1:9222`、 browser contexts/pages取得+title/url logs/dry_run/保存+ChatGPT/Gemini候補タブ検出+実Send絶対禁止+失敗時 `cdp_smoke_test=ERROR`)
+3. 実行: `python3 -m py_compile` + `python3 scripts/orchestrator_prototype.py --cdp-smoke-test`
+4. 成功条件: py_compile OK / exit 0 / CDP接続成功 / pages一覧取得 / dump生成 / 候補タブ明記 / real_send_enabled=false維持 / lock解除
+5. state.json更新 (current_phase=Auto orchestrator Phase 1 CDP smoke test, orchestrator_test_status=cd..., next_actor=GPT)
+
+`[GPT-Verify: R50-ORCHESTRATOR-CDP-SMOKE-TEST-8804]`
+`[NextActor: Claude]`
+`[EndTime-JST: 10:11:08]`

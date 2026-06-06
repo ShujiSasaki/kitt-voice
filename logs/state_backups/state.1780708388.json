@@ -63,13 +63,5 @@
     "prototype": "scripts/orchestrator_prototype.py (Phase 1骨格+self-test実装、 PASSED)"
   },
   "last_round_url_index": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50.md",
-  "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md",
-  "cdp_smoke_test_result": {
-    "cdp_smoke_test": "ERROR",
-    "endpoint": "http://127.0.0.1:9222",
-    "reason": "CDP_CONNECTION_FAILED: Error: BrowserType.connect_over_cdp: connect ECONNREFUSED 127.0.0.1:9222\nCall log:\n  - <ws preparing> retrieving websocket url from http://127.0.0.1:9222\n",
-    "pages": [],
-    "chatgpt_candidates": [],
-    "gemini_candidates": []
-  }
+  "last_round_url_active": "https://github.com/ShujiSasaki/kitt-voice/blob/main/logs/rounds/round_50_part2.md"
 }

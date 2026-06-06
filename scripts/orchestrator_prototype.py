@@ -364,9 +364,106 @@ def run_self_test() -> int:
     return 0
 
 
+def run_cdp_smoke_test() -> int:
+    """GPT指示 R50-CMD-CDP-SMOKE-TEST: CDP接続+pages検出のみ、 実Send絶対禁止"""
+    print("=" * 60)
+    print("R50 Orchestrator CDP Smoke Test (GPT-Verify: R50-ORCHESTRATOR-CDP-SMOKE-TEST-8804)")
+    print(f"CDP endpoint: {CDP_ENDPOINT}")
+    print("=" * 60)
+    assert DRY_RUN is True, "DRY_RUN must remain True during cdp-smoke-test"
+
+    result = {
+        "cdp_smoke_test": "ERROR",
+        "endpoint": CDP_ENDPOINT,
+        "reason": None,
+        "pages": [],
+        "chatgpt_candidates": [],
+        "gemini_candidates": [],
+    }
+
+    state = load_state()
+    backup_path = backup_state(state)
+    print(f"[1] state.json backup: {backup_path}")
+    locked = acquire_lock(state)
+    print(f"[2] lock acquired: {locked}")
+
+    try:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as e:
+            result["reason"] = f"PLAYWRIGHT_NOT_INSTALLED: {e}"
+            print(f"[3] FAIL: {result['reason']}")
+            print("    Install: pip install playwright && playwright install chromium")
+            _persist_smoke_test_result(result)
+            return 1
+
+        try:
+            with sync_playwright() as p:
+                try:
+                    browser = p.chromium.connect_over_cdp(CDP_ENDPOINT)
+                except Exception as e:
+                    result["reason"] = f"CDP_CONNECTION_FAILED: {type(e).__name__}: {e}"
+                    print(f"[3] FAIL: {result['reason']}")
+                    print(f"    Start Chrome with: google-chrome --remote-debugging-port=9222")
+                    _persist_smoke_test_result(result)
+                    return 1
+
+                contexts = browser.contexts
+                print(f"[3] contexts found: {len(contexts)}")
+                all_pages = []
+                for ctx in contexts:
+                    for page in ctx.pages:
+                        try:
+                            url = page.url
+                            title = page.title()
+                        except Exception as e:
+                            url, title = "<error>", f"<error: {e}>"
+                        info = {"title": title, "url": url}
+                        all_pages.append(info)
+
+                print(f"[4] pages found: {len(all_pages)}")
+                pages_dump_path = DRY_RUN_DIR / f"{int(time.time())}.cdp_pages.json"
+                DRY_RUN_DIR.mkdir(parents=True, exist_ok=True)
+                with open(pages_dump_path, "w", encoding="utf-8") as f:
+                    json.dump(all_pages, f, ensure_ascii=False, indent=2)
+                print(f"[5] pages dump: {pages_dump_path}")
+
+                chatgpt_candidates = [p for p in all_pages if "chatgpt.com" in p["url"]]
+                gemini_candidates = [p for p in all_pages if "gemini.google.com" in p["url"]]
+                print(f"[6] ChatGPT候補: {len(chatgpt_candidates)} 件")
+                print(f"[7] Gemini候補: {len(gemini_candidates)} 件")
+
+                result.update({
+                    "cdp_smoke_test": "PASSED",
+                    "pages_count": len(all_pages),
+                    "pages_dump": str(pages_dump_path),
+                    "chatgpt_candidates": chatgpt_candidates,
+                    "gemini_candidates": gemini_candidates,
+                })
+                _persist_smoke_test_result(result)
+                return 0
+        except Exception as e:
+            result["reason"] = f"UNEXPECTED_ERROR: {type(e).__name__}: {e}"
+            print(f"FAIL: {result['reason']}")
+            _persist_smoke_test_result(result)
+            return 1
+    finally:
+        release_lock(load_state())
+        after = load_state()
+        print(f"[final] lock released: lock={after.get('lock')}")
+
+
+def _persist_smoke_test_result(result: dict) -> None:
+    state = load_state()
+    state["cdp_smoke_test_result"] = result
+    save_state(state)
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
+    if "--cdp-smoke-test" in sys.argv:
+        sys.exit(run_cdp_smoke_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
