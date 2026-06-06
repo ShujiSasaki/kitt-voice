@@ -4056,3 +4056,68 @@ Shujiさんへ Claude Codeチャネル経由で提示
 `[EndTime-JST: 00:05:30 (GPT推定値、 実時刻 05:34)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 84. GPT 第110応答 verbatim (Phase 1.5 P1実装着手命令) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PHASE15-P1-IMPLEMENTATION-PROXY-TOKEN-7249]`
+
+P0実装完了受領。 P1 (proxy check + token overflow) 実装指示。
+
+- 対象A: `check_proxy_violation` / `classify_proxy_hit` / `request_proxy_justification` / `validate_justify_proxy_safe` / `validate_actor_output` / `build_proxy_safe_report`
+- 対象B: `token_budget_check` / `compact_resolved_sections` / `create_session_handoff` / `estimate_tokens_rough` / `rotate_round_part_if_needed`
+- テスト8項目 (clean ACCEPT / suspicious REQUEST_SELF_REVIEW / JUSTIFY valid bypass / JUSTIFY short reject / Shuji向け clean / Shuji向け bad ValueError / token OK/WARN/CRITICAL / handoff生成)
+- real_send_enabled=false 維持
+
+`[GPT-Verify: R50-PHASE15-P1-IMPLEMENTATION-PROXY-TOKEN-7249]`
+`[NextActor: Claude]`
+`[EndTime-JST: 05:41:00 (GPT推定値、 実時刻 05:41:49)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 85. Claude 実装完了報告 (Phase 1.5 P1 = proxy check + token overflow) — 2026-06-07
+
+### Verify Token: `[Claude-Verify: R50-PHASE15-P1-IMPLEMENTATION-COMPLETE]`
+
+実装内容 (scripts/orchestrator_prototype.py 新セクション):
+
+**対象A: proxy check (6関数 + constants)**
+- `SHUJI_PROXY_PATTERNS` (8パターン)
+- `SHUJI_VERBATIM_OK_PATTERNS` (5パターン)
+- `JUSTIFY_PATTERN` (reason 10-500字制限)
+- `JUSTIFY_REASON_FORBIDDEN` (reason内regex無効化)
+- `check_proxy_violation(text)` → Stage 1 regex scan
+- `classify_proxy_hit(text)` → Stage 2 JUSTIFY検証 + 悪用防止
+- `request_proxy_justification(actor, violations)` → PROXY_WARNING プロンプト生成
+- `validate_justify_proxy_safe(actor, text)`
+- `validate_actor_output(actor, text, retry_count)` → 2段階適用 + HARD_REJECT + 連続3回 HUMAN_REQUIRED
+- `build_proxy_safe_report(round_summary)` → Shuji向け Stage 1 のみ厳格、 JUSTIFY拒否
+
+**対象B: token overflow (5関数 + constants)**
+- `TOKEN_BUDGETS` (GPT 100K / Gemini 800K / Claude 160K)
+- `TOKEN_WARN_RATIO=0.80 / TOKEN_CRITICAL_RATIO=0.90 / PART_FILE_MAX_BYTES=50KB / CHARS_PER_TOKEN_ROUGH=2.5`
+- `estimate_tokens_rough(text)`
+- `token_budget_check(actor, estimated_tokens)` → OK/WARN/CRITICAL
+- `compact_resolved_sections(round_n)` → summary file生成、 未解決はverbatim保持
+- `create_session_handoff(round_n)` → handoff file生成 (state snapshot + resume instruction)
+- `rotate_round_part_if_needed(round_n, current_part)` → 50KB超過で次partへ自動切替
+
+### Self-Test PASSED (全8項目)
+- [1] clean text → ACCEPT
+- [2] suspicious text → REQUEST_SELF_REVIEW
+- [3] JUSTIFY_PROXY_SAFE valid → ACCEPT_VIA_JUSTIFY
+- [4] JUSTIFY reason短すぎ → rejection
+- [5a] build_proxy_safe_report clean → success (270 chars)
+- [5b] build_proxy_safe_report proxy混入 → ValueError raised
+- [6] token_budget_check OK/WARN/CRITICAL → all correct
+- [7] compact_resolved_sections → file生成 (170 chars)
+- [8] create_session_handoff → file生成 (790 chars)
+
+`[Claude-Verify: R50-PHASE15-P1-IMPLEMENTATION-COMPLETE]`
+`[NextActor: GPT]`
+`[EndTime-JST: 05:43:38 (real Bash取得)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

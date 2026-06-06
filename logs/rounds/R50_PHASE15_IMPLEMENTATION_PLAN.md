@@ -205,6 +205,26 @@
 - ✅ system_recovery_reset_round は Orchestrator専用 (LLM経由 PermissionError)
 - ✅ 議事録は part2.md継続 (50KB chunkingは Phase 2で実装、 今は手動)
 
+---
+
+## 7. 実装進捗 (2026-06-07更新)
+
+### Phase 1 (P0): ✅ 完了 (05:40)
+- race condition lock (O_EXCL exclusive create採用)
+- stall Watchdog (3分類+_is_orchestrator_context検証+system_recovery_reset_round)
+- `--watchdog-self-test` PASSED 全6項目
+- real_send_enabled=false 維持確認済
+
+### Phase 2 (P1): ✅ 完了 (05:43)
+- Shuji proxy pre-check + JUSTIFY_PROXY_SAFE 2段階エスケープ
+- token overflow / handoff / compact / rotate
+- `--p1-self-test` PASSED 全8項目
+- real_send_enabled=false 維持確認済
+
+### Phase 3 (P2): ⏳ 次フェーズ
+- Claude Code event-driven slot (trigger_claude_when_needed / build_claude_job / run_claude_code_once / watch_claude_done_marker)
+- Phase 2 readiness metrics (evaluate_phase2_readiness / record_phase2_metrics)
+
 `[Plan-Verify: R50-PHASE15-IMPLEMENTATION-PLAN]`
 `[NextActor: Claude implementation]`
 `[EndTime-JST: 05:35:00 (real Bash取得)]`

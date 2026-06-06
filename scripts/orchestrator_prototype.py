@@ -2354,6 +2354,375 @@ def run_watchdog_self_test() -> int:
 
 
 # =====================
+# Phase 1.5 Phase 2 (P1): Shuji proxy pre-check + token overflow strategy
+# Approved by GPT (R50-PHASE15-P1-IMPLEMENTATION-PROXY-TOKEN-7249)
+# 設計: Section 71 (Claude案 JUSTIFY_PROXY_SAFE 2段階) / Gemini第25 100点満点
+# =====================
+
+# Shuji 代弁プリチェック patterns
+SHUJI_PROXY_PATTERNS = [
+    r"Shuji.{0,5}考えるはず",
+    r"Shuji.{0,5}意図",
+    r"Shuji.{0,5}望む",
+    r"Shuji.{0,5}期待",
+    r"Shujiさんなら",
+    r"Shuji.{0,5}ハズ",
+    r"Shuji.{0,5}思うだろう",
+    r"Shuji.{0,5}判断する",
+]
+SHUJI_VERBATIM_OK_PATTERNS = [
+    r"Shuji#\d+",
+    r"Shujiさん発言",
+    r"Shuji.{0,5}verbatim",
+    r"Shujiさん.{0,5}言った",
+    r"Shujiさん.{0,5}発言",
+]
+JUSTIFY_PATTERN = r"\[JUSTIFY_PROXY_SAFE:\s*(.{10,500}?)\]"
+JUSTIFY_REASON_FORBIDDEN = SHUJI_PROXY_PATTERNS
+
+# token overflow constants
+TOKEN_BUDGETS = {"GPT": 100_000, "Gemini": 800_000, "Claude": 160_000}
+TOKEN_WARN_RATIO = 0.80
+TOKEN_CRITICAL_RATIO = 0.90
+PART_FILE_MAX_BYTES = 50 * 1024
+CHARS_PER_TOKEN_ROUGH = 2.5  # 日本語含む混在テキストの粗い推定
+
+
+def check_proxy_violation(text: str) -> dict:
+    """Phase 1.5 P1 Stage 1: SHUJI_PROXY_PATTERNS regex scan"""
+    import re
+    violations = []
+    for pat in SHUJI_PROXY_PATTERNS:
+        for m in re.finditer(pat, text):
+            snippet = text[max(0, m.start() - 50):m.end() + 50][:200]
+            violations.append({"pattern": pat, "snippet": snippet})
+    return {"violations": violations, "needs_stage2": len(violations) > 0}
+
+
+def classify_proxy_hit(text: str) -> dict:
+    """Phase 1.5 P1 Stage 2: [JUSTIFY_PROXY_SAFE: reason] 検証
+    - reason 10字以上必須
+    - reason内に regex検知パターン含むなら無効 (悪用防止)
+    """
+    import re
+    justify_match = re.search(JUSTIFY_PATTERN, text)
+    if not justify_match:
+        return {"has_justify": False, "rejection": "no_justify_tag"}
+    reason = justify_match.group(1).strip()
+    if len(reason) < 10:
+        return {"has_justify": False, "rejection": "reason_too_short", "reason": reason}
+    for pat in JUSTIFY_REASON_FORBIDDEN:
+        if re.search(pat, reason):
+            return {"has_justify": False, "rejection": "reason_contains_proxy_pattern", "reason": reason}
+    return {"has_justify": True, "reason": reason}
+
+
+def request_proxy_justification(actor: str, violations: list) -> str:
+    """Phase 1.5 P1: Orchestrator → Actor PROXY_WARNING プロンプト生成"""
+    snippet = violations[0]["snippet"] if violations else ""
+    pattern = violations[0]["pattern"] if violations else ""
+    return (
+        "[PROXY_WARNING] Shuji氏の代弁、 または推測と捉えられる表現を検知しました。\n"
+        f"検知パターン: {pattern}\n"
+        f"検知スニペット: {snippet}\n\n"
+        "これが以下のいずれかなら、 次の発言の冒頭に [JUSTIFY_PROXY_SAFE: 原因文] を付与して再送信してください:\n"
+        "- 単なるverbatim引用 (Shuji#N原文)\n"
+        "- 他者案 (GPT/Gemini/Claude) のレビュー\n"
+        "- 禁止例の説明\n"
+        "- 過去Shuji発言を文脈として参照\n\n"
+        "本当に代弁・推測であった場合は、 表現を修正してください。\n"
+        "セルフレビュー機会は1回のみです。"
+    )
+
+
+def validate_justify_proxy_safe(actor: str, text: str) -> dict:
+    """JUSTIFY_PROXY_SAFE タグ単体検証"""
+    return classify_proxy_hit(text)
+
+
+def validate_actor_output(actor: str, text: str, retry_count: int = 0) -> dict:
+    """Phase 1.5 P1: 2段階 proxy check 適用
+    Stage 1 検知なし → ACCEPT
+    Stage 1 検知あり → Stage 2 JUSTIFY確認 → bypass or HARD_REJECT/SELF_REVIEW
+    """
+    stage1 = check_proxy_violation(text)
+    if not stage1["needs_stage2"]:
+        return {"status": "ACCEPT", "stage": 1, "validated": True}
+
+    stage2 = classify_proxy_hit(text)
+    state = load_state()
+    if stage2.get("has_justify"):
+        state.setdefault("proxy_justify_log", []).append({
+            "actor": actor,
+            "ts": int(time.time()),
+            "reason": stage2["reason"],
+            "violations": stage1["violations"],
+        })
+        save_state(state)
+        return {"status": "ACCEPT_VIA_JUSTIFY", "stage": 2, "reason": stage2["reason"]}
+
+    if retry_count == 0:
+        warning = request_proxy_justification(actor, stage1["violations"])
+        return {"status": "REQUEST_SELF_REVIEW", "warning_message": warning, "stage": 2}
+
+    # retry済 + Stage2失敗 → HARD_REJECT + log
+    log_entry = {
+        "actor": actor,
+        "ts": int(time.time()),
+        "violations": stage1["violations"],
+        "retry_count": retry_count,
+        "action": "HARD_REJECT",
+    }
+    state.setdefault("proxy_violation_log", []).append(log_entry)
+    save_state(state)
+    recent = [e for e in state["proxy_violation_log"]
+              if e["actor"] == actor and time.time() - e["ts"] < 600]
+    if len(recent) >= 3:
+        return {"status": "HARD_REJECT_HUMAN_REQUIRED", "violations": stage1["violations"]}
+    return {"status": "HARD_REJECT", "violations": stage1["violations"]}
+
+
+def build_proxy_safe_report(round_summary: dict) -> str:
+    """Phase 1.5 P1: Shuji向け最終報告書ドラフト生成
+    Stage 1 のみで判定、 JUSTIFY_PROXY_SAFE bypass拒否 (最大厳格)
+    """
+    title = round_summary.get("title", "R50 Phase 1.5 Final Consensus Report")
+    agenda = round_summary.get("agenda", "(議題未指定)")
+    consensus_status = round_summary.get("consensus_status", "COMPLETE")
+    confirmed_protocols = round_summary.get("confirmed_protocols", [])
+    unresolved = round_summary.get("unresolved", [])
+
+    lines = [
+        f"# {title}",
+        "",
+        f"## 審議アジェンダ: {agenda}",
+        f"## 3者合意ステータス: {consensus_status}",
+        "",
+        "## 合意された確定プロトコル:",
+    ]
+    for p in confirmed_protocols:
+        lines.append(f"- {p}")
+    lines.append("")
+    lines.append("## 残脆弱性:")
+    if unresolved:
+        for u in unresolved:
+            lines.append(f"- {u}")
+    else:
+        lines.append("- なし")
+    lines.append("")
+    lines.append("## Shujiさん確認:")
+    lines.append("A. 承認  /  B. 修正  /  C. 差し戻し")
+    lines.append("")
+    lines.append("> これは3AIの合意候補であり、 Shujiさん承認の代弁ではありません。 正式決定はShujiさん確認後です。")
+
+    draft = "\n".join(lines)
+
+    # Stage 1 のみで厳格判定 (JUSTIFY拒否)
+    stage1 = check_proxy_violation(draft)
+    if stage1["needs_stage2"]:
+        raise ValueError(
+            f"Shuji-bound report has proxy violation (no JUSTIFY bypass allowed): {stage1['violations']}"
+        )
+    return draft
+
+
+def estimate_tokens_rough(text: str) -> int:
+    """粗いトークン推定 (日本語混在想定)"""
+    return int(len(text) / CHARS_PER_TOKEN_ROUGH)
+
+
+def token_budget_check(actor: str, estimated_tokens: int) -> dict:
+    """Phase 1.5 P1: token budget WARN/CRITICAL判定"""
+    budget = TOKEN_BUDGETS.get(actor, 100_000)
+    ratio = estimated_tokens / budget if budget else 0
+    if ratio >= TOKEN_CRITICAL_RATIO:
+        return {"status": "CRITICAL", "ratio": ratio, "actor": actor, "estimated_tokens": estimated_tokens, "budget": budget, "action": "force_compact"}
+    if ratio >= TOKEN_WARN_RATIO:
+        return {"status": "WARN", "ratio": ratio, "actor": actor, "estimated_tokens": estimated_tokens, "budget": budget, "action": "prepare_compact"}
+    return {"status": "OK", "ratio": ratio, "actor": actor, "estimated_tokens": estimated_tokens, "budget": budget}
+
+
+def compact_resolved_sections(round_n: int) -> str:
+    """Phase 1.5 P1: 合意済み section を 1行 summary化、 未解決 verbatim保持"""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    rounds_dir = LOGS_DIR / "rounds"
+    rounds_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = rounds_dir / f"round_{round_n}_summary.md"
+    state = load_state()
+    lines = [f"# Round {round_n} Compacted Summary", ""]
+    resolved = state.get("resolved_sections", [])
+    if resolved:
+        lines.append("## Resolved (1-line summary)")
+        for sec in resolved:
+            title = sec.get("title", "(no title)")
+            section_range = sec.get("section_range", "?")
+            one_line = sec.get("one_line", "")
+            lines.append(f"- {title} (Section {section_range}): {one_line}")
+        lines.append("")
+    else:
+        # state.json から resolved_issues を fallback
+        for issue in state.get("resolved_issues", []):
+            lines.append(f"- {issue}: resolved by 3-AI consensus")
+        lines.append("")
+    lines.append("## Unresolved (verbatim preserved)")
+    unresolved = state.get("unresolved_critical_issues", [])
+    if unresolved:
+        for issue in unresolved:
+            lines.append(f"- {issue}")
+    else:
+        lines.append("- なし")
+    summary_path.write_text("\n".join(lines), encoding="utf-8")
+    return str(summary_path)
+
+
+def create_session_handoff(round_n: int) -> str:
+    """Phase 1.5 P1: context overflow時の handoff file 生成
+    各LLMに冒頭注入する compact引き継ぎ
+    """
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    rounds_dir = LOGS_DIR / "rounds"
+    rounds_dir.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    handoff_path = rounds_dir / f"round_{round_n}_handoff_{ts}.md"
+    state = load_state()
+    keys = ('current_phase', 'current_step', 'next_actor', 'orchestrator_phase',
+            'consensus_candidate', 'agreement_status', 'blocker', 'unresolved_critical_issues',
+            'resolved_issues')
+    snapshot = {k: state.get(k) for k in keys}
+    lines = [
+        f"# Session Handoff (Round {round_n})",
+        "",
+        f"## Current phase",
+        str(state.get('current_phase', '')),
+        "",
+        f"## Current step",
+        str(state.get('current_step', '')),
+        "",
+        f"## Unresolved critical issues",
+        json.dumps(state.get('unresolved_critical_issues', []), ensure_ascii=False, indent=2),
+        "",
+        f"## state.json snapshot",
+        json.dumps(snapshot, ensure_ascii=False, indent=2),
+        "",
+        f"## Resume instruction",
+        f"[CONTEXT-COMPACTED] resume from current_step={state.get('current_step', '')}, next_actor={state.get('next_actor', '')}.",
+    ]
+    handoff_path.write_text("\n".join(lines), encoding="utf-8")
+    return str(handoff_path)
+
+
+def rotate_round_part_if_needed(round_n: int, current_part: int) -> dict:
+    """Phase 1.5 P1: 議事録 part ファイルが 50KB 超えたら次 partへ切替"""
+    rounds_dir = LOGS_DIR / "rounds"
+    if current_part == 1:
+        current_path = rounds_dir / f"round_{round_n}.md"
+    else:
+        current_path = rounds_dir / f"round_{round_n}_part{current_part}.md"
+    if not current_path.exists():
+        return {"status": "OK", "current_part": current_part, "reason": "file_not_exist"}
+    size = current_path.stat().st_size
+    if size < PART_FILE_MAX_BYTES:
+        return {"status": "OK", "current_part": current_part, "size_bytes": size}
+    next_part = current_part + 1
+    next_path = rounds_dir / f"round_{round_n}_part{next_part}.md"
+    next_path.touch(exist_ok=True)
+    return {"status": "ROTATED", "old_part": current_part, "new_part": next_part, "new_path": str(next_path), "old_size_bytes": size}
+
+
+def run_p1_self_test() -> int:
+    """--p1-self-test: Phase 1.5 P1 単体検証 (real send なし)"""
+    print("=" * 60)
+    print("R50 Phase 1.5 P1 Self-Test (proxy check + token overflow)")
+    print("=" * 60)
+
+    # 1. proxy clean text ACCEPT
+    clean_text = "今日の議題は取引所インフラ再設計です。 GPT/Gemini/Claudeで合意済の6項目を実装します。"
+    r1 = validate_actor_output("GPT", clean_text)
+    assert r1["status"] == "ACCEPT", f"clean text should ACCEPT, got {r1}"
+    print(f"[1] proxy clean text → ACCEPT OK")
+
+    # 2. proxy suspicious text REQUEST_SELF_REVIEW
+    suspicious_text = "この議題について、 Shujiさんの意図は明確だと思います。 進めましょう。"
+    r2 = validate_actor_output("GPT", suspicious_text, retry_count=0)
+    assert r2["status"] == "REQUEST_SELF_REVIEW", f"suspicious text should REQUEST_SELF_REVIEW, got {r2}"
+    print(f"[2] proxy suspicious text → REQUEST_SELF_REVIEW OK")
+
+    # 3. JUSTIFY_PROXY_SAFE valid → ACCEPT_VIA_JUSTIFY
+    justified = "Claude案の Shujiさんの意図 という記述は、 [JUSTIFY_PROXY_SAFE: 他者案レビューの引用、 Claude発言の文脈批評] 実際の代弁ではありません。"
+    r3 = validate_actor_output("Gemini", justified, retry_count=0)
+    assert r3["status"] == "ACCEPT_VIA_JUSTIFY", f"justified text should ACCEPT_VIA_JUSTIFY, got {r3}"
+    print(f"[3] JUSTIFY_PROXY_SAFE valid → ACCEPT_VIA_JUSTIFY OK")
+
+    # 4. JUSTIFY reason短すぎ → not has_justify (treated as no justify)
+    short_justify = "Shujiさんの意図 [JUSTIFY_PROXY_SAFE: ok]"
+    r4 = classify_proxy_hit(short_justify)
+    assert r4["has_justify"] is False, f"short reason should be rejected, got {r4}"
+    assert r4.get("rejection") == "reason_too_short" or r4.get("rejection") == "no_justify_tag", f"got {r4}"
+    print(f"[4] JUSTIFY reason短すぎ → rejection={r4.get('rejection')} OK")
+
+    # 5. Shuji向けreport build_proxy_safe_report — clean なら成功
+    round_summary = {
+        "title": "R50 Phase 1.5 Test Report",
+        "agenda": "Phase 1.5 自動会議システム",
+        "consensus_status": "COMPLETE",
+        "confirmed_protocols": ["race condition lock", "stall Watchdog", "proxy check"],
+        "unresolved": [],
+    }
+    draft = build_proxy_safe_report(round_summary)
+    assert "Phase 1.5 Test Report" in draft and "代弁ではありません" in draft
+    print(f"[5a] build_proxy_safe_report clean → success ({len(draft)} chars)")
+
+    # 5b. Shuji向けreport: proxy混入 → ValueError
+    bad_round = dict(round_summary)
+    bad_round["agenda"] = "Shujiさんの意図 が明確"
+    try:
+        build_proxy_safe_report(bad_round)
+        print("[5b] FAIL: build_proxy_safe_report should have raised ValueError")
+        return 1
+    except ValueError as e:
+        print(f"[5b] build_proxy_safe_report proxy混入 → ValueError raised OK")
+
+    # 6. token budget OK/WARN/CRITICAL
+    r6a = token_budget_check("GPT", 50_000)
+    assert r6a["status"] == "OK"
+    r6b = token_budget_check("GPT", 85_000)
+    assert r6b["status"] == "WARN"
+    r6c = token_budget_check("GPT", 95_000)
+    assert r6c["status"] == "CRITICAL"
+    print(f"[6] token_budget_check OK/WARN/CRITICAL → all correct")
+
+    # 7. compact_resolved_sections
+    state = load_state()
+    state["resolved_issues"] = ["race condition", "stall Watchdog"]
+    state["unresolved_critical_issues"] = ["test issue A"]
+    save_state(state)
+    summary_path = compact_resolved_sections(99)
+    assert Path(summary_path).exists()
+    content = Path(summary_path).read_text(encoding="utf-8")
+    assert "race condition" in content and "test issue A" in content
+    print(f"[7] compact_resolved_sections → {summary_path} ({len(content)} chars)")
+    Path(summary_path).unlink(missing_ok=True)
+
+    # 8. create_session_handoff
+    handoff_path = create_session_handoff(99)
+    assert Path(handoff_path).exists()
+    handoff_content = Path(handoff_path).read_text(encoding="utf-8")
+    assert "Session Handoff" in handoff_content and "Resume instruction" in handoff_content
+    print(f"[8] create_session_handoff → {handoff_path} ({len(handoff_content)} chars)")
+    Path(handoff_path).unlink(missing_ok=True)
+
+    # restore state
+    state["resolved_issues"] = ["race condition", "stall Watchdog", "Shuji proxy pre-check", "token overflow strategy", "Claude Code always-on operation burden", "Phase 2 trigger definition"]
+    state["unresolved_critical_issues"] = []
+    save_state(state)
+
+    print("=" * 60)
+    print("Phase 1.5 P1 Self-Test PASSED")
+    print("=" * 60)
+    return 0
+
+
+# =====================
 # Claude Slot Dry-run (GPT第60 R50-CLAUDE-SLOT-DRY-RUN-9174)
 # =====================
 CLAUDE_PROMPTS_DIR = LOGS_DIR / "claude_prompts" if 'LOGS_DIR' in dir() else (Path(__file__).resolve().parent.parent / "logs" / "claude_prompts")
@@ -2546,6 +2915,8 @@ if __name__ == "__main__":
         sys.exit(run_claude_slot_dry_run())
     if "--watchdog-self-test" in sys.argv:
         sys.exit(run_watchdog_self_test())
+    if "--p1-self-test" in sys.argv:
+        sys.exit(run_p1_self_test())
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
