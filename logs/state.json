@@ -3,14 +3,31 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Awaiting Gemini Priority 2 Route B re-audit verbatim for GPT review",
+  "current_phase": "Priority 2 final design draft v4 revision received",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
   "next_actor": "GPT",
-  "orchestrator_phase": "awaiting_gpt_review_of_gemini_route_b_verbatim",
+  "orchestrator_phase": "priority2_final_design_v4_revision_received",
+  "priority2_final_design_v4_revision_file": "logs/rounds/R50_PRIORITY2_FINAL_DESIGN_V4_REVISION.md",
+  "priority2_v4_revisions_applied": [
+    "経路B主経路: 自動USDC化 → Spot着金→Spot売却→USDC取得",
+    "経路B第二バックアップ: 同様修正",
+    "禁止表現 (自動USDC化/自動スワップ/Hyperliquid側で自動/着金時にUSDC化) 採用経路本文より全削除",
+    "Spot Fills税務ログ7項目追加",
+    "CryptoAct CSV連携前提を運用要件に追加",
+    "XRP→Hyperliquid直送 永久却下追加",
+    "Hyperliquid Spot売却時税務リスク注意喚起追加"
+  ],
+  "priority2_v4_grep_check": {
+    "採用経路本文_禁止表現": 0,
+    "残存_禁止表現リスト": 4,
+    "残存_削除確認説明": 2,
+    "残存_却下経路見出し": 1,
+    "判定": "修正成功 (採用経路本文に禁止表現なし)"
+  },
   "priority2_route_b_gemini_reaudit_summary": {
     "direction_approval": "承認 (Solana/CCTP構造は極めて妥当)",
     "critical_correction": "Q1自動USDC化はNo - HyperliquidはSpotアカウントにSOLとして着金、 マニュアル売却でUSDC化",
@@ -245,7 +262,7 @@
   "consensus_candidate": true,
   "unresolved_critical_issues": [],
   "final_report_ready": true,
-  "blocker": "Gemini Route B re-audit summary received, verbatim required before design revision directive",
+  "blocker": "Awaiting GPT review of final design draft v4 revision",
   "priority2_route_b_physical_path_verification_file": "logs/rounds/R50_PRIORITY2_ROUTE_B_PHYSICAL_PATH_VERIFICATION.md",
   "priority2_route_b_v3_5": {
     "main": "GMO→SOL→Phantom WL→Router Nitro Hyperliquid直接入金 (自動USDC化)",

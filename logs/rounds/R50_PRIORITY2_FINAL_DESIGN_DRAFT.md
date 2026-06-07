@@ -1,10 +1,11 @@
-# R50 Priority 2 Final Design Draft
+# R50 Priority 2 Final Design Draft (v4)
 
-**作成日時 (JST)**: 2026-06-07 09:35:00
-**Verify Token**: `[Final-Design-Draft-Verify: R50-PRIORITY2-FINAL-DESIGN-DRAFT]`
+**作成日時 (JST)**: 2026-06-07 09:35:00 (v3) → 10:40:00 (v4)
+**Verify Token**: `[Final-Design-Draft-Verify: R50-PRIORITY2-FINAL-DESIGN-DRAFT-V4]`
 **Author**: Claude (実装担当)
-**Trigger**: GPT指示 Section 105 (R50-PRIORITY2-FINAL-DESIGN-DRAFT-6038)
-**Source**: Matrix v3 clean + Gemini Round 2再監査結果 + GPT v3経路定義固定
+**Trigger**: GPT指示 Section 111 (R50-PRIORITY2-FINAL-DESIGN-V4-REVISION-9224) + Gemini Route B 再監査 Section 110
+**Source**: Matrix v3 clean + Gemini Round 2再監査 + Gemini Route B 再監査 + Hyperliquid公式仕様
+**Status**: draft / pending GPT review (consensus_candidate=false維持)
 
 ---
 
@@ -22,101 +23,128 @@
 
 ---
 
-## 経路B (Hyperliquid本命)
+## 経路B (Hyperliquid本命) — v4 確定
 
 国内CEX → 自己管理ウォレット → Hyperliquid/dYdX
 
 ### 経路B主経路
 
-**フロー**: GMOコイン → XRP/SOL → 自己管理WL (MetaMask/Phantom) → Hyperliquid内部USDCスワップ
-
-**詳細手順**:
+**フロー**:
 1. 国内銀行から GMOコインへ日本円入金
-2. GMOコイン取引所/販売所で **XRPまたはSOLを購入** (USDCは購入しない)
-3. GMOコインから自己管理ウォレットへ XRP/SOL送金 (Travel Rule申告、 送金fee無料)
-4. 自己管理ウォレットから Hyperliquid (Arbitrum等) へ XRP/SOL ブリッジ送金
-5. **Hyperliquid内部でUSDCにスワップ** (DEX内部スワップ)
-
-**必須反映事項**:
-- ❌ **GMO起点USDC直送記述は削除** (GMOはUSDC取扱なし、 Matrix v3 Claim 5 Pending=除外)
-- ✅ GMOはUSDC調達元ではなく、 **XRP/SOL調達・送金元**
-- ✅ Hyperliquid側でUSDC化 (DEX内部スワップ)
-- ✅ **SOL/XRP→USDC交換時点の税務ログ必須** (国税庁準拠、 雑所得対象)
-- ✅ **CryptoAct等CSV連携を運用要件に組み込む** (税務記録自動化)
+2. GMOコイン取引所/販売所で **SOLを購入** (XRPは購入しない、 USDCは取扱なし)
+3. GMOコインから Phantom自己管理ウォレットへ SOL送金 (Travel Rule申告、 送金fee無料)
+4. Phantom自己管理ウォレットから Router Nitro等経由で Hyperliquidへ SOL入金
+5. **Hyperliquid Spotアカウントに SOLとして着金** (証拠金として使えるUSDCではない)
+6. **Hyperliquid内 SOL/USDC Spot市場で売却して USDCを取得** (ユーザー自身が実行)
+7. 売却で得たUSDCを Hyperliquid Perp証拠金として利用
 
 **Verified根拠**:
+- GMO SOL対応 ✅ (Matrix Verified)
 - GMO出金fee無料 ✅
-- GMO SOL対応 ✅
 - 国内CEX→Hyperliquid直送不可 → 自己管理WL中継必須 ✅
-- SOL/XRP→USDC交換=利確 ✅
-- bitbank fee XRP 0.1/SOL 0.009 (経路B第二バックアップで採用) ✅
+- Hyperliquid SOL Router Nitro経由直接入金対応 ✅ (Gemini再監査確認、 公式Bridge2)
+- **Hyperliquid Spotアカウント着金仕様** ✅ (Gemini再監査明示、 公式Onboarding)
+- **SOL/USDC Spot市場売却でUSDC取得** ✅ (Gemini再監査明示)
+
+**禁止表現**:
+- ❌ 「自動USDC化」
+- ❌ 「Hyperliquid側で自動USDC化」
+- ❌ 「自動スワップ」
+- ❌ 「着金時にUSDC化」
 
 ### 経路B副経路
 
-**フロー**: SBI VC → USDC直購入 → 自己管理WL → Hyperliquid
-
-**詳細手順**:
+**フロー**:
 1. 国内銀行から SBI VCトレードへ日本円入金
 2. SBI VC販売所で **USDCを直接購入** (国内唯一)
 3. SBI VCから自己管理ウォレットへ USDC送金 (送金fee無料)
-4. 自己管理ウォレットから Hyperliquidへ USDC送金
+4. 自己管理ウォレットから CCTP対応chain (Base/Ethereum/Avalanche等) 経由で Hyperliquidへ **ネイティブUSDC入金** (Circle CCTP、 1クリック)
+5. Hyperliquid証拠金として直接利用 (Spot売却不要)
 
-**必須反映事項**:
-- ⚠️ **1回100万円相当額の入出庫制限** (SBI VC公式FAQ明記、 法的制約)
-- ✅ 大額時は **複数回分割** または **経路B主経路へ切替**
-- ✅ SBI VCは **副経路扱い** (主経路はGMO起点)
+**v4でも維持** (Gemini再監査で完全に妥当と判定)
 
 **Verified根拠**:
 - SBI VC→USDC直購入 ✅ (国内唯一)
 - SBI VC送金fee無料 ✅
-- 100万円/回制限 ✅ (公式FAQ)
+- Circle CCTP対応 (Hyperliquid 2025年12月全面採用) ✅ (Gemini再監査明示)
+- ネイティブUSDC 1クリック入金 ✅
+
+**制約**:
+- ⚠️ **1回100万円相当額の入出庫制限** (SBI VC公式FAQ明記、 日本電子決済手段移動規制)
+- ✅ 大額時は **複数回分割** または **経路B主経路へ切替**
 
 ### 経路B第二バックアップ
 
-**フロー**: bitbank → XRP/SOL → 自己管理WL → Hyperliquid
-
-**詳細手順**:
+**フロー**:
 1. 国内銀行から bitbank へ日本円入金
-2. bitbank取引所 (板取引) で **XRPまたはSOLを購入** (Maker -0.02% 適用可)
-3. bitbankから自己管理ウォレットへ XRP/SOL送金 (送金fee発生)
-4. 自己管理ウォレットから Hyperliquid (Arbitrum等) へ XRP/SOL ブリッジ送金
-5. Hyperliquid内部でUSDCにスワップ
+2. bitbank取引所 (板取引、 Maker -0.02%推奨) で **SOLを購入**
+3. bitbankから Phantom自己管理ウォレットへ SOL送金 (送金fee 0.009 SOL)
+4. Phantom自己管理ウォレットから Router Nitro等経由で Hyperliquidへ SOL入金
+5. **Hyperliquid Spotアカウントに SOLとして着金**
+6. **Hyperliquid内 SOL/USDC Spot市場で売却して USDCを取得**
 
-**必須反映事項**:
-- ✅ **XRP送金fee 0.1 XRP** (Gemini公式2026年6月1日改定版確認)
-- ✅ **SOL送金fee 0.009 SOL** (同上)
-- ✅ **GMO障害時バックアップ** (常用ではない)
-- ✅ **コスト試算別枠** (送金fee + 日本円出金fee 550-770円 を別管理)
-
-**Verified根拠**:
-- bitbank SOL対応 ✅
-- bitbank fee XRP 0.1/SOL 0.009 ✅
+**採用条件**:
+- GMO障害時のバックアップ (常用ではない)
+- 板取引Maker -0.02% で調達コスト低
+- 送金fee 0.009 SOL + 日本円出金fee 550-770円 → コスト試算別枠管理
 
 ---
 
-## 却下経路 (Verified)
+## 税務ログ仕様 (v4 追加 - 必須)
+
+### 税務トリガー
+- **GMO/bitbank での SOL購入時点**: 取得価額 (円建) 記録 (将来の利確計算ベース)
+- **GMO/bitbank → 自己管理WL → Hyperliquid 送金**: 非課税 (自己名義間移動)、 Travel Rule申告ログのみ保存
+- **Hyperliquid内 SOL → USDC Spot売却時点**: ⚠️ **最大の税務トリガー (利確発生)**
+  - SOL取得価額 (円建) と USDC交換時点の円換算時価の差額 = **雑所得 (総合課税)** 対象
+  - 個人申告で雑所得計算必須
+
+### Spot Fills (現物約定履歴) 保存項目 (7項目)
+Hyperliquid内 SOL/USDC Spot売却時、 以下を**絶対消失不可**で保存:
+
+1. **SOL数量** (売却した SOL の数量)
+2. **USDC獲得量** (取得した USDC の数量)
+3. **約定時刻** (UTC + JST両方推奨)
+4. **約定価格** (SOL/USDC レート)
+5. **約定時点の USD/JPY 円換算レート** (国税庁準拠の利確計算用)
+6. **手数料** (Hyperliquid Spot taker/maker fee)
+7. **取引ID** (Hyperliquid Spot Fill ID)
+
+### CSV連携前提
+- CryptoAct等 (税務計算サービス) へ自動CSV連携前提で設計
+- 月次・年次の利確計算自動化
+- 確定申告時の雑所得計算ロジック実装
+
+---
+
+## 却下経路 (Verified + Gemini Route B再監査追加)
 
 ### 1. 国内CEX → USDC直接送金 → DEX
-- **理由**: USDC国内取扱はSBI VCのみ (Pending: GMO USDC取扱なし、 Provisional: bitFlyer/bitbank USDC公式発表なし)
+- **理由**: USDC国内取扱はSBI VCのみ (Matrix v3 clean Pending: GMO USDC取扱なし、 Provisional: bitFlyer/bitbank USDC公式発表なし)
 - **判定**: 経路設計から除外
 
 ### 2. 国内CEX → Hyperliquid直接送金
-- **理由**: Travel Rule TRUST/GTR非互換 + Hyperliquid通知対象国未登録 → 国内CEX側システム的に一律拒否
-- **判定**: 構造的不可、 自己管理WL中継必須
+- **理由**: Travel Rule TRUST/GTR非互換 + 通知対象国未登録 → 国内CEX側システム的に一律拒否 (Gemini Matrix Verified)
+- **判定**: 構造的不可
 
 ### 3. bitFlyer SOL中継
 - **理由**: bitFlyer SOL公式取扱なし (Provisional、 外部情報のみ)
 - **判定**: 経路設計から除外
 
-### 4. Wise既定路線
-- **理由**: Round 50第1周〜第2周で「Wise送金=規約違反」 と確定 (memory project_round50_session_state.md参照)
+### 4. **GMO/bitbank → XRP → Hyperliquid直送** (v4 新規追加却下)
+- **理由**: Hyperliquid公式直接入金リストにXRPなし (BTC, ETH/ENA, SOL, MON, XPL等のみ)
+- **判定**: **永久却下** (Gemini Route B再監査明示)
+- **追加注記**: XRPを使う場合は別途USDC化経路の再検証が必要 (現時点では Route B Hyperliquid入金候補から外す)
+
+### 5. Wise既定路線
+- **理由**: Round 50第1周〜第2周で「Wise送金=規約違反」 確定 (memory project_round50_session_state.md)
 - **判定**: 経路設計から除外
 
 ---
 
 ## 注意喚起 (Provisional - Shujiさん向け明示必須)
 
-### Hyperliquid/dYdX 法的グレーゾーン
+### Hyperliquid/dYdX 法的グレーゾーン (v3から維持)
 - **2026-06-07現在の状況**:
   - 日本居住者ジオフェンシング未実施 (アクセス可)
   - ただし FSA未登録業者
@@ -129,59 +157,65 @@
   - **利益はこまめに国内還流**
   - **資金の全額ロックを避ける**
 
-### Hyperliquid内部USDCスワップの税務リスク
-- DEX内部USDCスワップ = 雑所得発生 (国税庁準拠)
-- 取得価額・売却価額のログ必須
+### Hyperliquid Spot売却時の税務リスク (v4 新規追加)
+- SOL→USDC Spot売却 = 「暗号資産同士の交換」 で利確発生 (国税庁準拠)
+- 取得価額・売却価額のログ必須 (Spot Fills 7項目)
 - CryptoAct等CSV連携で自動化推奨
+- 確定申告時の雑所得計算ロジック実装必須
 
-### SBI VC 100万円/回制限
+### SBI VC 100万円/回制限 (v3から維持)
 - 大額送金時の運用手順を明文化
-- 分割送金 or 経路B主経路 (GMO→XRP/SOL) への切替判断ロジック
+- 分割送金 or 経路B主経路 (GMO→SOL) への切替判断ロジック
 
 ---
 
 ## 残Provisional/Pending (consensus_candidate=true移行時の確認必要事項)
 
-### Provisional (4件)
+### Provisional (4件 - Matrix v3 clean維持)
 1. bitFlyer SOL対応 (公式取扱なし)
 2. bitFlyer USDC対応 (公式発表なし)
 3. bitbank USDC対応 (公式発表なし)
 4. Hyperliquid/dYdX 日本居住者可否 (現アクセス可だが規約変更リスク)
 
-### Pending (1件)
+### Pending (1件 - Matrix v3 clean維持)
 1. GMO USDC対応 (取扱なし、 経路設計から除外済み)
 
 ### 設計書側 残作業
-- ✅ GMO起点USDC直送記述削除 (本design draftで対応)
-- ✅ 経路B主経路「DEX内部USDCスワップ」 記述追加 (本design draftで対応)
-- ✅ SBI VC 100万円/回制限ハンドリング規定追加 (本design draftで対応)
+- ✅ GMO起点USDC直送記述削除 (v3で対応済み)
+- ✅ 経路B主経路「Spot着金→Spot売却→USDC取得」 記述追加 (v4で対応済み)
+- ✅ SBI VC 100万円/回制限ハンドリング規定追加 (v3で対応済み)
+- ✅ Spot Fills 7項目税務ログ仕様追加 (v4で対応済み)
+- ✅ 「自動USDC化」 表現の全削除 (v4で対応済み)
+- ✅ XRP→Hyperliquid直送却下追加 (v4で対応済み)
 
 ---
 
 ## Priority 2 consensus_candidate判定
 
-**現状**: **false 維持**
+**現状**: **false 維持** (v4でも同様)
 
 理由:
-- final design draft作成完了 ✅
+- final design draft v4作成完了 ✅
 - ただし、 GPT最終確認待ち
-- 3者合意 (Gemini再監査結果との整合確認) 後にtrue候補化可能
+- 3者合意 (Gemini Round 3最終確認結果との整合確認) 後にtrue候補化可能
 
 ---
 
 ## 次のステップ (Claude推奨)
 
-1. 本design draftをGPT判定
-2. GPT判定OKなら、 Gemini追加確認 (オプション、 Claude推奨は不要)
-3. consensus_candidate=true 候補化 → Shujiさん最終承認
+1. 本v4 final design draft + V4_REVISION.md を GPT判定 (本report)
+2. GPT判定OKなら、 **Gemini Round 3最終確認** (Spot着金仕様 + Spot Fills税務ログ反映確認)
+3. Round 3でGemini承認後、 consensus_candidate=true候補化
+4. Shujiさん最終承認 (3者合意成立時のみ報告)
 
 ---
 
 ## 必須末尾タグ
 
-`[Final-Design-Draft-Verify: R50-PRIORITY2-FINAL-DESIGN-DRAFT]`
+`[Final-Design-Draft-Verify: R50-PRIORITY2-FINAL-DESIGN-DRAFT-V4]`
 `[NextActor: GPT]`
-`[EndTime-JST: 09:35:00 (real Bash取得予定)]`
+`[EndTime-JST: 10:40:00 (real Bash取得予定)]`
 `[priority2-consensus_candidate-current: false]`
+`[v4_revisions_applied: 自動USDC化全削除 + Spot Fills税務ログ7項目追加 + XRP直送永久却下追加]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
