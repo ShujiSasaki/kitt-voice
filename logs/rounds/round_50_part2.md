@@ -5726,3 +5726,29 @@ grep確認結果 (R50_PRIORITY2_FINAL_DESIGN_V4_REVISION.md L3参照):
 `[recommended_next: GPT確認 → Gemini Round 3最終確認 (Q1-Q5) → consensus_candidate=true候補化 → Shujiさん承認]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 113. GPT 第137応答 verbatim (Gemini Round 3送信承認) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PRIORITY2-FINAL-DESIGN-V4-GEMINI-ROUND3-SEND-5581]`
+
+GPTレビュー: v4全文受領、 **Gemini Round 3最終確認へ進める**。 Priority 2 consensus_candidate=false維持。
+
+### Geminiへの送信内容
+- 固定定義 (経路A/経路B)
+- v4経路B主経路 (GMO→SOL→Phantom WL→Router Nitro等経由Hyperliquid→Spotアカウント着金→SOL/USDC Spot売却→USDC取得)
+- v4経路B副経路 (SBI VC→USDC直購入→自己管理WL→CCTP対応chain経由Hyperliquidネイティブ入金、 100万円/回制限)
+- v4経路B第二バックアップ (bitbank→SOL→Phantom WL→Router Nitro等→Spot着金→Spot売却)
+- v4修正済み事項 (自動USDC化削除、 Spot Fills 7項目、 CryptoAct CSV連携)
+- Q1-Q6 (v4反映確認/Spot Fills十分性/SBI VC採用可否/XRP却下表現/残修正必須/consensus判定)
+- 必須末尾タグ指示
+
+### Send成功条件
+editor=0 / userCount+1 / stopBtn=true or assistant_count増 / 送信後real_send=false復帰
+
+`[GPT-Verify: R50-PRIORITY2-FINAL-DESIGN-V4-GEMINI-ROUND3-SEND-5581]`
+`[NextActor: Claude]`
+`[EndTime-JST: 11:12:00 (Claude記帳real Bash取得予定)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
