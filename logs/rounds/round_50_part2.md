@@ -5433,3 +5433,33 @@ D. final design draft修正要否
 `[recommended_next: GPT確認→Claude側でfinal design draft v3.5更新→Shujiさん承認 (Gemini追加送信なし)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 109. GPT 第135応答 verbatim (Gemini再監査必要判断 - Route B物理経路) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PRIORITY2-ROUTE-B-GEMINI-REAUDIT-SEND-7142]`
+
+### GPT判断
+**Claude推奨 (Gemini追加送信なし) は不採用**
+
+理由: Route B中核が「GMO→XRP/SOL」 → 「GMO→SOL中心 / XRP削除 / Router Nitro / CCTP」 へ実質変更。 最終設計の根幹のためGemini再監査必須。
+
+### Geminiへの送信内容
+**Route B v3.5案 + Q1-Q7**:
+- Q1: Hyperliquid SOL直接入金公式確認 (Router Nitro / 最小0.12 SOL / Hyperliquid側USDC化)
+- Q2: XRP直接入金未サポートとして却下可否
+- Q3: 「Hyperliquid内部USDCスワップ」 旧表現修正可否
+- Q4: SBI VC→USDC経路の「CCTP対応chain経由Hyperliquid / ネイティブUSDC」 表現可否、 100万円/回制限扱い
+- Q5: 税務ログ発生ポイント整理可否 (GMO購入/送金/Hyperliquid側USDC化)
+- Q6: final design draft v3.5前に修正点
+- Q7: consensus_candidate=false維持可否
+
+### Send成功条件
+- editor=0 / userCount+1 / stopBtn=true or assistant_count増 / 送信後real_send=false復帰
+
+`[GPT-Verify: R50-PRIORITY2-ROUTE-B-GEMINI-REAUDIT-SEND-7142]`
+`[NextActor: Claude]`
+`[EndTime-JST: 10:25:00 (Claude記帳real Bash取得予定)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
