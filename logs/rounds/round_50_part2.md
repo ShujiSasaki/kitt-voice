@@ -5276,3 +5276,160 @@ GPT確認 → 問題なければ Claude推奨フロー (Gemini追加送信なし
 `[recommended_next: GPT確認 → Claude推奨フロー (Gemini追加送信なし) → Shujiさん承認]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 107. GPT 第134応答 verbatim (Hyperliquid物理入金経路検証指示) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-VERIFICATION-4496]`
+
+### GPT指摘
+final design draft 構成は有効だが、 「GMO→XRP/SOL→自己管理WL→Hyperliquid内部USDCスワップ」 の **物理経路が曖昧**。 Hyperliquidが何を受け付けるか公式ソース確認必須。
+
+### 検証要求
+A. Hyperliquidが受け付ける入金資産
+- USDCのみか
+- XRP/SOL直接入金可能か
+- 対応チェーン (Arbitrum / HyperEVM / Solana等)
+
+B. GMO→XRP/SOL→自己管理WL後の実フロー候補
+- 候補1: XRP/SOLをHyperliquidへ直接入金
+- 候補2: 自己管理WL側でXRP/SOL→USDCスワップ → Hyperliquid入金
+- 候補3: CEX/DEX/Bridge経由でUSDC化 → Hyperliquid入金
+- 候補4: SOL経路はHyperliquidではなく別DEX向け限定
+
+C. 税務ログ発生ポイント整理
+- GMOでXRP/SOL購入
+- 自己管理WLでXRP/SOL→USDC交換
+- Hyperliquid内部スワップ
+- ブリッジ時
+
+D. final design draft修正要否
+
+### 新規ファイル
+`logs/rounds/R50_PRIORITY2_ROUTE_B_PHYSICAL_PATH_VERIFICATION.md`
+
+### 制約
+- final design draft はまだ final扱いせず、 status=draft / pending physical route verification
+- Gemini追加送信なし
+
+`[GPT-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-VERIFICATION-4496]`
+`[NextActor: Claude]`
+`[EndTime-JST: 09:55:00 (Claude記帳real Bash取得予定)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 108. Claude Route B Physical Path Verification完了 + 3スロット監査発言 — 2026-06-07 09:55:00
+
+### Verify Token: `[Claude-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-VERIFICATION]`
+
+### Slot 1: 前1人監査 (GPT Section 107指摘の監査)
+
+**GPTの懸念の妥当性評価**:
+
+- ✅ **「Hyperliquid内部USDCスワップ」 物理経路曖昧指摘**: 妥当。 Claude (v3 final design draft) と Gemini Section 99 はこの表現を採用したが、 公式仕様を直接確認しないまま記述。 実際の検証で:
+  - SOL→Hyperliquid直接入金 = サポートあり (Router Nitro経由、 最小0.12 SOL)
+  - XRP→Hyperliquid直接入金 = サポート未確認 (公式リストになし、 おそらく不可)
+  - Hyperliquidが retire を発表した Arbitrum bridge → ネイティブUSDC (CCTP) 移行中
+  この複雑な物理仕様を「Hyperliquid内部USDCスワップ」 一語でまとめるのは確かに曖昧。
+- ✅ **final design draft をまだ true 合意にしない判断**: 妥当。 物理経路曖昧のまま consensus_candidate=true にすれば Shujiさんが実送金時に詰まる。 司会として正しい判断。
+
+**結論**: GPT Section 107の指摘に **完全合意**。 Claude/Gemini双方が見落としていた重要な公式仕様確認漏れを指摘。
+
+### Slot 2: 前2人監査 (Gemini Round 2再監査との整合監査)
+
+**Gemini Section 99判定 vs 公式仕様検証結果**:
+
+- ⚠️ **Gemini「Hyperliquid内部USDCスワップ」 表現**: そのまま採用は危険
+  - Geminiは「経路A (主経路: コスト最適・調達分離型) GMOコイン → 自己管理ウォレット → Hyperliquid (Arbitrum経由等で入金、 内部でUSDCへスワップ)」 と記述
+  - これは「Arbitrum bridgeでUSDC入金」 = ネイティブUSDC送金を想定した可能性が高い (XRP/SOL直送ではなく)
+  - ただし「GMOコインで XRP/SOL購入→送金」 とも書いており、 物理経路が混在
+- ✅ **公式入金仕様まで確認しないと危険**: その通り
+  - Hyperliquidの SOL直接入金は2026年に Router Nitro統合で初めて可能になった (それ以前はArbitrum USDCのみ)
+  - 公式仕様変更を Gemini再監査時点で完全反映できていなかった可能性
+- ✅ **Gemini再監査判定 (Verified 10/Provisional 4/Pending 1) の確度**: 変更不要
+  - 各claimの公式判定は妥当 (Verified/Provisional/Pending分類)
+  - 影響範囲は「物理経路の記述」 のみで、 Matrix判定自体は維持可能
+
+**結論**: Gemini判定軸 (取扱可否) は妥当だが、 物理経路 (どのチェーンで何を送るか) は Claude側で公式直接確認が必要 → 本verificationで対応済み
+
+### Slot 3: 自己ターン (Claude実装担当発言)
+
+#### A. 公式ソース確認結果
+
+新規ファイル作成: `logs/rounds/R50_PRIORITY2_ROUTE_B_PHYSICAL_PATH_VERIFICATION.md`
+
+主要発見:
+1. **Hyperliquid canonical入金**: Arbitrum USDC bridge (最小5 USDC) [公式]
+2. **Router Protocol Nitro統合 (2026年)**: 30+チェーン直接入金、 **SOL 最小0.12 SOL対応**
+3. **XRP直接入金**: 公式リスト未掲載 → サポートなしと判定 (Hyperliquid直送却下)
+4. **Arbitrum bridge retire移行中**: Circle CCTP (Cross-Chain Transfer Protocol) でネイティブUSDC化 (20+ networks)
+
+#### B. 採用できる物理経路
+
+**経路B主経路 (改訂後 v3.5)**:
+- GMOコイン → **SOL** → 自己管理Phantom WL → Router Nitro Hyperliquid直接入金 (自動USDC化)
+
+**経路B副経路 (改訂後 v3.5)**:
+- SBI VC → USDC直購入 → 自己管理WL → CCTP対応chain経由Hyperliquid (ネイティブUSDC)
+
+**経路B第二バックアップ (改訂後 v3.5)**:
+- bitbank → SOL → 自己管理Phantom WL → Router Nitro Hyperliquid直接入金
+
+#### C. 却下すべき物理経路
+
+1. **GMO/bitbank → XRP → Hyperliquid直送**: XRP公式直接入金未サポート → 削除
+2. 国内CEX → USDC直送 → Hyperliquid (Matrix v3で確定済み)
+3. 国内CEX → Hyperliquid直送 (Travel Rule非互換、 Matrix v3で確定済み)
+4. 自己管理WLでXRP/SOL→USDC交換 (候補2): 採用可だが二重スワップで複雑、 候補1に統一
+
+#### D. final design draft の修正案 (v3.5)
+
+修正点:
+1. **「Hyperliquid内部USDCスワップ」 → 「Router Nitro経由SOL直接入金 → Hyperliquid側で自動USDC化」**
+2. **経路B主経路を SOL中心 に統一** (XRP削除)
+3. **SBI VC USDC経路を CCTP対応chain経由に明確化** (Arbitrum bridge retire対応)
+4. **XRP関連 (Hyperliquid直送) 削除**
+
+#### E. Priority 2 consensus_candidate判定
+
+**false維持** (v3.5反映後の最終確認まで)
+
+理由:
+- 公式仕様確認 + 修正方針提示完了 ✅
+- final design draft v3.5への反映 + GPT最終確認待ち
+- v3.5反映後にtrue候補化可能
+
+#### F. Geminiへ再監査が必要か
+
+**Claude判定: 不要 (推奨)**
+
+理由:
+- Gemini判定軸 (取扱可否Matrix) は変更不要、 物理経路は Claude側公式直接確認で対応可能
+- Gemini再監査は「Matrix修正後の再判定」 という条件で完了済み (Section 99)
+- 物理経路修正は実装担当 (Claude) の役割範囲
+
+**Alternative案 (慎重派)**: final design draft v3.5を Gemini に転送し「経路B SOL中心修正OK」 確認 (controlled send 1回)
+
+### 禁止事項遵守確認
+- ✅ Shuji承認代弁なし
+- ✅ 実送金なし
+- ✅ real_send_enabled=false維持
+- ✅ 公式ソース直接確認 (Hyperliquid Gitbook + 公式報道) で結論化
+- ✅ 経路A/B定義変更なし (経路A=Exness/経路B=Hyperliquid系を維持)
+
+`[Claude-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-VERIFICATION]`
+`[NextActor: GPT]`
+`[EndTime-JST: 09:55:00 (real Bash取得)]`
+`[Claude-Approve-GPT-Section107: agreed_completely]`
+`[Claude-Identify-Gemini-Section99-Limitation: 物理経路曖昧、 Matrix判定は妥当]`
+`[Claude-Approve-Route-B-v3.5-Plan: agreed_completely]`
+`[priority2-consensus_candidate-current: false]`
+`[route_b_v3_5_main: GMO→SOL→Phantom WL→Router Nitro Hyperliquid直接入金]`
+`[route_b_v3_5_sub: SBI VC→USDC直購入→WL→CCTP対応chain経由Hyperliquid]`
+`[route_b_v3_5_backup2: bitbank→SOL→Phantom WL→Router Nitro Hyperliquid直接入金]`
+`[recommended_next: GPT確認→Claude側でfinal design draft v3.5更新→Shujiさん承認 (Gemini追加送信なし)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
