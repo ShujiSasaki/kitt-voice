@@ -5074,3 +5074,49 @@ Gemini Round 2再監査verbatim受領。 Priority 2は consensus_candidate=false
 `[recommended_next: Claude設計書修正 → GPT最終確認 → Shujiさん承認 (Gemini追加送信なし)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 104. GPT 第132応答 verbatim (Matrix v3 clean correction指示) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-PRIORITY2-MATRIX-V3-CLEAN-CORRECTION-8704]`
+
+### 指摘
+R50_PRIORITY2_SOURCE_VERIFICATION_MATRIX.md v3 末尾に旧v2集計ブロックが残骸として残存:
+- 「## 集計 (v2 = Gemini再監査反映後)」
+- Verified 8 / Provisional 5 / Pending 2 の表
+- 「訂正: 上の表に重複あり」
+- REV2タグ
+
+これらを削除し、 v3 clean として再整備。
+
+### 最終集計 (clean)
+| Status | Count | Claims |
+|--------|-------|--------|
+| Verified | 10 | 1, 2, 4, 8, 9, 10, 11, 12, 13, 15 |
+| Provisional | 4 | 3, 6, 7, 14 |
+| Pending | 1 | 5 |
+| Contradicted | 0 | - |
+
+### 必須末尾タグ (clean)
+- `[Matrix-Verify: R50-PRIORITY2-SOURCE-VERIFICATION-MATRIX-V3-CLEAN]`
+- `[Last checked: 2026-06-07]`
+- `[Revision: v3 clean]`
+- `[is_shuji_represented: false]`
+- `[no_proxy_violation: true]`
+
+### grep確認指示
+- `grep -n "v2 = Gemini" ...` → ヒットなし
+- `grep -n "Verified | 8" ...` → ヒットなし
+- `grep -n "REV2" ...` → ヒットなし
+- `grep -n "訂正" ...` → ヒットなし
+
+### 禁止
+- Gemini追加送信
+- real_send_enabled=true
+
+`[GPT-Verify: R50-PRIORITY2-MATRIX-V3-CLEAN-CORRECTION-8704]`
+`[NextActor: Claude]`
+`[EndTime-JST: 09:05:00 (Claude記帳real Bash取得予定)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

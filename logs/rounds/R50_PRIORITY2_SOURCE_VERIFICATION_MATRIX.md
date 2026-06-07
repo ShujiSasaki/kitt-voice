@@ -202,33 +202,23 @@
 
 ---
 
-## 集計 (v2 = Gemini再監査反映後)
+## 集計 (v3確定)
 
 | Status | Count | Claims |
 |--------|-------|--------|
-| Verified | 8 | 1, 2, 4, 9, 10, 11, 12, 13, 15 |
-| Provisional | 5 | 3 (bitFlyer SOL), 6 (bitFlyer USDC), 7 (bitbank USDC), 14 (Hyperliquid日本居住者), (and 1 implicit) |
-| Pending | 2 | 5 (GMO USDC=取扱なし除外), 8 partially (Hyperliquid個別case名指し公式FAQはなしだが構造的Verified扱い) |
+| Verified | 10 | 1, 2, 4, 8, 9, 10, 11, 12, 13, 15 |
+| Provisional | 4 | 3, 6, 7, 14 |
+| Pending | 1 | 5 |
 | Contradicted | 0 | - |
 
-**訂正**: 上の表に重複あり。 正確な集計:
+Priority 2 consensus_candidate判定:
+false維持
 
-| Status | Count | Claims |
-|--------|-------|--------|
-| Verified | 9 | 1, 2, 4, 8, 9, 10, 11, 12, 13, 15 (合計10) |
+理由:
+設計書側のPriority 2記述修正が未完のため。
 
-実集計:
-- **Verified (10)**: 1, 2, 4, 8, 9, 10, 11, 12, 13, 15
-- **Provisional (4)**: 3, 6, 7, 14
-- **Pending (1)**: 5
-- **Contradicted (0)**: -
-
-合計 15 ✅
-
-**Priority 2 consensus_candidate判定**: 残Pending 3項目 (経路A/B修正反映、 GMO起点USDC直送削除、 SBI VC 100万円/回ハンドリング規定) のため **false 維持**
-
-`[Matrix-Verify: R50-PRIORITY2-SOURCE-VERIFICATION-MATRIX-REV2]`
+`[Matrix-Verify: R50-PRIORITY2-SOURCE-VERIFICATION-MATRIX-V3-CLEAN]`
 `[Last checked: 2026-06-07]`
-`[Revision: v2 (Gemini Round 2再監査反映)]`
+`[Revision: v3 clean]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
