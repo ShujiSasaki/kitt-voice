@@ -5463,3 +5463,84 @@ D. final design draft修正要否
 `[EndTime-JST: 10:25:00 (Claude記帳real Bash取得予定)]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 110. Gemini Route B Physical Path 再監査応答 verbatim (Spot着金仕様修正指摘) — 2026-06-07 10:26:23
+
+### Verify Token: `[Gemini-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-REAUDIT]`
+
+Hyperliquid公式ドキュメント + 2025-26年ブリッジ統合報道を厳密照合。 Claude v3.5案の構造 (Solana/CCTPマルチチェーン) は **極めて妥当**、 ただしQ1自動USDC化とQ5税務ログに **重大な事実誤認** あり。
+
+### Gemini再監査Q1-Q7
+
+**Q1. Hyperliquid SOL直接入金 (2026-06-07時点)**:
+- ✅ Router Nitro経由: **Yes** (2025年1月Router Nitro統合)
+- ✅ 最小0.12 SOL: 実運用上の最小安全値として採用可
+- ❌ **自動USDC化: No (重要)**
+  - SolanaからSOLデポジット時、 Hyperliquid内「Spot (現物) アカウント」 にSOLのまま着金
+  - 証拠金 (Margin) 使用のため、 Hyperliquidスポット市場 (SOL/USDC) で **ユーザー自身が売却** が必要
+  - 「完全自動USDCウォレット残高化」 は誤解、 設計書修正必要
+
+**Q2. XRP直接入金却下**: **妥当** (公式サポート資産: BTC, ETH/ENA, MON, XPL等、 XRP未サポート)
+
+**Q3. 旧表現修正提案**:
+- **修正案**: 「Router Nitro等経由SOL直接デポジット → Hyperliquid内Spot市場でSOLを売却しUSDC化」
+- 「自動USDC化」 はスマートコントラクト側強制スワップ誤解を生む
+
+**Q4. SBI VC→USDC→CCTP対応chain経由Hyperliquid**:
+- ✅ **完全に妥当**
+- 2025年12月よりHyperliquid Circle CCTP全面採用、 ネイティブUSDC 1クリック入金サポート
+- CCTP対応chain (Base/Avalanche/Ethereum等) 経由でネイティブ入金は2026年最速・最安全
+- ✅ 100万円/回制限は副経路への制約記載必須 (SBI VC公式FAQ準拠)
+
+**Q5. 税務ログ発生ポイント (重要修正)**:
+- GMOでSOL購入: ◯ 取得価額記録 (円建)
+- GMO→自己管理WL送金 / 自己管理WL→Hyperliquid送金: △ 自己名義間移動なら非課税、 Travel Rule申告ログのみ
+- **Hyperliquid側SOL→USDC化: ❌ 最大の税務トリガー**
+  - 「自動USDC化」 ではなく Hyperliquid内「SOLを売却してUSDC交換」 時点で **利確発生**
+  - SOL取得価額と交換時点の円換算時価差額が **雑所得 (総合課税)** 対象
+  - **取引ログ (Spot Fill Log) 絶対消失不可**
+
+**Q6. v3.5案修正点**:
+- 経路B (主・第二バックアップ) の「自動USDC化」 → 「Spot着金後にUSDCへ交換」
+- 税務ログ発生箇所が「DEX内Spot取引 (SOL/USDC)」 であることを設計書に明記
+
+**Q7. consensus_candidate判定**: **false維持**
+- 物理経路方向性 (Solana/CCTP) は完璧
+- ただし自動スワップ誤認による税務リスク・UI操作手順齟齬を Claude が修正するまで true 不可
+
+### Gemini承認結果
+- **方向性**: 承認 (Arbitrum bridge依存脱却、 Router Nitro/CCTPに即した近代化)
+- **欠陥**: SOL着金後の挙動 (Spotアカウント着金、 マニュアル売却で証拠金化、 税務利確発生) の記述漏れ
+
+### 採用してよい物理経路 (Gemini承認)
+- 経路B主: GMO → SOL → Phantom → Router Nitro等経由Hyperliquid → 【要修正】Hyperliquid内SOL売却でUSDC化
+- 経路B副: SBI VC → USDC直接購入 → 自己管理WL → CCTP対応chain (Base/Ethereum等) 経由Hyperliquid (100万円/回制限)
+- 経路B第二バックアップ: bitbank → SOL購入 (板取引Maker推奨) → Phantom → Router Nitro経由Hyperliquid → 【要修正】Hyperliquid内SOL売却でUSDC化
+
+### 却下すべき物理経路 (Gemini承認)
+- 国内CEX → XRP → Hyperliquid直送 (公式非対応、 永久却下)
+
+### final design draft 修正指示 (Gemini明示)
+
+```
+## 【修正指示: 物理経路Bの挙動および税務定義】
+
+1. 記述の変更 (自動化の否定):
+   - 誤: 「Hyperliquid側で自動USDC化」
+   - 正: 「HyperliquidのSpotアカウントにSOLとして着金 ➔ Hyperliquid内のSOL/USDCスポット市場で売却してUSDCを取得」
+
+2. 税務ログ仕様の厳格化:
+   - Hyperliquid内での「SOL ➔ USDC」 への交換行為は、 日本法における「暗号資産同士の交換 (利確イベント)」 に該当
+   - したがって、 Hyperliquidの「Spot Fills (現物約定履歴)」 から、 交換時のSOL数量・USDC獲得量、 およびその時点の対円レートをログとして保存する機構を設計に組み込むこと
+```
+
+### consensus_candidate判定
+**false維持**。 上記修正指示反映後、 Round 3でtrue移行承認。
+
+`[Gemini-Verify: R50-PRIORITY2-ROUTE-B-PHYSICAL-PATH-REAUDIT]`
+`[NextActor: Claude]`
+`[EndTime-JST: 10:26:23]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`

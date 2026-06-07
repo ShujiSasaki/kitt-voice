@@ -3,14 +3,26 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Priority 2 Route B physical path Gemini re-audit approved",
+  "current_phase": "Priority 2 Route B Gemini re-audit received",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
-  "next_actor": "Gemini",
-  "orchestrator_phase": "priority2_route_b_gemini_reaudit_approved",
+  "next_actor": "Claude",
+  "orchestrator_phase": "priority2_route_b_gemini_reaudit_received",
+  "priority2_route_b_gemini_reaudit_summary": {
+    "direction_approval": "承認 (Solana/CCTP構造は極めて妥当)",
+    "critical_correction": "Q1自動USDC化はNo - HyperliquidはSpotアカウントにSOLとして着金、 マニュアル売却でUSDC化",
+    "tax_trigger": "Hyperliquid内SOL→USDC交換時点で利確発生 (雑所得・総合課税)",
+    "tax_log_requirement": "Spot Fills (現物約定履歴) からSOL数量・USDC獲得量・対円レートをログ保存",
+    "design_revisions_required": [
+      "経路B (主・第二バックアップ) 「自動USDC化」 → 「Spot着金後にUSDCへ交換」",
+      "税務ログ発生箇所 = DEX内Spot取引 (SOL/USDC) の明記"
+    ],
+    "consensus_candidate": false,
+    "round_3_approval_condition": "上記修正反映後にtrue移行承認"
+  },
   "priority2_round2_matrix_revision_file": "logs/rounds/R50_PRIORITY2_ROUND2_MATRIX_REVISION.md",
   "priority2_matrix_revision_v2": {
     "verified_count": 10,
@@ -233,7 +245,7 @@
   "consensus_candidate": true,
   "unresolved_critical_issues": [],
   "final_report_ready": true,
-  "blocker": null,
+  "blocker": "Awaiting Claude design revision per Gemini Route B re-audit (Spot account specification + tax log)",
   "priority2_route_b_physical_path_verification_file": "logs/rounds/R50_PRIORITY2_ROUTE_B_PHYSICAL_PATH_VERIFICATION.md",
   "priority2_route_b_v3_5": {
     "main": "GMO→SOL→Phantom WL→Router Nitro Hyperliquid直接入金 (自動USDC化)",
