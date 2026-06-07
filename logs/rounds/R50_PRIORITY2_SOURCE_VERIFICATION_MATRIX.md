@@ -1,20 +1,32 @@
 # R50 Priority 2 Source Verification Matrix
 
 **Last checked date**: 2026-06-07
-**Verify Token**: `[Matrix-Verify: R50-PRIORITY2-SOURCE-VERIFICATION-MATRIX-REV2]`
-**Round**: 2 (Claude Source Verification + Gemini再監査反映 revision)
+**Verify Token**: `[Matrix-Verify: R50-PRIORITY2-SOURCE-VERIFICATION-MATRIX-V3]`
+**Round**: 2 (Claude Source Verification + Gemini再監査反映 + GPT経路A/B名称衝突修正)
 **Revision history**:
 - v1 (2026-06-07 07:35): Claude初版 (Verified 9 / Provisional 3 / Pending 3 / Contradicted 0)
-- v2 (2026-06-07 08:24): Gemini Round 2再監査反映 (Verified 8 / Provisional 5 / Pending 2 / Contradicted 0)
+- v2 (2026-06-07 08:24): Gemini Round 2再監査反映
+- **v3 (2026-06-07 08:57): GPT指摘経路A/B名称衝突修正 (Verified 10 / Provisional 4 / Pending 1 / Contradicted 0)**
 
 ---
 
-## Summary (v2 = Gemini再監査反映後)
+## 経路定義 (v3固定)
+
+**経路A**: Exness / MT5 / BTC CFD検証枠 (国内銀行振込/クレカ → Exness、 Hyperliquidとは混ぜない)
+
+**経路B**: 国内CEX → 自己管理ウォレット → Hyperliquid/dYdX
+- 主経路: GMOコイン → XRP/SOL → 自己管理WL → Hyperliquid内部USDCスワップ
+- 副経路: SBI VC → USDC直購入 → 自己管理WL → Hyperliquid
+- 第二バックアップ: bitbank → XRP/SOL → 自己管理WL → Hyperliquid
+
+---
+
+## Summary (v3 = GPT経路A/B名称衝突修正後)
 
 - Total claims: 15
-- **Verified**: 8
-- **Provisional**: 5
-- **Pending**: 2
+- **Verified**: 10 (Claims 1, 2, 4, 8, 9, 10, 11, 12, 13, 15)
+- **Provisional**: 4 (Claims 3, 6, 7, 14)
+- **Pending**: 1 (Claim 5)
 - **Contradicted**: 0
 
 ---
@@ -40,7 +52,7 @@
 - **Status**: **Verified** (Gemini再監査でも維持)
 - **Evidence excerpt**: GMOコイン公式に「BTC, ETH, XRP, SOL」 明記、 2022年10月SOL取扱開始
 - **Risk if wrong**: 中継基地不可
-- **Operational decision**: GMOコインを経路A主経路の中継基地として採用
+- **Operational decision**: GMOコインを経路B主経路の中継基地として採用
 - **Last checked**: 2026-06-07
 
 ### Claim 3: bitFlyer SOL対応
@@ -119,7 +131,7 @@
 - **Status**: **Verified** (Gemini再監査でも維持)
 - **Evidence excerpt**: 「日本円出金、 および暗号資産 (全銘柄) の送付手数料が当社負担 (無料)」
 - **Risk if wrong**: 中継選択誤り
-- **Operational decision**: GMOコインを経路A主経路の中継基地最優先として採用
+- **Operational decision**: GMOコインを経路B主経路の中継基地最優先として採用
 - **Last checked**: 2026-06-07
 
 ### Claim 10: bitbank送金手数料 (修正値: XRP 0.1 / SOL 0.009)
@@ -141,7 +153,7 @@
 - **Status**: **Verified** (v1: Provisional → v2: Verified、 Gemini「経路コスト最小化適合」 と確認)
 - **Evidence excerpt**: XRP Ledgerは低fee+高速、 経路コスト最小化に適合
 - **Risk if wrong**: 送金時間概算誤差
-- **Operational decision**: 経路A主経路のXRP送金候補として採用
+- **Operational decision**: 経路B主経路のXRP送金候補として採用
 - **Last checked**: 2026-06-07
 
 ### Claim 12: SOL fee ($0.0005-0.005) / 速度 (1-2秒)
@@ -152,7 +164,7 @@
 - **Status**: **Verified** (v1: Provisional → v2: Verified、 Gemini「経路コスト最小化適合」 と確認)
 - **Evidence excerpt**: Solanaは超低fee+1-2秒高速、 経路コスト最小化に適合
 - **Risk if wrong**: 送金時間概算誤差
-- **Operational decision**: 経路A主経路のSOL送金候補として採用
+- **Operational decision**: 経路B主経路のSOL送金候補として採用
 - **Last checked**: 2026-06-07
 
 ### Claim 13: Travel Rule 2026年運用
@@ -185,7 +197,7 @@
 - **Status**: **Verified** (v1: Provisional → v2: Verified、 Gemini「国税庁準拠、 利益確定」 と確認)
 - **Evidence excerpt**: 国税庁: 暗号資産同士の交換 (SOL→USDC) はその時点の時価円換算で総収入金額算入
 - **Risk if wrong**: 確定申告破綻
-- **Operational decision**: CryptoAct等CSV連携必須、 経路A主経路 (DEX内部USDCスワップ) 時の利確タイミング管理必須
+- **Operational decision**: CryptoAct等CSV連携必須、 経路B主経路 (DEX内部USDCスワップ) 時の利確タイミング管理必須
 - **Last checked**: 2026-06-07
 
 ---

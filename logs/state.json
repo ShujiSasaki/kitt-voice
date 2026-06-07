@@ -3,7 +3,7 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Priority 2 Round 2 Matrix revision received",
+  "current_phase": "Priority 2 Matrix v3 correction received",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
@@ -233,7 +233,21 @@
   "consensus_candidate": true,
   "unresolved_critical_issues": [],
   "final_report_ready": true,
-  "blocker": "Awaiting GPT review of Claude Matrix revision",
+  "blocker": "Awaiting GPT review of Priority 2 Matrix v3 correction",
+  "priority2_matrix_v3_correction_file": "logs/rounds/R50_PRIORITY2_MATRIX_V3_CORRECTION.md",
+  "priority2_matrix_v3_route_definition": {
+    "route_A": "Exness / MT5 / BTC CFD検証枠 (Hyperliquidとは混ぜない)",
+    "route_B_main": "GMO→XRP/SOL→self-wallet→Hyperliquid(内部USDCスワップ)",
+    "route_B_sub": "SBI VC→USDC直購入→self-wallet→Hyperliquid (100万円/回制限)",
+    "route_B_backup2": "bitbank→XRP/SOL→self-wallet→Hyperliquid"
+  },
+  "priority2_matrix_v3_summary": {
+    "verified": 10,
+    "provisional": 4,
+    "pending": 1,
+    "contradicted": 0,
+    "claude_3slot_section": 103
+  },
   "gemini_phase15_audit_received": true,
   "gemini_phase15_recommendation": "候補E (GPT/Gemini 2者合意 + Claude実装ログ監査) 一択、 Phase 1完了報告 今すぐOK",
   "DRY_RUN": true,
