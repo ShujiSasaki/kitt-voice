@@ -3,14 +3,34 @@
   "current_round": 50,
   "current_subround": 2,
   "current_turn": 41,
-  "current_phase": "Awaiting Gemini Priority 2 Round 3 approval verbatim for GPT review",
+  "current_phase": "Priority 2 final polish completed - consensus candidate received",
   "round_title": "🟢🟢🟢🟢 Phase 1.5議論開始 (Claude取り込み案A-E)",
   "round_validity": "in_progress",
   "phase": "R50_phase15_claude_inclusion_design",
   "log_mode": "append_only_part_files",
   "active_part_file": "logs/rounds/round_50_part2.md",
   "next_actor": "GPT",
-  "orchestrator_phase": "awaiting_gpt_review_of_gemini_round3_verbatim",
+  "orchestrator_phase": "priority2_final_polish_consensus_candidate_received",
+  "priority2_consensus_candidate": true,
+  "requires_shuji_final_approval": true,
+  "priority2_final_polish_v4_1": {
+    "spot_fills_item_8_added": "証拠金口座への振替日時 (Spot→Perpsマージン振替ログ、 監査・ガバナンス用)",
+    "xrp_rejection_expression_softened": "永久却下 → 公式非対応のため物理経路から除外 (将来公式対応時のみ再検証対象)",
+    "files_updated": [
+      "R50_PRIORITY2_FINAL_DESIGN_DRAFT.md (v4.1)",
+      "R50_PRIORITY2_FINAL_DESIGN_SUMMARY_FOR_GPT.md (v4.1)",
+      "R50_PRIORITY2_FINAL_DESIGN_V4_REVISION.md (v4+v4.1 polish)",
+      "R50_PRIORITY2_FINAL_POLISH_AND_CONSENSUS_STATUS.md (新規作成)"
+    ],
+    "claude_3slot_section": 116
+  },
+  "priority2_3ai_consensus": {
+    "gemini": "true承認 (Section 114 Round 3完全承認)",
+    "gpt": "true候補化承認 (Section 115)",
+    "claude": "true同意 (Section 116)",
+    "shuji_final_approval": "未取得"
+  },
+  "next_artifact": "logs/rounds/R50_PRIORITY2_SHUJI_FINAL_REPORT.md (Shujiさん向け最終報告書)",
   "priority2_gemini_round3_approval": {
     "verdict": "完全承認 (APPROVED)",
     "consensus_candidate_recommendation": true,
@@ -270,7 +290,7 @@
   "consensus_candidate": true,
   "unresolved_critical_issues": [],
   "final_report_ready": true,
-  "blocker": "Gemini Round 3 approval summary received, verbatim required before consensus_candidate=true",
+  "blocker": "Awaiting GPT review of Priority 2 final consensus candidate",
   "priority2_route_b_physical_path_verification_file": "logs/rounds/R50_PRIORITY2_ROUTE_B_PHYSICAL_PATH_VERIFICATION.md",
   "priority2_route_b_v3_5": {
     "main": "GMO→SOL→Phantom WL→Router Nitro Hyperliquid直接入金 (自動USDC化)",

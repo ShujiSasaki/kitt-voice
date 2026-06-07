@@ -1,7 +1,7 @@
-# R50 Priority 2 Final Design Summary for GPT (v4)
+# R50 Priority 2 Final Design Summary for GPT (v4.1)
 
-**作成日時 (JST)**: 2026-06-07 09:35:00 (v3) → 10:40:00 (v4)
-**Verify Token**: `[Final-Design-Summary-Verify: R50-PRIORITY2-FINAL-DESIGN-SUMMARY-FOR-GPT-V4]`
+**作成日時 (JST)**: 2026-06-07 09:35:00 (v3) → 10:40:00 (v4) → 12:55:00 (v4.1)
+**Verify Token**: `[Final-Design-Summary-Verify: R50-PRIORITY2-FINAL-DESIGN-SUMMARY-FOR-GPT-V4.1]`
 **Author**: Claude (実装担当)
 **Subject**: R50_PRIORITY2_FINAL_DESIGN_DRAFT.md v4 の GPT確認用サマリー
 
@@ -101,9 +101,10 @@ v4反映完了で、 Gemini Round 3でtrue移行承認可能か最終判定。
 
 ## 必須末尾タグ
 
-`[Final-Design-Summary-Verify: R50-PRIORITY2-FINAL-DESIGN-SUMMARY-FOR-GPT-V4]`
+`[Final-Design-Summary-Verify: R50-PRIORITY2-FINAL-DESIGN-SUMMARY-FOR-GPT-V4.1]`
 `[NextActor: GPT]`
-`[EndTime-JST: 10:40:00 (real Bash取得予定)]`
-`[priority2-consensus_candidate-current: false]`
+`[EndTime-JST: 12:55:00 (real Bash取得予定)]`
+`[priority2-consensus_candidate-current: true (3AI内合意候補化、 Shujiさん最終承認は未取得)]`
+`[v4.1_changes: Spot Fills項目8追加 (Spot→Perpsマージン振替ログ) + XRP却下表現マイルド化]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
