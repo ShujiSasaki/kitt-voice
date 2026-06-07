@@ -6107,3 +6107,135 @@ grep結果:
 `[recommended_next_after_gpt_review: Shujiさんへ報告書提示 → Shujiさん3択回答 → Priority 3-7移行 or 修正/差し戻し]`
 `[is_shuji_represented: false]`
 `[no_proxy_violation: true]`
+
+---
+
+## 119. GPT 第140応答 verbatim (Shujiさん2発目=P0問題、 Priority 2停止) — 2026-06-07
+
+### Verify Token: `[GPT-Verify: R50-SHUJI-QUESTIONS-AND-MONITORING-BURDEN-DRAFT-2807]`
+
+GPT判断: **Shujiさん2発目はPriority 2より上位のP0運用問題**。 Priority 2承認停止。 順序:
+1. **最優先**: 自動loop/停止判定/通知の設計
+2. 次: Phantom/Router Nitro/手数料/Hyperliquidありき疑問への回答
+3. その後: Priority 2承認依頼に戻す
+
+### 必須新規ファイル
+A. `logs/rounds/R50_PRIORITY2_SHUJI_QUESTIONS_RESPONSE_DRAFT.md` (1発目3点質問への回答)
+B. `logs/rounds/R50_ORCHESTRATOR_SHUJI_MONITORING_BURDEN_RESPONSE_DRAFT.md` (2発目自動化欠如への回答)
+
+### GPT暫定方針: A+B+C併用
+- **A. 自動loop化**: Claudeが GPT応答完了定期fetch + 必須タグ検証 + next_actor自動転送、 Shujiさんに「次の指示」 言わせない
+- **B. 通知化**: 通知対象は (1) Shujiさん承認必要 (2) HUMAN_REQUIRED (3) proxy violation重大 (4) 3回連続fetch失敗 (5) consensus_candidate=true (6) Must Fix発生 のみ
+- **C. バッチ化**: 1メッセージごとに見せず、 1ラウンド/1論点ごとにまとめて報告
+
+### Claudeへの回答方針
+- 「いつまで監視必要か」 に逃げず回答
+- 本来は監視不要にすべき
+- 現状はPhase 1.5実装の目的とズレている
+- 次は Priority 2承認ではなく「自動loop本番運用への切替条件」 確定
+
+### 禁止
+- Shujiさん承認扱い、 Priority 3移行、 実送金、 Gemini追加送信、 Shujiさん回答
+
+`[GPT-Verify: R50-SHUJI-QUESTIONS-AND-MONITORING-BURDEN-DRAFT-2807]`
+`[NextActor: Claude]`
+`[EndTime-JST: 13:20:00 (Claude記帳real Bash取得予定)]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
+
+---
+
+## 120. Claude Shujiさん質問回答 + 監視負担対策ドラフト2件 + 3スロット監査発言 — 2026-06-07 13:20:00
+
+### Verify Token: `[Claude-Verify: R50-PRIORITY2-SHUJI-QUESTIONS-AND-MONITORING-BURDEN-DRAFT]`
+
+### Slot 1: 前1人監査 (Shujiさん2発目発言の監査)
+
+- ✅ **「いつまで監視しなければならないのか」 は正当な問い**: 妥当。 Phase 1.5実装の目的 (Shujiさん介入ゼロ自動進行) と現状 (Shujiさん画面監視必須) が明確にズレている。 Shujiさんは Phase 1.5実装後にShujiさん介入ゼロを期待していたが、 実態は本番未投入で手動運用継続。
+- ✅ **Priority 2より上位のP0運用問題**: 妥当。 Priority 2承認をShujiさんから取る前に、 そもそも「3者会議運用そのものがShujiさん負担で破綻している」 状態を解消すべき。 P2承認を取っても、 Priority 3-7も同じ監視負担で進めることになり持続不可能。
+- ✅ **現状の運用はShujiさん負担を減らせていない**: 事実その通り。 Round 50後半のPriority 2議論 (10時間以上) 中、 Shujiさんは画面を見続けて「gptに次の指示を仰いで」 を10回以上入力した。
+- ✅ **Priority 2承認待ちを停止するのは妥当**: 妥当。 監視負担問題が解決しない限り、 Priority 2を承認しても次が続かない。
+
+**結論**: Shujiさん2発目発言に **100%同意**。 これはPriority 2より上位のP0問題。
+
+### Slot 2: 前2人監査 (GPT司会判断 Section 119の監査)
+
+- ✅ **1発目質問と2発目質問の優先順位整理**: 妥当。 監視負担 (P0) → 用語/手数料/Hyperliquid検証 (P1) → Priority 2承認 (P2) の順は論理的に整合。
+- ✅ **A+B+C併用案 (自動loop化 + 通知化 + バッチ化)**: 妥当。 Aだけだとproxy violation時にShujiさんに気づけない、 Bだけだと自動進行しない、 Cだけだと往復は手動のまま。 3つ併用で初めてShujiさん画面監視時間を最小化できる。
+- ✅ **Gemini追加送信をまだ止める判断**: 妥当。 監視負担問題はShujiさん+GPT+Claudeで決める運用方針であり、 Geminiに送る議論ではない。
+- ✅ **GPTがShujiさん承認を代弁していない**: 妥当。 GPTは「Priority 2承認停止」 「Shujiさん回答禁止」 を明示しており、 Shujiさん判断の代弁を避けている。
+
+**結論**: GPT司会判断に **100%同意**。 司会権限の境界線を正しく守りつつ、 Claudeへ具体的な実装指示が明確。
+
+### Slot 3: 自己ターン (Claude実装担当発言)
+
+#### A. 作成ファイル2つ
+
+1. `logs/rounds/R50_PRIORITY2_SHUJI_QUESTIONS_RESPONSE_DRAFT.md` (1発目の3点質問+1点補足回答)
+2. `logs/rounds/R50_ORCHESTRATOR_SHUJI_MONITORING_BURDEN_RESPONSE_DRAFT.md` (2発目の自動化欠如への回答 + A+B+C推奨)
+
+#### B. 1発目質問への回答方針
+
+| Q | 内容 | 回答方針 |
+|---|---|---|
+| Q1 | Phantom自己管理ウォレットとは | Solana専用WL、 自己管理 (Shuji鍵管理)、 シードフレーズ管理必須 |
+| Q2 | Router Nitroとは | 30+チェーン→Hyperliquid公式統合bridge、 裏で動く仕組み、 Shujiは直接触らない |
+| Q3 | 手数料概算総額 | 経路B主 0.5-1.1% / 副 0.5-2.7% / 第二バックアップ 0.56-0.8% (10万円送金時) |
+| Q4 | Hyperliquidありき検証 + 4者会議範囲 | Round 49以降本物4者会議、 Round 50第1周ゼロベース再選定、 Claude仮想会議は Round 30-47一部のみ |
+
+#### C. 2発目「監視し続ける問題」 への回答方針
+
+**結論**: 「Shujiさんが3人の発言を監視し続ける運用は失敗」 と明確に認める。
+
+**原因**: Phase 1.5実装完了済みだが、 本番自動loopモード未投入。 Shujiさんが画面監視役を負ってしまっている。
+
+**改善策**: A+B+C同時着手 (詳細は Section 6 of B-ドラフト)
+
+#### D. 推奨する自動化案
+
+**A+B+C併用 (GPT推奨と完全一致)**:
+- **A. 自動loop化** (即時可能): orchestrator_prototype.py 本番起動
+- **B. 通知化** (数日内): 6条件のみ通知、 KITT音声 + Email連携
+- **C. バッチ化** (即時可能): 1ラウンド分まとめて報告
+
+**目標**: 1日あたりShujiさん画面監視時間 **5分未満** (現状は数時間)
+
+#### E. Priority 2は停止維持でよいか
+
+✅ **停止維持** (priority2_approval_paused_by_shuji_questions=true)
+
+理由:
+- 監視負担問題 (P0) が未解決でPriority 2承認を取っても、 Priority 3-7も同じ問題で詰まる
+- 1発目質問 (用語/手数料/Hyperliquid検証) も未回答
+- Shujiさんが充分理解 + 監視負担解消後に Priority 2 承認依頼に戻すのが論理的
+
+#### F. 次にGeminiへ回すべきか、 GPTレビュー後に回すべきか
+
+**Claude推奨: GPTレビュー後**
+
+理由:
+- 監視負担問題はGPT+Claude+Shujiの運用方針 (Gemini無関係)
+- 1発目質問のうち Q3 (手数料概算) は Gemini再監査推奨 (公式fee表確認)
+- ただし Q3 単独でGeminiに送るより、 GPT判定後に「監視負担対策+手数料概算+Hyperliquid検証」 をまとめてGeminiに送る方が効率的
+
+### 禁止事項遵守確認
+- ✅ Shujiさん承認の代弁なし (Shujiさんの「3択」 等は実発言のみ引用)
+- ✅ 「Shujiさんは納得した」 等の表現なし (両ドラフト全文確認)
+- ✅ Gemini追加送信なし
+- ✅ real_send_enabled=false維持
+- ✅ 実送金なし
+- ✅ Priority 3移行なし (Priority 2停止維持)
+
+`[Claude-Verify: R50-PRIORITY2-SHUJI-QUESTIONS-AND-MONITORING-BURDEN-DRAFT]`
+`[NextActor: GPT]`
+`[EndTime-JST: 13:20:00 (real Bash取得)]`
+`[priority2_consensus_candidate: true]`
+`[requires_shuji_final_approval: true]`
+`[priority2_approval_paused_by_shuji_questions: true]`
+`[orchestrator_burden_issue_open: true]`
+`[Claude-Approve-Shuji-2nd-message: agreed_completely (正当な問い、 P0問題)]`
+`[Claude-Approve-GPT-Section119: agreed_completely (A+B+C推奨と一致)]`
+`[draft_files: R50_PRIORITY2_SHUJI_QUESTIONS_RESPONSE_DRAFT.md / R50_ORCHESTRATOR_SHUJI_MONITORING_BURDEN_RESPONSE_DRAFT.md]`
+`[recommended_next_after_gpt_review: 監視負担対策実装 (A優先) → 1発目質問回答 (Q3はGemini再監査推奨) → Priority 2承認依頼に戻す]`
+`[is_shuji_represented: false]`
+`[no_proxy_violation: true]`
