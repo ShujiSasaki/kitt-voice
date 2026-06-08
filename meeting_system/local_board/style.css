@@ -1,0 +1,77 @@
+/* meeting_system/local_board/style.css
+ * 3者合意 (前々議題 R50-CONSENSUS-LOGIC-AND-UI-FEEDBACK):
+ *   - Orbitron 不採用、 デフォルトシステムフォント
+ *   - LINE/X風UI (Shuji明言遵守)
+ *   - Tailwind utility と併用、 ここはアニメーション/特殊効果のみ
+ */
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+               "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+}
+
+/* Shuji吹き出し (右側) */
+.msg[data-actor="shuji"] {
+  flex-direction: row-reverse;
+}
+.msg[data-actor="shuji"] .msg-header-row {
+  justify-content: flex-end;
+}
+.msg[data-actor="shuji"] .msg-bubble {
+  background-color: #85E649;
+  border-top-right-radius: 4px;
+}
+.msg[data-actor="shuji"] .msg-bubble {
+  border-top-left-radius: 1rem;
+}
+
+/* AI吹き出し (左側、 左上角カット) */
+.msg:not([data-actor="shuji"]) .msg-bubble {
+  border-top-left-radius: 4px;
+}
+
+/* アバター色 */
+.msg[data-actor="gpt"]    .msg-avatar { background-color: #10A37F; }
+.msg[data-actor="gemini"] .msg-avatar { background-color: #8E75D9; }
+.msg[data-actor="claude"] .msg-avatar { background-color: #D97706; }
+.msg[data-actor="shuji"]  .msg-avatar { background-color: #00B900; }
+.msg[data-actor="validator"] .msg-avatar { background-color: #DC2626; }
+
+/* Validatorバッジ */
+.msg-validator.pass { background-color: #DCFCE7; color: #166534; }
+.msg-validator.fail { background-color: #FEE2E2; color: #991B1B; font-weight: 700; }
+
+/* 合意成立時の room アイコン緑グロー (3者合意 追加インスピレーション採択) */
+@keyframes consensus-glow {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+  50%  { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+.room-icon-shape.consensus-reached {
+  animation: consensus-glow 1.2s ease-out 1;
+}
+
+/* タイムライン markdown内コードブロック */
+.msg-body code {
+  background: #F3F4F6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: "Menlo", "Consolas", monospace;
+}
+.msg-body pre {
+  background: #F3F4F6;
+  padding: 8px;
+  overflow-x: auto;
+  border-radius: 4px;
+  max-height: 400px;
+}
+.msg-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* スクロールバーをLINE風に控えめに */
+#timeline::-webkit-scrollbar { width: 8px; }
+#timeline::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+#timeline::-webkit-scrollbar-track { background: transparent; }

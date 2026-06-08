@@ -1,0 +1,23 @@
+# meeting_system runtime artifacts (3者合意 Phase 1)
+__pycache__/
+*.pyc
+
+# Runtime data — keep dir structure but ignore contents
+data/*
+queue/*
+archive/*
+inbox/*
+outbox/*
+projects/*
+
+!data/.gitkeep
+!queue/.gitkeep
+!archive/.gitkeep
+!inbox/.gitkeep
+!outbox/.gitkeep
+!projects/.gitkeep
+
+# File Lock + Atomic Move temp files
+*.lock
+.tmp_*
+.state_*
