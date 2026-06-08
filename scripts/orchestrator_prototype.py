@@ -29,6 +29,27 @@ import time
 from enum import Enum
 from pathlib import Path
 
+# =====================
+# R50 clean_restart module integration
+# (validator / abnormal_notification / relay_enforcement)
+# =====================
+_CLEAN_RESTART_DIR = Path(__file__).resolve().parent / "clean_restart"
+if str(_CLEAN_RESTART_DIR) not in sys.path:
+    sys.path.insert(0, str(_CLEAN_RESTART_DIR))
+
+try:
+    import validator as cr_validator  # 7検証 (verbatim/tags/proxy/full_share/order/slot/no_parallel)
+    import abnormal_notification as cr_abnormal  # 6条件 (consensus/deadlock/validator/human/3x/cost_time)
+    import relay_enforcement as cr_relay  # 順次リレー強制 (lock+順番検証)
+    CLEAN_RESTART_AVAILABLE = True
+except Exception as _e:
+    cr_validator = None
+    cr_abnormal = None
+    cr_relay = None
+    CLEAN_RESTART_AVAILABLE = False
+    sys.stderr.write(f"[clean_restart import warn] {_e}\n")
+
+
 DRY_RUN = True
 CDP_ENDPOINT = os.environ.get("CDP_ENDPOINT", "http://127.0.0.1:9222")
 DOM_TIMEOUT_SEC = 30
@@ -194,7 +215,40 @@ def build_prompt_for_actor(actor: str, context: dict) -> str:
 # =====================
 # Send / Response (Spec 10.1)
 # =====================
-def send_message(actor: str, prompt: str) -> dict:
+def send_message(actor: str, prompt: str, sender: str | None = None, last_speaker: str | None = None) -> dict:
+    """R50: clean_restart.relay_enforcement で wrap。
+    sender / last_speaker が指定された場合のみ 順次リレー強制 + lock取得。
+    既存呼び出し (sender=None) は完全 backwards compatible (relay強制スキップ)。
+    DRY_RUN中も lock取得検証は行う (並列送信検出のため)。
+    """
+    relay_meta = {}
+    if CLEAN_RESTART_AVAILABLE and cr_relay is not None and sender is not None:
+        try:
+            cr_relay.verify_relay_order(sender, actor, last_speaker)
+        except cr_relay.OrderViolation as e:
+            return {"status": "ORDER_VIOLATION", "actor": actor, "error": str(e)}
+
+        try:
+            with cr_relay.relay_lock(sender, actor) as lock_data:
+                if DRY_RUN:
+                    path = dry_run_dump(actor, prompt)
+                    result = {"status": "DRY_RUN_DUMPED", "actor": actor, "path": str(path)}
+                else:
+                    result = {"status": "PLACEHOLDER_REAL_SEND_NOT_IMPLEMENTED", "actor": actor}
+                relay_meta = {
+                    "relay_lock_acquired_at": lock_data.get("acquired_at"),
+                    "sender": sender,
+                }
+                import hashlib
+                content_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
+                cr_relay.log_transmission(sender, actor, content_hash, len(prompt))
+                relay_meta["content_hash"] = content_hash
+                result["relay_enforcement"] = relay_meta
+                return result
+        except cr_relay.ParallelSendViolation as e:
+            return {"status": "PARALLEL_SEND_VIOLATION", "actor": actor, "error": str(e)}
+
+    # 既存パス (sender未指定 = backwards compatible)
     if DRY_RUN:
         path = dry_run_dump(actor, prompt)
         return {"status": "DRY_RUN_DUMPED", "actor": actor, "path": str(path)}
@@ -231,7 +285,11 @@ NEXT_ACTOR_RE = re.compile(r"\[NextActor:\s*(GPT|Gemini|Claude|Shuji)\]")
 ENDTIME_JST_RE = re.compile(r"\[EndTime-JST:\s*(\d{1,2}:\d{2}:\d{2})\]")
 
 
-def validate_response(text: str) -> dict:
+def validate_response(text: str, speaker: str | None = None) -> dict:
+    """既存3項目 (VerifyToken/NextActor/EndTime) 検証 +
+    clean_restart.validator.validate_speech (tags / proxy / slot_structure) を delegate付与。
+    既存呼び出しは speaker=None で完全 backwards compatible。
+    """
     verify = VERIFY_TOKEN_RE.search(text or "")
     next_actor = NEXT_ACTOR_RE.search(text or "")
     end_time = ENDTIME_JST_RE.search(text or "")
@@ -242,13 +300,30 @@ def validate_response(text: str) -> dict:
         missing.append("NEXTACTOR_MISSING")
     if not end_time:
         missing.append("ENDTIME_MISSING")
-    return {
+
+    result = {
         "valid": not missing,
         "missing": missing,
         "verify_token": verify.group(0) if verify else None,
         "next_actor": next_actor.group(1) if next_actor else None,
         "end_time_jst": end_time.group(1) if end_time else None,
     }
+
+    # clean_restart.validator delegate (R50 Round1合意: 7検証のうちspeech単体に効く3項目)
+    if CLEAN_RESTART_AVAILABLE and cr_validator is not None and speaker:
+        try:
+            cr_result = cr_validator.validate_speech(text or "", speaker)
+            result["cr_validator"] = cr_result
+            if not cr_result.get("all_passed", True):
+                # 既存validは壊さない (callerが result["valid"] に依存しているため)
+                # 追加違反は cr_validator フィールドで surface
+                result.setdefault("cr_violations", []).extend(
+                    [k for k, v in cr_result.get("results", {}).items() if not v.get("passed")]
+                )
+        except Exception as e:
+            result["cr_validator_error"] = str(e)
+
+    return result
 
 
 # =====================
@@ -291,6 +366,37 @@ def stall_notify_placeholder(last_activity_epoch: int) -> dict:
 # =====================
 # Main Loop Skeleton (Phase 1: GPT→Gemini→GPT)
 # =====================
+def evaluate_abnormal_conditions_from_state(state: dict) -> list:
+    """R50: clean_restart.abnormal_notification.evaluate_all_conditions を state から呼び出し。
+    state.json に condition入力が無い場合は空contextでスキップ (発火0件)。
+    """
+    if not (CLEAN_RESTART_AVAILABLE and cr_abnormal is not None):
+        return []
+    context = {
+        "consensus_state": state.get("consensus_state", {}),
+        "round_history": state.get("round_history", []),
+        "validator_failures_count": state.get("validator_failures_count", 0),
+        "watchdog_status": state.get("watchdog_status", ""),
+        "error_log": state.get("error_log", []),
+        "metrics": state.get("metrics", {}),
+    }
+    try:
+        events = cr_abnormal.evaluate_all_conditions(context)
+        return [
+            {
+                "condition_code": e.condition_code,
+                "condition_label": e.condition_label,
+                "severity": e.severity,
+                "detail": e.detail,
+                "requires_shuji_action": e.requires_shuji_action,
+            }
+            for e in events
+        ]
+    except Exception as e:
+        sys.stderr.write(f"[abnormal_notification eval warn] {e}\n")
+        return []
+
+
 def main_loop_once() -> dict:
     state = load_state()
     backup_path = backup_state(state)
@@ -304,6 +410,8 @@ def main_loop_once() -> dict:
         next_actor = detect_next_actor(state)
         prompt = build_prompt_for_actor(next_actor or "GPT", {"backup_path": str(backup_path)})
         send_result = send_message(next_actor or "GPT", prompt)
+        # R50: 異常通知6条件評価 (発火条件があれば notifications.jsonl にemit)
+        abnormal_events = evaluate_abnormal_conditions_from_state(state)
         return {
             "dry_run": DRY_RUN,
             "backup": str(backup_path),
@@ -313,6 +421,8 @@ def main_loop_once() -> dict:
             "orchestrator_state": current_state,
             "next_actor": next_actor,
             "send_result": send_result,
+            "abnormal_events": abnormal_events,
+            "clean_restart_modules": CLEAN_RESTART_AVAILABLE,
             "note": "Real Playwright打鍵はGPT指示でまだ禁止 (R50-IMPLEMENT-ORCHESTRATOR-PHASE1-DRYRUN-CDP-4189)",
         }
     finally:
@@ -3758,6 +3868,32 @@ if __name__ == "__main__":
         sys.exit(run_phase15_integration_test())
     if "--phase15-controlled-real-relay-test" in sys.argv:
         sys.exit(run_phase15_controlled_real_relay_test())
+    # R50 clean_restart module self-tests
+    if "--validator-self-test" in sys.argv:
+        if not CLEAN_RESTART_AVAILABLE or cr_validator is None:
+            print("FAIL: cr_validator not available")
+            sys.exit(1)
+        sys.exit(0 if cr_validator.self_test() else 1)
+    if "--abnormal-notification-self-test" in sys.argv:
+        if not CLEAN_RESTART_AVAILABLE or cr_abnormal is None:
+            print("FAIL: cr_abnormal not available")
+            sys.exit(1)
+        sys.exit(0 if cr_abnormal.self_test() else 1)
+    if "--relay-enforcement-self-test" in sys.argv:
+        if not CLEAN_RESTART_AVAILABLE or cr_relay is None:
+            print("FAIL: cr_relay not available")
+            sys.exit(1)
+        sys.exit(0 if cr_relay.self_test() else 1)
+    if "--clean-restart-all-self-tests" in sys.argv:
+        print(">>> validator self_test")
+        v_ok = cr_validator.self_test() if (CLEAN_RESTART_AVAILABLE and cr_validator) else False
+        print(">>> abnormal_notification self_test")
+        a_ok = cr_abnormal.self_test() if (CLEAN_RESTART_AVAILABLE and cr_abnormal) else False
+        print(">>> relay_enforcement self_test")
+        r_ok = cr_relay.self_test() if (CLEAN_RESTART_AVAILABLE and cr_relay) else False
+        all_ok = v_ok and a_ok and r_ok
+        print(f"\n=== clean_restart ALL self-tests: {'PASS' if all_ok else 'FAIL'} (validator={v_ok}, abnormal={a_ok}, relay={r_ok}) ===")
+        sys.exit(0 if all_ok else 1)
     print(json.dumps(main_loop_once(), ensure_ascii=False, indent=2))
 
 
