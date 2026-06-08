@@ -54,15 +54,23 @@
 - 3 Round経過しても未合意 → 論点整理 (3者の意見対立点をまとめる) → Shujiさん判断依頼
 - コスト暴走防止 (トークン無限消費を物理的にブロック)
 
-## 4. Validator/会議監査の必須要件
+## 4. Validator/会議監査の必須要件 (GPT指示で強化)
 
-- 思考機能を持たない (システムコード or 別Claudeセッション with 厳格 system prompt)
-- 検証項目:
-  1. Shujiさん発言 verbatim と orchestrator転送内容の一致
-  2. 3人の発言 verbatim と次の発言者への転送内容の一致
-  3. 必須タグ ([Verify], [NextActor], [EndTime-JST], [is_shuji_represented], [no_proxy_violation]) 存在確認
-  4. proxy violation パターン (「Shujiさんなら」 「Shujiの代弁」 等) 検知
-- 異常検知時: 即時Shujiさんへ Email/KITT音声/Claude Codeチャット通知
+### 優先順位 (GPT明示)
+- **主検証**: **system code / script による機械検証** (Python等、 verbatim文字列の完全一致 chunk比較、 正規表現タグマッチ、 proxy パターンgrep)
+- **補助監査**: 別Claudeセッション (system prompt厳格、 思考機能停止)
+- **依存回避**: 同じClaude基盤だけに依存しない (system code主体で、 別AI監査はバックアップ)
+
+### 検証対象 (4項目)
+1. **verbatim一致**: Shujiさん発言/3者発言と orchestrator転送内容の文字列chunk比較
+2. **タグ**: 必須タグ ([Verify], [NextActor], [EndTime-JST], [is_shuji_represented], [no_proxy_violation]) の存在 + 値範囲チェック
+3. **proxy violation**: 「Shujiさんなら」 「Shujiの代弁」 「Shujiが認める」 等のパターン正規表現マッチ
+4. **未共有検出**: 各Shujiさん発言が GPT/Gemini/発言Claude の **3者全員に転送されたか** を log解析で確認 (本件の根本原因対策)
+
+### 異常検知時
+- 即時 Shujiさんへ Email/KITT音声/Claude Codeチャット通知
+- 該当発言の転送停止 + 修正待ち
+- orchestrator自動停止 (Watchdog発動)
 
 ## 5. orchestrator中心への修正点 (事務Claude単独案からの変更)
 

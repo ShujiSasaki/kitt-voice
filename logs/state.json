@@ -17,6 +17,7 @@
   "three_agent_resync_completed": true,
   "gemini_resync_audit_received": true,
   "speaking_claude_resync_audit_received": true,
+  "shuji_pending_recovery_report_review": true,
   "gpt_old_chair_model_fault_acknowledged": true,
   "three_agent_resync_required": true,
   "claude_neglect_admitted": true,

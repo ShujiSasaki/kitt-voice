@@ -22,9 +22,11 @@
 - Shujiさん介入なしで報告書到達まで自動実行
 - 失敗時: Watchdog HUMAN_REQUIRED でShujiさん通知
 
-### Phase 2: 制限緩和
+### Phase 2: 制限緩和 (Max Round 3固定維持)
 - Phase 1で1議題合意成立を確認後、 Priority 2 残課題 (経路B v4.1 再判定) を投入
-- Max Round 5 まで緩和を検討
+- **Max Round 3 固定維持** (Phase 1-2 共通)
+- Max Round 5以上への緩和は、 **Shujiさん明示承認 + 3AI合意** 後のみ
+- **初期本番では無制限loop禁止**
 - 通知6条件を実装 (Email/KITT音声/Claude Codeチャット)
 
 ### Phase 3: 完全自動運転
