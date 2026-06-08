@@ -1772,7 +1772,7 @@ def run_multi_round_consensus_test() -> int:
     result = {
         "multi_round_consensus_test": "ERROR",
         "endpoint": CDP_ENDPOINT,
-        "max_rounds": 2,
+        "max_rounds": None,
         "rounds": [],
         "consensus_candidate": False,
         "unresolved_critical_issues": [],
@@ -1821,8 +1821,11 @@ def run_multi_round_consensus_test() -> int:
                 consensus_reached = False
                 final_gpt_summary = ""
 
-                for round_idx in range(1, 3):
-                    print(f"\n===== Round {round_idx}/2 =====")
+                round_idx = 0
+                ROUND_HARD_CAP = 50
+                while not consensus_reached and round_idx < ROUND_HARD_CAP:
+                    round_idx += 1
+                    print(f"\n===== Round {round_idx} (consensus-only termination, hard-cap {ROUND_HARD_CAP}) =====")
                     round_data = {
                         "round": round_idx,
                         "gemini": {"send": None, "fetch": None, "verify_token": None, "next_actor": None, "end_time_jst": None, "response_len": None, "text": ""},

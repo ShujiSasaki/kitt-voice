@@ -20,13 +20,13 @@
 - [x] Validator仕様 (`scripts/clean_restart/validator_spec.md`)
 - [x] メモリサマリー (`R50_MEMORY_SUMMARY_FOR_CLEAN_RESTART.md`)
 
-### Step 3: orchestrator修正 ⏳ 次タスク
-- [ ] Max Round制限撤回 (Shuji 15発目反映)
-- [ ] 異常通知6条件実装 (Max Round削除→コスト/時間/停滞追加)
-- [ ] Validator system code統合
-- [ ] スロット構造検証 (Gemini Must Fix第11項目)
-- [ ] 並列送信禁止チェック
-- [ ] smoke test再実行
+### Step 3: orchestrator修正 ✅ 完了 (2026-06-08)
+- [x] Max Round制限撤回 (Shuji 15発目反映) — orchestrator_prototype.py L1775 `"max_rounds": 2` → `None`、 L1824 `range(1, 3)` → 3者合意のみ終了 (`while not consensus_reached`, hard-cap 50)
+- [x] 異常通知6条件実装 — `scripts/clean_restart/abnormal_notification.py` 新規 (self-test 6/6 PASS)
+- [x] Validator system code統合 — `scripts/clean_restart/validator.py` 新規 (self-test 5/5 PASS)
+- [x] スロット構造検証 (Gemini Must Fix第11項目) — validator.py check_speak_and_audit() に統合
+- [x] 並列送信禁止チェック — `scripts/clean_restart/relay_enforcement.py` 新規 (self-test 8/8 PASS, lock+order+nested-block検証)
+- [ ] smoke test再実行 — Step 4 (Shujiさん clean restart 実施判断) と並走で行う
 
 ### Step 4: Shujiさん確認 ⏳ Step 3完了後
 - [ ] Shujiさんに本Checklist + 11項目仕様 + 5 system prompts + Validator仕様 を提示
