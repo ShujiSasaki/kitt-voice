@@ -1,10 +1,23 @@
 # R50 Priority 2 Shujiさん質問への回答ドラフト
 
-**作成日時 (JST)**: 2026-06-07 13:20:00
-**Verify Token**: `[Shuji-Questions-Response-Draft-Verify: R50-PRIORITY2-SHUJI-QUESTIONS-RESPONSE-DRAFT]`
+**作成日時 (JST)**: 2026-06-07 13:20:00 (v1) → 2026-06-07 09:40 (v2 緊急同期復旧反映)
+**Verify Token**: `[Shuji-Questions-Response-Draft-Verify: R50-PRIORITY2-SHUJI-QUESTIONS-RESPONSE-DRAFT-V2]`
 **Author**: Claude (実装担当)
 **Status**: GPTレビュー前ドラフト (Shujiさん未提示)
 **Trigger**: Shujiさん1発目「会議へ発言」 (Section 117直後)
+
+---
+
+## ⚠️ v2 更新通知 (2026-06-07 09:40)
+
+**旧Priority 2 consensus_candidate=true は無効化されました**。 新体制 (5人会議化 + orchestrator導入) で再監査予定。
+
+### 主な変更点
+- 旧合意破棄: Section 124 で GPT/Gemini/発言Claude 全員が旧 true合意を破棄判定
+- 手数料概算は **日本円ベースで再計算予定** (Gemini Section 123 指摘「結局いくらかかるの？ への結論focus弱い」 を反映)
+- 100万円送金時の正確な日本円コスト試算を新体制で作成 (Phantom→Hyperliquid + Router Nitroクロスチェーン手数料 + Solanaガス代 + Hyperliquid Spot手数料 0.03%/0.01%)
+
+---
 
 ---
 

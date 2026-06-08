@@ -1,10 +1,26 @@
 # R50 Orchestrator Shujiさん監視負担問題への回答ドラフト
 
-**作成日時 (JST)**: 2026-06-07 13:20:00
-**Verify Token**: `[Orchestrator-Burden-Draft-Verify: R50-ORCHESTRATOR-SHUJI-MONITORING-BURDEN-RESPONSE-DRAFT]`
+**作成日時 (JST)**: 2026-06-07 13:20:00 (v1) → 2026-06-07 09:40 (v2 Gemini指摘反映)
+**Verify Token**: `[Orchestrator-Burden-Draft-Verify: R50-ORCHESTRATOR-SHUJI-MONITORING-BURDEN-RESPONSE-DRAFT-V2]`
 **Author**: Claude (実装担当)
 **Status**: GPTレビュー前ドラフト (Shujiさん未提示)
 **Trigger**: Shujiさん2発目「会議へ発言」 「いつまで私は3人の発言を監視して止まってたらclaudeに動いてって言わなければいけない？」
+
+---
+
+## ⚠️ v2 更新通知 (2026-06-07 09:40 - Gemini Section 123指摘反映)
+
+### Gemini指摘の反映 (v1からv2への変更)
+- **Max Round 3制限** (Gemini明示必須要件): 1議題あたり最大3往復で強制着地、 コスト暴走防止
+- **1日Shuji監視5分未満** の実現性をシーケンス図 + 通知トリガー設計セットで提示
+- **通知トリガー**: 合意時/議論決裂時/異常時のみ (6条件)
+- **orchestrator MUST EXECUTE** (Gemini判定): A+B+C 案ではなく orchestrator中心アーキテクチャに修正
+
+### 推奨案の変更
+- **旧 (v1)**: A. 自動loop化 + B. 通知化 + C. バッチ化 の3案併用
+- **新 (v2)**: orchestrator_prototype.py 本番投入 + Validator (会議監査) + 通知6条件 + Max Round 3 (R50_NO_CHAIR_NONSTOP_SYSTEM_ARCHITECTURE_DRAFT.md および R50_ORCHESTRATOR_PRODUCTION_ROLLOUT_PLAN.md に詳細)
+
+---
 
 ---
 
