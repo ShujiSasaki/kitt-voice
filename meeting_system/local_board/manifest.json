@@ -1,0 +1,25 @@
+{
+  "name": "ぐるぐる3者会議",
+  "short_name": "3者会議",
+  "description": "GPT/Gemini/Claude 3者会議 ローカル掲示板",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#181818",
+  "theme_color": "#00B900",
+  "icons": [
+    {
+      "src": "/apple-touch-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

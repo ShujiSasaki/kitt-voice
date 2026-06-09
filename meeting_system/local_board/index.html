@@ -3,18 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; manifest-src 'self';">
 <title>ぐるぐる3者会議</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="192x192" href="/apple-touch-icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon-512.png">
+<meta name="theme-color" content="#00B900">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3者会議">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   theme: { extend: { colors: {
+    'dm-bg':           '#181818',
+    'dm-header':       '#111111',
+    'dm-bubble-ai':    '#2A2A2A',
+    'dm-bubble-shuji': '#6DE67B',
+    'dm-input':        '#242424',
+    'dm-text':         '#F5F5F5',
+    'dm-text-dim':     '#8A8A8A',
+    'dm-border':       '#2A2A2A',
     'actor-shuji':     '#00B900',
     'actor-gpt':       '#10A37F',
     'actor-gemini':    '#8E75D9',
     'actor-claude':    '#D97706',
-    'actor-validator': '#DC2626',
-    'lineBg':          '#7FBBE3',
-    'shujiBubble':     '#85E649',
+    'actor-validator': '#DC2626'
   }}}
 };
 </script>
@@ -22,61 +36,76 @@ tailwind.config = {
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <link rel="stylesheet" href="/style.css">
 </head>
-<body class="bg-gray-100 min-h-screen font-sans antialiased">
+<body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
 
-  <aside id="sidebar" class="w-20 bg-gray-900 flex flex-col items-center py-3 gap-3 overflow-y-auto flex-shrink-0">
+  <aside id="sidebar" class="w-16 bg-dm-header flex flex-col items-center py-3 gap-3 overflow-y-auto flex-shrink-0 border-r border-dm-border">
   </aside>
 
-  <div class="flex-1 flex flex-col bg-lineBg overflow-hidden">
+  <div class="flex-1 flex flex-col bg-dm-bg overflow-hidden">
 
-    <header class="sticky top-0 z-20 bg-white shadow-sm">
-      <div class="flex items-center gap-3 px-4 py-3 border-b flex-wrap">
-        <h1 class="text-base font-bold text-gray-800" id="active-room-title">会議</h1>
-        <div class="flex items-center gap-2 text-xs text-gray-600">
-          <span>状態: <strong id="status-current" class="text-gray-900">発言待ち</strong></span>
-          <span>次: <strong id="next-actor" class="text-gray-900">-</strong></span>
-        </div>
-        <div class="flex items-center gap-2 text-xs">
-          <span class="text-gray-600">進行:</span>
-          <span id="dot-gpt"     class="w-3 h-3 rounded-full bg-gray-300" title="GPT"></span>
-          <span id="dot-gemini"  class="w-3 h-3 rounded-full bg-gray-300" title="Gemini"></span>
-          <span id="dot-claude"  class="w-3 h-3 rounded-full bg-gray-300" title="Claude"></span>
-          <span><strong id="loop-progress">0</strong>巡目</span>
-        </div>
-        <div class="ml-auto flex gap-2 text-xs">
-          <span>合意: <strong id="consensus-status" class="text-red-600">未成立</strong></span>
-          <select id="notify-level" class="bg-gray-100 border rounded px-2 py-1">
+    <header class="sticky top-0 z-20 bg-dm-header border-b border-dm-border">
+      <div class="flex items-center gap-3 px-4 py-3">
+        <h1 class="text-base font-semibold text-dm-text" id="active-room-title">会議</h1>
+        <span class="text-xs text-dm-text-dim" id="header-status-summary">— 待機中</span>
+        <div class="ml-auto flex items-center gap-2">
+          <select id="notify-level" class="text-xs bg-dm-input border border-dm-border text-dm-text rounded-full px-2 py-1">
             <option value="off">通知OFF</option>
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
+          <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text" aria-label="設定" title="詳細を畳む/開く">⚙</button>
         </div>
       </div>
+      <details id="header-details" class="px-4 pb-2">
+        <summary class="text-xs text-dm-text-dim cursor-pointer select-none hover:text-dm-text">▼ 状態詳細</summary>
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-dm-text-dim">
+          <span>状態: <strong id="status-current" class="text-dm-text">発言待ち</strong></span>
+          <span>次: <strong id="next-actor" class="text-dm-text">-</strong></span>
+          <span class="flex items-center gap-1">
+            進行:
+            <span id="dot-gpt"     class="w-2.5 h-2.5 rounded-full bg-dm-border" title="GPT"></span>
+            <span id="dot-gemini"  class="w-2.5 h-2.5 rounded-full bg-dm-border" title="Gemini"></span>
+            <span id="dot-claude"  class="w-2.5 h-2.5 rounded-full bg-dm-border" title="Claude"></span>
+          </span>
+          <span><strong id="loop-progress">0</strong>巡目</span>
+          <span>合意: <strong id="consensus-status" class="text-red-400">未成立</strong></span>
+        </div>
+      </details>
     </header>
 
-    <main id="timeline" class="flex-1 overflow-y-auto px-3 py-4 space-y-3">
-      <div class="text-center text-gray-500 text-sm py-12" id="empty-hint">
+    <main id="timeline" class="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-2">
+      <div class="text-center text-dm-text-dim text-sm py-12" id="empty-hint">
         左サイドバーから会議を選択してください
       </div>
     </main>
 
-    <footer class="sticky bottom-0 bg-white border-t shadow-lg z-10">
-      <div class="flex items-end gap-2 p-3">
+    <div id="quick-actions" class="px-3 pt-2 pb-1 bg-dm-bg border-t border-dm-border flex gap-2 overflow-x-auto">
+      <button class="quick-chip" data-action="propose-reply">返信を提案</button>
+      <button class="quick-chip" data-action="propose-topic">話題を提案</button>
+      <button class="quick-chip" data-action="analyze-mood">ムードを分析</button>
+    </div>
+
+    <footer class="sticky bottom-0 bg-dm-header border-t border-dm-border z-10">
+      <div class="flex items-end gap-2 p-2">
+        <button id="composer-add-btn" class="composer-icon-btn" title="添付" aria-label="添付">＋</button>
         <textarea id="shuji-input"
-                  class="flex-1 min-h-[44px] max-h-32 px-3 py-2 border border-gray-300 rounded-2xl
-                         text-sm focus:outline-none focus:ring-2 focus:ring-actor-shuji resize-none"
-                  placeholder="この会議へ発言... (Cmd+Enter送信)"></textarea>
+                  class="flex-1 min-h-[40px] max-h-32 px-3 py-2 bg-dm-input border border-dm-border
+                         text-dm-text rounded-full text-sm placeholder-dm-text-dim
+                         focus:outline-none focus:ring-2 focus:ring-dm-bubble-shuji resize-none"
+                  placeholder="メッセージを入力..."></textarea>
+        <button id="composer-camera-btn" class="composer-icon-btn" title="カメラ" aria-label="カメラ">📷</button>
+        <button id="composer-image-btn" class="composer-icon-btn" title="画像" aria-label="画像">🖼️</button>
+        <button id="composer-emoji-btn" class="composer-icon-btn" title="絵文字" aria-label="絵文字">😀</button>
+        <button id="composer-mic-btn" class="composer-icon-btn" title="マイク" aria-label="マイク">🎤</button>
         <button id="submit-btn"
-                class="bg-actor-shuji text-white font-bold px-5 py-2 rounded-2xl shadow
-                       hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed">
-          送信
-        </button>
+                class="bg-dm-bubble-shuji text-black font-bold w-10 h-10 rounded-full shadow
+                       hover:opacity-90 disabled:bg-dm-border disabled:text-dm-text-dim disabled:cursor-not-allowed
+                       flex items-center justify-center"
+                title="送信" aria-label="送信">▶</button>
         <button id="interrupt-btn"
-                class="bg-actor-validator text-white text-xs px-3 py-2 rounded-2xl shadow"
-                title="AI処理を強制中断">
-          割込
-        </button>
+                class="bg-actor-validator text-white text-xs px-2 py-2 rounded-full shadow"
+                title="AI処理を強制中断" aria-label="割込">⏹</button>
       </div>
     </footer>
 
@@ -85,61 +114,63 @@ tailwind.config = {
 
 <template id="tmpl-room-icon">
   <button class="room-icon-btn relative group" data-room-id="">
-    <div class="room-icon-shape w-12 h-12 rounded-full text-white text-xl font-bold flex items-center
-                justify-center ring-2 ring-gray-700 hover:ring-white hover:rounded-2xl transition-all">
+    <div class="room-icon-shape w-11 h-11 rounded-full text-white text-lg font-bold flex items-center
+                justify-center ring-2 ring-transparent hover:ring-dm-bubble-shuji hover:rounded-2xl transition-all">
       <span class="room-icon-glyph"></span>
     </div>
     <span class="unread-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold
                  rounded-full w-5 h-5 flex items-center justify-center shadow">0</span>
-    <span class="status-dot absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-500
-                 ring-2 ring-gray-900" title=""></span>
-    <span class="tooltip absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-black text-white
+    <span class="status-dot absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-dm-text-dim
+                 ring-2 ring-dm-header" title=""></span>
+    <span class="tooltip absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-dm-input text-dm-text
                  text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap
-                 z-50 pointer-events-none"></span>
+                 z-50 pointer-events-none border border-dm-border"></span>
   </button>
 </template>
 
 <template id="tmpl-msg">
-  <article class="msg flex items-start gap-2" data-actor="" data-msg-id="">
-    <div class="msg-avatar flex-shrink-0 w-10 h-10 rounded-full text-white font-bold
-                flex items-center justify-center text-xs"></div>
-    <div class="flex-1 max-w-[80%]">
-      <div class="flex items-center gap-2 mb-1 flex-wrap msg-header-row">
-        <span class="msg-actor text-xs text-gray-700 font-semibold"></span>
-        <span class="msg-ts text-[10px] text-gray-500"></span>
-        <span class="msg-validator text-[10px] px-1.5 py-0.5 rounded"></span>
-        <span class="msg-loop text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded"></span>
-        <span class="msg-read text-[10px] text-gray-400"></span>
-      </div>
-      <div class="msg-bubble bg-white rounded-2xl shadow-sm px-4 py-3">
-        <div class="msg-body prose prose-sm max-w-none text-gray-800 text-sm"></div>
-        <details class="mt-3 border-t pt-2">
-          <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-800 select-none">
-            ▼ 原文・証跡を表示
-          </summary>
-          <div class="mt-2 space-y-2">
-            <div>
-              <div class="text-[10px] uppercase text-gray-500 mb-1">① 原文 (verbatim)</div>
-              <pre class="raw-markdown bg-gray-50 p-2 rounded text-[11px] overflow-x-auto max-h-60"><code></code></pre>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase text-gray-500 mb-1">② Validator 7項目</div>
-              <pre class="validator-log bg-gray-50 p-2 rounded text-[11px] overflow-x-auto"><code></code></pre>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase text-gray-500 mb-1">③ 末尾タグ</div>
-              <pre class="tag-list bg-gray-50 p-2 rounded text-[11px] overflow-x-auto"><code></code></pre>
-            </div>
+  <article class="msg flex flex-col gap-0.5 max-w-full" data-actor="" data-msg-id="">
+    <div class="msg-sender-label text-[11px] text-dm-text-dim opacity-60 px-1"></div>
+    <div class="msg-bubble rounded-3xl px-4 py-3 shadow-sm max-w-[75%]">
+      <div class="msg-body text-sm leading-relaxed break-words"></div>
+      <details class="msg-evidence mt-2 border-t border-white/10 pt-1.5">
+        <summary class="text-[10px] opacity-60 cursor-pointer hover:opacity-100 select-none">▼ 証跡</summary>
+        <div class="mt-1.5 space-y-1.5">
+          <div>
+            <div class="text-[9px] uppercase opacity-50 mb-0.5">① 原文</div>
+            <pre class="raw-markdown bg-black/30 p-1.5 rounded text-[10px] overflow-x-auto max-h-48"><code></code></pre>
           </div>
-        </details>
-        <button class="thread-btn mt-2 text-xs text-blue-600 hover:underline select-none hidden"
-                aria-expanded="false">
-          💬 監査ログをスレッドとして表示 <span class="thread-count text-gray-500"></span>
-        </button>
-        <div class="thread-container hidden mt-3 border-l-2 border-gray-200 pl-3 space-y-3"></div>
-      </div>
+          <div>
+            <div class="text-[9px] uppercase opacity-50 mb-0.5">② Validator</div>
+            <pre class="validator-log bg-black/30 p-1.5 rounded text-[10px] overflow-x-auto"><code></code></pre>
+          </div>
+          <div>
+            <div class="text-[9px] uppercase opacity-50 mb-0.5">③ 末尾タグ</div>
+            <pre class="tag-list bg-black/30 p-1.5 rounded text-[10px] overflow-x-auto"><code></code></pre>
+          </div>
+        </div>
+      </details>
+      <button class="thread-btn mt-1.5 text-[11px] opacity-70 hover:opacity-100 select-none hidden"
+              aria-expanded="false">
+        💬 監査ログ <span class="thread-count opacity-60"></span>
+      </button>
+      <div class="thread-container hidden mt-2 border-l-2 border-white/20 pl-2 space-y-2"></div>
+    </div>
+    <div class="msg-meta-bottom flex items-center gap-2 mt-0.5 px-1 text-[10px] text-dm-text-dim">
+      <span class="msg-ts"></span>
+      <span class="msg-validator px-1.5 py-0.5 rounded text-[9px]"></span>
+      <span class="msg-loop text-[9px]"></span>
+      <span class="msg-read text-[9px]"></span>
     </div>
   </article>
+</template>
+
+<template id="tmpl-date-sep">
+  <div class="date-separator flex items-center gap-3 my-4 text-[11px] text-dm-text-dim opacity-50">
+    <div class="flex-1 border-t border-dm-border"></div>
+    <span class="date-label font-semibold"></span>
+    <div class="flex-1 border-t border-dm-border"></div>
+  </div>
 </template>
 
 <script src="/app.js"></script>

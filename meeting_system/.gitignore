@@ -21,3 +21,6 @@ projects/*
 *.lock
 .tmp_*
 .state_*
+
+# R53/R54 mkcert + openssl self-signed certs (秘密鍵 git混入防止)
+certs/

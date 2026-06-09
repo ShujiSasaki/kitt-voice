@@ -12,6 +12,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import shutil
 import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -32,11 +33,17 @@ def default_state(
     project_name: str = "",
     cdp_port: int = 9222,
     claude_tab_id: Optional[int] = None,
+    color: str = "#4F46E5",
+    icon: str = "💬",
 ) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "room_id": room_id,
         "project_name": project_name,
+        "color": color,
+        "icon": icon,
+        "current_topic": "",
+        "created_at": datetime.now(JST).isoformat(),
         "status": "idle",
         "current_actor": None,
         "next_actor": "gpt",
@@ -101,6 +108,48 @@ def init_room(
     state = default_state(room_id, project_name, cdp_port)
     write_state_atomic(room_id, state, base)
     return state
+
+
+class RoomAlreadyExistsError(Exception):
+    pass
+
+
+def create_room(
+    room_id: str,
+    project_name: str = "",
+    color: str = "#4F46E5",
+    icon: str = "💬",
+    cdp_port: int = 9222,
+    base: Path = DEFAULT_BASE,
+) -> dict:
+    """3者合意 R55:
+    state.json + ディレクトリ群 (queue/responses/minutes/browser_profile/timeline.jsonl)
+    をアトミック生成 (失敗時 shutil.rmtree でロールバック)
+    """
+    if not room_id or "/" in room_id or ".." in room_id:
+        raise ValueError(f"invalid room_id: {room_id!r}")
+    room_dir = base / "projects" / room_id
+    if room_dir.exists():
+        raise RoomAlreadyExistsError(f"room already exists: {room_id}")
+    try:
+        room_dir.mkdir(parents=True, exist_ok=False)
+        (room_dir / "queue").mkdir()
+        (room_dir / "responses").mkdir()
+        (room_dir / "minutes").mkdir()
+        (room_dir / "browser_profile").mkdir()
+        (room_dir / "timeline.jsonl").touch()
+        state = default_state(
+            room_id=room_id,
+            project_name=project_name or room_id,
+            cdp_port=cdp_port,
+            color=color,
+            icon=icon,
+        )
+        write_state_atomic(room_id, state, base)
+        return state
+    except Exception:
+        shutil.rmtree(room_dir, ignore_errors=True)
+        raise
 
 
 def reset_topic(room_id: str, topic_id: str, topic_title: str,

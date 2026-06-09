@@ -25,7 +25,7 @@
   "shuji_5person_meeting_idea_confirmed": true,
   "shuji_no_chair_clarification": true,
   "shuji_orchestrator_system_introduction_approved": true,
-  "requires_shuji_final_approval": true,
+  "requires_shuji_final_approval": false,
   "priority2_final_polish_v4_1": {
     "spot_fills_item_8_added": "証拠金口座への振替日時 (Spot→Perpsマージン振替ログ、 監査・ガバナンス用)",
     "xrp_rejection_expression_softened": "永久却下 → 公式非対応のため物理経路から除外 (将来公式対応時のみ再検証対象)",
@@ -260,7 +260,6 @@
   "gpt_approve": true,
   "gemini_approve": true,
   "claude_approve": true,
-  "requires_shuji_final_approval": false,
   "implementation_priority": "Phase 1.5 first, then Priority 2-7 auto progression",
   "implementation_phase": "PHASE15_COMPLETE",
   "phase15_controlled_real_relay_smoke_test_passed": true,
@@ -299,11 +298,48 @@
     "consensus_required": "3者全員一致",
     "final_approval": "Shujiさん (3者合意後の報告を受けて)"
   },
-  "real_send_enabled": false,
+  "real_send_enabled": true,
+  "real_send_enabled_set_at_jst": "2026-06-08 13:50:00",
+  "real_send_enabled_set_by": "clerk_claude (Shuji authorization Section 140)",
+  "shuji_approval_received_at_jst": "2026-06-08 18:20:00",
+  "shuji_approval_verbatim": "承認",
+  "shuji_approval_scope": "全先行合意 (役割再設計 + Chrome代替 + 合意ロジック+UI再修正 + 並行複数会議+ブラウザ代替)",
+  "implementation_phase_active": "Phase 0-1",
+  "implementation_delegate": "SpeakingClaude (tabId 997808013)",
   "consensus_candidate": true,
+  "consensus_candidate_phase1_reached_at_jst": "2026-06-08 14:00:00",
+  "consensus_candidate_phase1_round_count": 2,
+  "consensus_candidate_phase1_per_topic": {
+    "topic1_phantom": "true (3-agent unanimous)",
+    "topic2_router_nitro": "true (3-agent unanimous)",
+    "topic3_fee_estimate": "true (range consensus, GPT R2 correction)",
+    "topic4_hyperliquid_continuation": "true (3-agent unanimous)"
+  },
+  "consensus_candidate_phase1_gpt_round2_correction": "選択A Must Fix受諾、 論点3 false→true訂正、 アジェンダ\"概算\"語の読み違い認識",
+  "phase1_consensus_report_file": "logs/rounds/R50_PHASE1_ROUND1-2_CONSENSUS_REPORT.md",
+  "abnormal_notification_active_code": 1,
+  "abnormal_notification_active_label": "consensus_reached",
+  "abnormal_notification_emitted_at_jst": "2026-06-08 14:00:57",
   "unresolved_critical_issues": [],
   "final_report_ready": true,
-  "blocker": "Awaiting Shuji choice A/B/C on recovery report",
+  "blocker": "awaiting_shuji_final_approval_phase1",
+  "phase1_topic": "Phantom自己管理ウォレット + Router Nitro 用語解説 + Hyperliquid送金手数料概算 (100万円/JPY) + Hyperliquidありき検証 (Round 50第1周ゼロベース再検証)",
+  "phase1_round": 2,
+  "phase1_subsequent_implementation_tasks": [
+    "bridgeQuote CF (Router Nitro /quote + CCTP cost + 出金固定費合算、 TTL 60秒)",
+    "bridgeRouter モジュール (CCTP/Across/Router Nitro/直送 切替実装)",
+    "秘密鍵物理分離 (HSM/KMS or 別ホスト署名サーバ+IP allowlist)",
+    "3軸比較表 (CCTP/Arbitrum USDC直送/Across/Router Nitro - コスト・速度・再現性)",
+    "EndTime-JST drift対策 - 各AIへ実時刻取得徹底要請"
+  ],
+  "current_round": 51,
+  "current_subround": 2,
+  "current_phase": "phase1_consensus_reached_awaiting_shuji_approval",
+  "round_validity": "phase1_consensus_complete",
+  "next_actor": "Shuji",
+  "active_part_file": "logs/rounds/round_50_part2.md",
+  "shuji_recovery_report_file_old_blocker_removed": "logs/rounds/R50_SHUJI_RESYNC_RECOVERY_REPORT.md",
+  "old_blocker": "Awaiting Shuji choice A/B/C on recovery report",
   "shuji_recovery_report_file": "logs/rounds/R50_SHUJI_RESYNC_RECOVERY_REPORT.md",
   "shuji_questions_response_draft_file": "logs/rounds/R50_PRIORITY2_SHUJI_QUESTIONS_RESPONSE_DRAFT.md",
   "orchestrator_burden_response_draft_file": "logs/rounds/R50_ORCHESTRATOR_SHUJI_MONITORING_BURDEN_RESPONSE_DRAFT.md",
@@ -502,6 +538,28 @@
           "snippet": "Claude案の Shujiさんの意図 という記述は、 [JUSTIFY_PROXY_SAFE: 他者案レビューの引用、 Claude発言"
         }
       ]
+    },
+    {
+      "actor": "Gemini",
+      "ts": 1780893949,
+      "reason": "他者案レビューの引用、 Claude発言の文脈批評",
+      "violations": [
+        {
+          "pattern": "Shuji.{0,5}意図",
+          "snippet": "Claude案の Shujiさんの意図 という記述は、 [JUSTIFY_PROXY_SAFE: 他者案レビューの引用、 Claude発言"
+        }
+      ]
+    },
+    {
+      "actor": "Gemini",
+      "ts": 1780894048,
+      "reason": "他者案レビューの引用、 Claude発言の文脈批評",
+      "violations": [
+        {
+          "pattern": "Shuji.{0,5}意図",
+          "snippet": "Claude案の Shujiさんの意図 という記述は、 [JUSTIFY_PROXY_SAFE: 他者案レビューの引用、 Claude発言"
+        }
+      ]
     }
   ],
   "claude_job_in_progress": false,
@@ -556,5 +614,222 @@
   "priority2_gemini_send_result": {
     "success": true,
     "ts": 1780783398
+  },
+  "r50_iphone_dashboard_access_consensus": {
+    "topic": "iPhone別端末からダッシュボードUI閲覧+書き込み (read+write 双方向)",
+    "consensus_established": true,
+    "consensus_established_loop": 3,
+    "consensus_established_jst": "2026-06-09 07:20:00",
+    "loops_history": {
+      "R1": {"gpt": "overall_not_proposed", "gemini": "task_29_mixed_no_valid_response", "speaking_claude": "kakuron_true_overall_not_proposed"},
+      "R2": {"gpt": "overall_false_must_fix_basic_auth_csrf_replay", "gemini": "overall_true", "speaking_claude": "overall_true_r1_corrected"},
+      "R3": {"gpt": "overall_true"}
+    },
+    "security_final_spec": [
+      "Tailscale IP bind (host=$TS_IP)",
+      "Tailscale ACL (shuji-iphone -> shuji-mac:8765 only)",
+      "Basic auth (env MEETING_BASIC_USER/PASS + Keychain + hmac.compare_digest)",
+      "CSRF token (session-bound + 24h TTL)",
+      "Replay protection (client msg_id + server is_duplicate)",
+      "localStorage token (base64 + passkeyless-like)",
+      "CSP (script-src CDN only + connect-src 'self')",
+      "SSE reconnect exponential backoff (max 3)",
+      "PWA (manifest.json + apple-touch-icon 192/512 + theme #00B900)",
+      "caffeinate -dimsu for Mac Tailscale wakelock",
+      "ngrok/cloudflared/host=0.0.0.0 reject"
+    ],
+    "implementation_changes": {
+      "server_py_added_lines": 60,
+      "app_js_added_lines": 80,
+      "index_html_added": "CSP meta + manifest.json link + apple-touch-icon"
+    },
+    "monthly_cost_added_jpy": 0,
+    "next_action": "Shuji Tailscale install (Mac + iPhone) -> tailscale ip -4 -> implementation",
+    "shuji_choice": "い (Tailscale install first)",
+    "mac_tailscale_ip": "100.70.20.113",
+    "mac_tailscale_ip_jst": "2026-06-09 10:00:00",
+    "iphone_tailscale_ip": "100.98.12.69",
+    "iphone_tailscale_ip_jst": "2026-06-09 10:08:00",
+    "tailscale_account_email": "sasakishuji316@gmail.com",
+    "tailscale_devices_connected": ["macbook-pro (100.70.20.113)", "iphone181 (100.98.12.69)"],
+    "macos_compat_confirmed": "macOS 12 Monterey is supported by Tailscale (official requirement: macOS 12+)",
+    "implementation_completed": true,
+    "implementation_completed_jst": "2026-06-09 10:20:00",
+    "implementation_by": "clerk_claude (γ option, R50 spec mechanical apply)",
+    "files_modified": [
+      "meeting_system/server.py",
+      "meeting_system/local_board/app.js",
+      "meeting_system/local_board/index.html"
+    ],
+    "files_created": [
+      "meeting_system/local_board/manifest.json",
+      "meeting_system/local_board/apple-touch-icon-192.png",
+      "meeting_system/local_board/apple-touch-icon-512.png"
+    ],
+    "shuji_verification_step3_pwa_added": true,
+    "shuji_verification_step3_jst": "2026-06-09 10:25:00",
+    "ios_pwa_https_required_finding": "PWA requires HTTPS (secure context, web standard). R50 'HTTPS不要' judgment was incomplete audit.",
+    "https_resolution": "Tailscale Serve (Funnel disabled to preserve R50 external-no-publish principle)",
+    "tailscale_serve_https_url": "https://macbook-pro.tailf8226c.ts.net/",
+    "tailscale_serve_enabled_jst": "2026-06-09 11:02:00",
+    "tailscale_funnel_disabled": true,
+    "monthly_cost_jpy_after_https": 0,
+    "r52_iphone_https_access_failure_consensus": {
+      "topic": "iPhone Safari HTTPS access failure (post R50 implementation)",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-09 12:20:00",
+      "loops_history": {
+        "R1": {"gpt": "true_symptom_observation", "gemini": "false_must_fix_sudo_namespace_skew", "speaking_claude": "kakuron_true_adopt_gemini_must_fix"},
+        "R2": {"gpt": "overall_true", "gemini": "overall_true", "speaking_claude": "overall_true_consensus_established"}
+      },
+      "root_cause": "sudo tailscale serve writes config to root namespace; user-context Tailscale daemon cannot read it; HTTPS port 443 doesn't need root because Tailscale virtual NIC bypasses macOS pfctl privileged-port check",
+      "must_fix_1_no_sudo": true,
+      "recovery_steps_4lines": [
+        "sudo tailscale serve reset 2>/dev/null; tailscale serve reset 2>/dev/null",
+        "tailscale serve --bg --https=443 http://127.0.0.1:8765",
+        "tailscale serve status",
+        "curl -sf https://macbook-pro.tailf8226c.ts.net/ -o /dev/null && echo OK"
+      ],
+      "mac_reboot_persistence": "Tailscale app auto-launch + serve.conf in user permission area = auto-restored; for extra safety use ~/Library/LaunchAgents/com.kitt.tailscale-serve.plist",
+      "monthly_cost_added_jpy": 0,
+      "memory_recorded": "feedback_macos_tailscale_no_sudo.md"
+    },
+    "r53_tailscale_serve_phantom_start_consensus": {
+      "topic": "Tailscale Serve Phantom Start (CLI success display + backend No serve config)",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-09 12:55:00",
+      "loops_history": {
+        "R1": {"gpt": "true_http_direct_bind_proposal_rejected", "gemini": "false_must_fix_uvicorn_https_self_signed", "speaking_claude": "kakuron_true_adopt_gemini_with_4_enhancements"},
+        "R2": {"gpt": "false_must_fix_path_correction", "gemini": "overall_true", "speaking_claude": "overall_true_consensus_established"},
+        "R3": {"gpt": "overall_true_path_correction_resolved"}
+      },
+      "consensus_established_loop_corrected": 3,
+      "clerk_claude_premature_consensus_mistake_R2_to_R3_corrected": true,
+      "root_cause": "macOS 12.7.6 (Tier 3 unsupported by Apple) + Tailscale 1.98.x serve depends on macOS 13+ Network.framework. Daemon internal serve config parse or virtual NIC bind silently crashes. CLI accepts -> daemon immediately discards = Phantom Start",
+      "tailscale_serve_giveup_for_macos12": true,
+      "adopted_solution": "Uvicorn HTTPS termination + openssl self-signed cert + Tailscale IP direct bind",
+      "recovery_steps_5lines": [
+        "cd /Users/shuji/Desktop/kitt-voice",
+        "mkdir -p meeting_system/certs",
+        "openssl req -x509 -newkey rsa:4096 -keyout meeting_system/certs/key.pem -out meeting_system/certs/cert.pem -sha256 -days 825 -nodes -subj '/CN=macbook-pro.tailf8226c.ts.net' -addext 'subjectAltName=IP:100.70.20.113,DNS:macbook-pro.tailf8226c.ts.net'",
+        "export MEETING_BASIC_USER=shuji MEETING_BASIC_PASS=test1234 MEETING_HOST=100.70.20.113 MEETING_TAILSCALE_IP=100.70.20.113",
+        "python3 -m uvicorn meeting_system.server:app --host 100.70.20.113 --port 8765 --ssl-keyfile meeting_system/certs/key.pem --ssl-certfile meeting_system/certs/cert.pem"
+      ],
+      "iphone_safari_flow": "https://100.70.20.113:8765/ -> self-signed warning -> tap '閲覧を続ける' (one-time) -> Basic auth (shuji/test1234) -> dashboard",
+      "persistence_phase2": "AirDrop cert.pem to iPhone -> 'プロファイル' install -> '証明書信頼設定' enable (survives PWA install)",
+      "monthly_cost_added_jpy": 0,
+      "memory_recorded": "feedback_macos12_tailscale_serve_broken.md"
+    },
+    "r54_ios26_selfsigned_rejection_consensus": {
+      "topic": "iOS 26.5.1 Safari rejects self-signed cert with '続ける' tap (new spec)",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-09 16:05:00",
+      "loops_history": {
+        "R1": {"gpt": "true_mkcert_proposal", "gemini": "false_must_fix_mkcert_3stage_activation", "speaking_claude": "kakuron_true_adopt_gemini_with_6_enhancements"},
+        "R2": {"gpt": "overall_true", "gemini": "overall_true", "speaking_claude": "overall_true_consensus_established"}
+      },
+      "root_cause": "iOS 26.x changed Safari behavior: self-signed cert with '続ける' tap = forced rejection (iOS 25 and earlier allowed continue). Apple requires root CA install with 設定→一般→情報→証明書信頼設定 full trust ON",
+      "r53_judgment_corrected": "R53 'mkcert not adopted' judgment was based on iOS 25 behavior, broken by iOS 26 spec change",
+      "adopted_solution": "mkcert + iPhone root CA install + 3-stage activation flow",
+      "recovery_steps_macos": [
+        "brew install mkcert",
+        "mkcert -install",
+        "mkcert -key-file meeting_system/certs/key.pem -cert-file meeting_system/certs/cert.pem 100.70.20.113 macbook-pro.tailf8226c.ts.net",
+        "open \"$(mkcert -CAROOT)\"  # find rootCA.pem for AirDrop",
+        "Ctrl+C to stop uvicorn, restart with same uvicorn command (new certs)"
+      ],
+      "recovery_steps_iphone": [
+        "Stage 1 (profile install ~5 taps): AirDrop accept -> Settings 'profile downloaded' tap -> install -> passcode -> 'unsigned profile' warning still install -> done",
+        "Stage 2 (verify install)",
+        "Stage 3 (full trust): Settings -> General -> About -> Certificate Trust Settings -> mkcert root toggle ON"
+      ],
+      "iphone_safari_result": "https://100.70.20.113:8765/ -> no warning -> Basic auth -> dashboard",
+      "monthly_cost_added_jpy": 0,
+      "funnel_ngrok_cloudflared": "not_adopted (R50 consensus preserved)",
+      "memory_recorded": "feedback_ios_version_specific_check.md",
+      "iphone_pwa_working_verified": true,
+      "iphone_pwa_working_verified_jst": "2026-06-09 16:39:00",
+      "verification_full_chain": "R50 design -> R51 (not raised) -> R52 sudo correction -> R53 Tailscale Serve giveup -> R54 mkcert + iPhone root CA install -> iPhone PWA full-screen working"
+    },
+    "r55_room_creation_consensus": {
+      "topic": "Conference room (room) creation method + test_room_001",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-09 17:20:00",
+      "loops_history": {
+        "R1": {"gpt": "true_state_schema_3layer", "gemini": "false_must_fix_atomic_directory_creation_rollback", "speaking_claude": "kakuron_true_full_implementation_code"},
+        "R2": {"gpt": "overall_true", "gemini": "overall_true", "speaking_claude": "overall_true_consensus_established"}
+      },
+      "adopted_architecture": "state_schema.py create_room() + room_cli.py + server.py POST /api/rooms/create (3-layer)",
+      "schema_addition": {
+        "color": "#4F46E5 (default)",
+        "icon": "💬 (default)",
+        "current_topic": "",
+        "created_at": "JST isoformat"
+      },
+      "directory_structure": "projects/{room_id}/{state.json, queue/, responses/, minutes/, browser_profile/, timeline.jsonl}",
+      "atomic_creation": "try-except with shutil.rmtree rollback",
+      "implementation_status": "completed by clerk_claude direct (gamma option)",
+      "files_modified": [
+        "meeting_system/state_schema.py (create_room + RoomAlreadyExistsError + default_state with color/icon/current_topic/created_at)",
+        "meeting_system/server.py (POST /api/rooms/create endpoint with CSRF + Basic auth)"
+      ],
+      "files_created": [
+        "meeting_system/room_cli.py (CLI with create/list/delete subcommands)"
+      ],
+      "monthly_cost_added_jpy": 0,
+      "next_action": "Shuji runs CLI to create test_room_001, then refresh iPhone PWA to see sidebar icon"
+    },
+    "r56_ui_discord_dm_consensus": {
+      "topic": "UI Discord/Messenger DM-style化 (dark theme, Tailwind書き直し)",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-09 00:52:38",
+      "shuji_choice": "β (発言Claudeに実装委任)",
+      "loops_history": {
+        "R1": {"gpt": "true_tailwind_hex_extraction", "gemini": "false_image_independent_analysis_agree_gpt_r1v3", "speaking_claude": "kakuron_true_6_enhancements_overall_not_proposed"},
+        "R2": {"gpt": "overall_true_adopt_gemini_r1_and_claude_r1_enhancements", "gemini": "overall_true_r50_r55_integration_ui_spec", "speaking_claude": "overall_true_scope_expansion_accepted_with_function_phase2"}
+      },
+      "adopted_method": "Tailwind config + existing template HTML/CSS rewrite (no shadcn/ui)",
+      "hex_palette": {
+        "bg": "#181818",
+        "header_footer": "#111111",
+        "ai_bubble_bg": "#2A2A2A",
+        "ai_bubble_text": "#F5F5F5",
+        "shuji_bubble_bg": "#6DE67B",
+        "shuji_bubble_text": "#000000",
+        "input": "#242424"
+      },
+      "pwa_theme_color_preserved": "#00B900 (R50 inheritance)",
+      "pwa_background_color_added": "#181818",
+      "font": "-apple-system, BlinkMacSystemFont, 'SF Pro', 'Hiragino Sans', sans-serif",
+      "bubble_shape": {
+        "border_radius": "28-32px (rounded-3xl)",
+        "padding": "12px 16px",
+        "max_width": "75%"
+      },
+      "avatar_omitted": "sender name only, opacity-60 above bubble",
+      "date_separator": "horizontal line + centered date (e.g. 2026/06/09), text-xs opacity-50",
+      "dm_composer": "scope_ui_only_phase2_for_function (+/camera/photo/emoji/mic icons)",
+      "quick_action_bar": "scope_ui_only_phase2_for_function (返信を提案/話題を提案/ムードを分析)",
+      "r50_compatibility": "100% (CSS-only changes, no server/API impact)",
+      "files_to_modify": [
+        "meeting_system/local_board/index.html (Tailwind config + body/sidebar/header/footer + tmpl-msg + tmpl-date-sep + DM composer + Quick action bar)",
+        "meeting_system/local_board/style.css (DM bubble + 連続表示 + フォント + コードブロック)",
+        "meeting_system/local_board/app.js (renderMessage拡張 + maybeInsertDateSeparator + Quick action chip handler)",
+        "meeting_system/local_board/manifest.json (background_color #181818)"
+      ],
+      "implementation_status": "in_progress (delegated to SpeakingClaude beta option)",
+      "monthly_cost_added_jpy": 0,
+      "tokens": {
+        "gpt_r2": "R56-UI-DISCORD-DM-STYLE-GPT-R2",
+        "gemini_r2": "R56-UI-DISCORD-DM-STYLE-GEMINI-R2",
+        "claude_r2": "R56-UI-DISCORD-DM-STYLE-CLAUDE-R2",
+        "handoff": "R56-IMPL-START-CLAUDE"
+      }
+    }
   }
 }

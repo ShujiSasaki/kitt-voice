@@ -1,77 +1,165 @@
 /* meeting_system/local_board/style.css
- * 3者合意 (前々議題 R50-CONSENSUS-LOGIC-AND-UI-FEEDBACK):
- *   - Orbitron 不採用、 デフォルトシステムフォント
- *   - LINE/X風UI (Shuji明言遵守)
- *   - Tailwind utility と併用、 ここはアニメーション/特殊効果のみ
+ * R56合意 (R56-UI-DISCORD-DM-STYLE Loop 2 確定仕様):
+ *   - Discord/Messenger DM風 dark theme
+ *   - Tailwind utility併用、 ここはbubble shape / 配置 / アニメ
+ *   - LINE風(R50)スタイルは撤回
  */
 
 html, body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
-               "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
+               "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: #181818;
+  color: #F5F5F5;
 }
 
-/* Shuji吹き出し (右側) */
+/* ===== DM bubble 共通 ===== */
+.msg {
+  align-self: flex-start;
+}
 .msg[data-actor="shuji"] {
-  flex-direction: row-reverse;
+  align-self: flex-end;
 }
-.msg[data-actor="shuji"] .msg-header-row {
-  justify-content: flex-end;
-}
-.msg[data-actor="shuji"] .msg-bubble {
-  background-color: #85E649;
-  border-top-right-radius: 4px;
+.msg[data-actor="shuji"] .msg-sender-label,
+.msg[data-actor="shuji"] .msg-meta-bottom {
+  text-align: right;
+  align-self: flex-end;
 }
 .msg[data-actor="shuji"] .msg-bubble {
-  border-top-left-radius: 1rem;
+  align-self: flex-end;
 }
 
-/* AI吹き出し (左側、 左上角カット) */
+/* AI bubble (左) */
 .msg:not([data-actor="shuji"]) .msg-bubble {
-  border-top-left-radius: 4px;
+  background-color: #2A2A2A;
+  color: #F5F5F5;
+  border-bottom-left-radius: 8px;
 }
 
-/* アバター色 */
-.msg[data-actor="gpt"]    .msg-avatar { background-color: #10A37F; }
-.msg[data-actor="gemini"] .msg-avatar { background-color: #8E75D9; }
-.msg[data-actor="claude"] .msg-avatar { background-color: #D97706; }
-.msg[data-actor="shuji"]  .msg-avatar { background-color: #00B900; }
-.msg[data-actor="validator"] .msg-avatar { background-color: #DC2626; }
+/* Shuji bubble (右、 画像準拠 明るい緑) */
+.msg[data-actor="shuji"] .msg-bubble {
+  background-color: #6DE67B;
+  color: #000000;
+  border-bottom-right-radius: 8px;
+}
 
-/* Validatorバッジ */
-.msg-validator.pass { background-color: #DCFCE7; color: #166534; }
-.msg-validator.fail { background-color: #FEE2E2; color: #991B1B; font-weight: 700; }
+/* 同一送信者連続表示時のsender-label省略 */
+.msg[data-same-author="true"] .msg-sender-label {
+  display: none;
+}
+.msg[data-same-author="true"] {
+  margin-top: -2px;
+}
 
-/* 合意成立時の room アイコン緑グロー (3者合意 追加インスピレーション採択) */
+/* msg-bodyのコードブロック (bubble内、 半透明黒背景) */
+.msg-body code {
+  background: rgba(0, 0, 0, 0.30);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: "Menlo", "Consolas", "Courier New", monospace;
+}
+.msg[data-actor="shuji"] .msg-body code {
+  background: rgba(0, 0, 0, 0.15);
+  color: #1A1A1A;
+}
+.msg-body pre {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  max-height: 360px;
+  font-family: "Menlo", "Consolas", monospace;
+}
+.msg[data-actor="shuji"] .msg-body pre {
+  background: rgba(0, 0, 0, 0.18);
+  color: #0F0F0F;
+}
+.msg-body pre code { background: transparent; padding: 0; }
+
+/* Validator badge */
+.msg-validator.pass { background-color: rgba(34, 197, 94, 0.18); color: #4ADE80; }
+.msg-validator.fail { background-color: rgba(220, 38, 38, 0.22); color: #FCA5A5; font-weight: 700; }
+
+/* date separator (画像準拠) */
+.date-separator { color: #8A8A8A; opacity: 0.6; }
+.date-separator .date-label { letter-spacing: 0.5px; }
+
+/* ===== Quick action bar chip ===== */
+.quick-chip {
+  background: transparent;
+  border: 1px solid #2A2A2A;
+  color: #F5F5F5;
+  border-radius: 9999px;
+  padding: 5px 14px;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.quick-chip:hover {
+  background: rgba(109, 230, 123, 0.08);
+  border-color: #6DE67B;
+}
+.quick-chip:active {
+  background: rgba(109, 230, 123, 0.16);
+}
+
+/* ===== composer icon ===== */
+.composer-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #6DE67B;
+  font-size: 18px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.composer-icon-btn:hover {
+  background: rgba(109, 230, 123, 0.10);
+}
+
+/* ===== sidebar room icon ===== */
+.room-icon-btn[aria-current="true"] .room-icon-shape {
+  ring-color: #6DE67B;
+  box-shadow: 0 0 0 2px #6DE67B;
+  border-radius: 1rem;
+}
+
+/* ===== 合意成立時の room アイコン緑グロー (R50継続) ===== */
 @keyframes consensus-glow {
-  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-  50%  { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(109, 230, 123, 0.75); }
+  50%  { box-shadow: 0 0 0 10px rgba(109, 230, 123, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(109, 230, 123, 0); }
 }
 .room-icon-shape.consensus-reached {
   animation: consensus-glow 1.2s ease-out 1;
 }
 
-/* タイムライン markdown内コードブロック */
-.msg-body code {
-  background: #F3F4F6;
-  padding: 1px 4px;
+/* ===== scrollbar (DM風控えめ) ===== */
+#timeline::-webkit-scrollbar { width: 6px; }
+#timeline::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
   border-radius: 3px;
-  font-size: 0.9em;
-  font-family: "Menlo", "Consolas", monospace;
 }
-.msg-body pre {
-  background: #F3F4F6;
-  padding: 8px;
-  overflow-x: auto;
-  border-radius: 4px;
-  max-height: 400px;
-}
-.msg-body pre code {
-  background: transparent;
-  padding: 0;
-}
-
-/* スクロールバーをLINE風に控えめに */
-#timeline::-webkit-scrollbar { width: 8px; }
-#timeline::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
 #timeline::-webkit-scrollbar-track { background: transparent; }
+
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 2px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+
+#quick-actions::-webkit-scrollbar { height: 4px; }
+#quick-actions::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 2px; }
+#quick-actions::-webkit-scrollbar-track { background: transparent; }
+
+/* ===== thread item color (dark theme) ===== */
+.thread-item .actor-pill {
+  background: rgba(255, 255, 255, 0.08);
+  color: #F5F5F5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
