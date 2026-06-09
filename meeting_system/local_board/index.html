@@ -39,24 +39,24 @@ tailwind.config = {
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
 
-  <aside id="sidebar" class="w-16 bg-dm-header flex flex-col items-center py-3 gap-3 overflow-y-auto flex-shrink-0 border-r border-dm-border">
+  <aside id="sidebar" class="w-12 bg-dm-header flex flex-col items-center py-2 gap-2 overflow-y-auto flex-shrink-0 border-r border-dm-border">
   </aside>
 
-  <div class="flex-1 flex flex-col bg-dm-bg overflow-hidden">
+  <div class="flex-1 flex flex-col bg-dm-bg overflow-hidden min-w-0">
 
     <header class="sticky top-0 z-20 bg-dm-header border-b border-dm-border">
-      <div class="flex items-center gap-3 px-4 py-3">
-        <h1 class="text-base font-semibold text-dm-text" id="active-room-title">会議</h1>
-        <span class="text-xs text-dm-text-dim" id="header-status-summary">— 待機中</span>
-        <div class="ml-auto flex items-center gap-2">
+      <div class="flex items-center gap-2 px-3 py-3 min-w-0">
+        <h1 class="text-base font-semibold text-dm-text truncate min-w-0 flex-1" id="active-room-title">会議</h1>
+        <div class="ml-auto flex items-center gap-2 flex-shrink-0">
           <select id="notify-level" class="text-xs bg-dm-input border border-dm-border text-dm-text rounded-full px-2 py-1">
             <option value="off">通知OFF</option>
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
-          <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text" aria-label="設定" title="詳細を畳む/開く">⚙</button>
+          <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く">⚙</button>
         </div>
       </div>
+      <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
       <details id="header-details" class="px-4 pb-2">
         <summary class="text-xs text-dm-text-dim cursor-pointer select-none hover:text-dm-text">▼ 状態詳細</summary>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-dm-text-dim">
@@ -87,25 +87,27 @@ tailwind.config = {
     </div>
 
     <footer class="sticky bottom-0 bg-dm-header border-t border-dm-border z-10">
-      <div class="flex items-end gap-2 p-2">
-        <button id="composer-add-btn" class="composer-icon-btn" title="添付" aria-label="添付">＋</button>
+      <div class="flex items-center gap-2 p-2 min-w-0">
+        <button id="composer-add-btn" class="composer-icon-btn flex-shrink-0" title="添付" aria-label="添付">＋</button>
         <textarea id="shuji-input"
-                  class="flex-1 min-h-[40px] max-h-32 px-3 py-2 bg-dm-input border border-dm-border
-                         text-dm-text rounded-full text-sm placeholder-dm-text-dim
+                  class="composer-textarea flex-1 min-w-0 min-h-[40px] max-h-32 px-3 py-2 bg-dm-input border border-dm-border
+                         text-dm-text rounded-2xl text-sm placeholder-dm-text-dim
                          focus:outline-none focus:ring-2 focus:ring-dm-bubble-shuji resize-none"
-                  placeholder="メッセージを入力..."></textarea>
-        <button id="composer-camera-btn" class="composer-icon-btn" title="カメラ" aria-label="カメラ">📷</button>
-        <button id="composer-image-btn" class="composer-icon-btn" title="画像" aria-label="画像">🖼️</button>
-        <button id="composer-emoji-btn" class="composer-icon-btn" title="絵文字" aria-label="絵文字">😀</button>
-        <button id="composer-mic-btn" class="composer-icon-btn" title="マイク" aria-label="マイク">🎤</button>
+                  placeholder="メッセージを入力..." rows="1"></textarea>
         <button id="submit-btn"
                 class="bg-dm-bubble-shuji text-black font-bold w-10 h-10 rounded-full shadow
                        hover:opacity-90 disabled:bg-dm-border disabled:text-dm-text-dim disabled:cursor-not-allowed
-                       flex items-center justify-center"
+                       flex items-center justify-center flex-shrink-0"
                 title="送信" aria-label="送信">▶</button>
+      </div>
+      <div class="flex items-center gap-1 px-2 pb-2 min-w-0 composer-extras">
+        <button id="composer-camera-btn" class="composer-icon-btn-sm flex-shrink-0" title="カメラ" aria-label="カメラ">📷</button>
+        <button id="composer-image-btn" class="composer-icon-btn-sm flex-shrink-0" title="画像" aria-label="画像">🖼️</button>
+        <button id="composer-emoji-btn" class="composer-icon-btn-sm flex-shrink-0" title="絵文字" aria-label="絵文字">😀</button>
+        <button id="composer-mic-btn" class="composer-icon-btn-sm flex-shrink-0" title="マイク" aria-label="マイク">🎤</button>
         <button id="interrupt-btn"
-                class="bg-actor-validator text-white text-xs px-2 py-2 rounded-full shadow"
-                title="AI処理を強制中断" aria-label="割込">⏹</button>
+                class="ml-auto bg-actor-validator text-white text-[11px] px-2 py-1 rounded-full shadow flex-shrink-0"
+                title="AI処理を強制中断" aria-label="割込">⏹ 割込</button>
       </div>
     </footer>
 
@@ -114,15 +116,15 @@ tailwind.config = {
 
 <template id="tmpl-room-icon">
   <button class="room-icon-btn relative group" data-room-id="">
-    <div class="room-icon-shape w-11 h-11 rounded-full text-white text-lg font-bold flex items-center
-                justify-center ring-2 ring-transparent hover:ring-dm-bubble-shuji hover:rounded-2xl transition-all">
+    <div class="room-icon-shape w-8 h-8 rounded-lg text-white text-sm font-bold flex items-center
+                justify-center hover:rounded-md transition-all">
       <span class="room-icon-glyph"></span>
     </div>
-    <span class="unread-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold
-                 rounded-full w-5 h-5 flex items-center justify-center shadow">0</span>
-    <span class="status-dot absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-dm-text-dim
-                 ring-2 ring-dm-header" title=""></span>
-    <span class="tooltip absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-dm-input text-dm-text
+    <span class="unread-badge hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold
+                 rounded-full w-4 h-4 flex items-center justify-center shadow">0</span>
+    <span class="status-dot absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-dm-text-dim
+                 ring-1 ring-dm-header" title=""></span>
+    <span class="tooltip absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-dm-input text-dm-text
                  text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap
                  z-50 pointer-events-none border border-dm-border"></span>
   </button>

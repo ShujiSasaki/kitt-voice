@@ -104,7 +104,24 @@ html, body {
   background: rgba(109, 230, 123, 0.16);
 }
 
-/* ===== composer icon ===== */
+/* ===== composer textarea (Bug 1+2 fix: iOS Safari縦書き化対策) ===== */
+.composer-textarea {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  font-family: inherit;
+  /* iOS Safari の textarea デフォルト appearance / 列方向flexによる縦書きを物理防止 */
+  -webkit-appearance: none;
+  appearance: none;
+  flex-direction: row;
+}
+.composer-textarea::placeholder {
+  writing-mode: horizontal-tb;
+}
+
+/* ===== composer icon (主送信行: + / 送信) ===== */
 .composer-icon-btn {
   width: 36px;
   height: 36px;
@@ -117,26 +134,52 @@ html, body {
   font-size: 18px;
   transition: background 0.15s;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .composer-icon-btn:hover {
   background: rgba(109, 230, 123, 0.10);
 }
 
-/* ===== sidebar room icon ===== */
-.room-icon-btn[aria-current="true"] .room-icon-shape {
-  ring-color: #6DE67B;
-  box-shadow: 0 0 0 2px #6DE67B;
-  border-radius: 1rem;
+/* ===== composer icon sm (補助行: カメラ/画像/絵文字/マイク、 Bug 1+2 fix 2行分割) ===== */
+.composer-icon-btn-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #6DE67B;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.composer-icon-btn-sm:hover {
+  background: rgba(109, 230, 123, 0.10);
 }
 
-/* ===== 合意成立時の room アイコン緑グロー (R50継続) ===== */
+/* ===== sidebar room icon (Bug 3 fix: 気泡感縮小) ===== */
+.room-icon-btn[aria-current="true"] .room-icon-shape {
+  box-shadow: 0 0 0 2px #6DE67B;
+}
+
+/* ===== 合意成立時の room アイコン緑グロー (R50継続、 Bug 3 fix で半径縮小) ===== */
 @keyframes consensus-glow {
   0%   { box-shadow: 0 0 0 0 rgba(109, 230, 123, 0.75); }
-  50%  { box-shadow: 0 0 0 10px rgba(109, 230, 123, 0); }
+  50%  { box-shadow: 0 0 0 6px rgba(109, 230, 123, 0); }
   100% { box-shadow: 0 0 0 0 rgba(109, 230, 123, 0); }
 }
 .room-icon-shape.consensus-reached {
   animation: consensus-glow 1.2s ease-out 1;
+}
+
+/* ===== Bug 4 fix: ヘッダタイトル truncate ===== */
+#active-room-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* ===== scrollbar (DM風控えめ) ===== */
