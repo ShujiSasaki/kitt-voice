@@ -830,6 +830,21 @@
         "claude_r2": "R56-UI-DISCORD-DM-STYLE-CLAUDE-R2",
         "handoff": "R56-IMPL-START-CLAUDE"
       }
+    },
+    "r56_r3_composer_5icon_revision": {
+      "topic": "DM composer 5機能 訂正 (😀/🎤 削除、 📷/🖼️ は + に集約)",
+      "implementer": "事務Claude (直接実装、 Shujiさん明示指示)",
+      "implemented_jst": "2026-06-10 05:35",
+      "shuji_instruction": "事務claudeが開発と修正してもらえますか。 ・DM composer 5機能 (+/📷/🖼️/😀/🎤) のうち😀/🎤は不要、📷/🖼️は+の中に集約",
+      "changes": {
+        "index.html": "副行から 📷/🖼️/😀/🎤 削除 + 主行の + ボタンに popup menu (#composer-add-popup) 追加 (📷撮影/🖼️画像選択)",
+        "style.css": ".composer-icon-btn-sm 削除、 .composer-popup/.composer-popup-item/.composer-popup-icon 新規追加 (absolute bottom: calc(100% + 8px))",
+        "app.js": "composer-add-btn click → popup toggle + 外側クリックで close + popup-item click → Phase 2予定 toast"
+      },
+      "deleted_buttons": ["composer-emoji-btn", "composer-mic-btn"],
+      "consolidated_into_plus": ["composer-camera-btn", "composer-image-btn"],
+      "r56_consensus_preserved": "100% (UI集約のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
+      "monthly_cost_added_jpy": 0
     }
   }
 }

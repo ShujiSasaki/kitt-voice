@@ -453,15 +453,36 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // R56: composer icon stub (機能Phase 2)
-  const iconId = e.target.closest('[id^="composer-"]')?.id;
-  if (iconId && iconId !== 'composer-add-btn') {
-    showToast(`${iconId.replace('composer-', '').replace('-btn', '')} 機能はPhase 2予定`);
+  // R56-r2: composer + button → popup toggle (📷/🖼️ を + 内に集約)
+  if (e.target.closest('#composer-add-btn')) {
+    e.stopPropagation();
+    const btn = document.getElementById('composer-add-btn');
+    const popup = document.getElementById('composer-add-popup');
+    if (!popup) return;
+    const open = popup.classList.contains('hidden');
+    popup.classList.toggle('hidden', !open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     return;
   }
-  if (iconId === 'composer-add-btn') {
-    showToast('添付機能はPhase 2予定');
+
+  // R56-r2: popup item (📷撮影 / 🖼️画像選択) は Phase 2 で機能化
+  const popupItem = e.target.closest('#composer-camera-btn, #composer-image-btn');
+  if (popupItem) {
+    const label = popupItem.id === 'composer-camera-btn' ? '撮影' : '画像選択';
+    showToast(`${label} 機能はPhase 2予定`);
+    const popup = document.getElementById('composer-add-popup');
+    const btn = document.getElementById('composer-add-btn');
+    if (popup) popup.classList.add('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
     return;
+  }
+
+  // R56-r2: 外側クリックで popup 閉じる
+  const popup = document.getElementById('composer-add-popup');
+  if (popup && !popup.classList.contains('hidden')) {
+    popup.classList.add('hidden');
+    const btn = document.getElementById('composer-add-btn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
   }
 });
 

@@ -140,23 +140,50 @@ html, body {
   background: rgba(109, 230, 123, 0.10);
 }
 
-/* ===== composer icon sm (補助行: カメラ/画像/絵文字/マイク、 Bug 1+2 fix 2行分割) ===== */
-.composer-icon-btn-sm {
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
+/* ===== composer add popup (R56-r2: 📷/🖼️ を + 内に集約) ===== */
+.composer-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: #242424;
+  border: 1px solid #2A2A2A;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  z-index: 30;
+}
+.composer-popup.hidden {
+  display: none;
+}
+.composer-popup-item {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
   background: transparent;
-  color: #6DE67B;
-  font-size: 14px;
+  color: #F5F5F5;
+  font-size: 13px;
+  text-align: left;
+  border-radius: 8px;
   cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
-.composer-icon-btn-sm:hover {
+.composer-popup-item:hover {
   background: rgba(109, 230, 123, 0.10);
+}
+.composer-popup-icon {
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+#composer-add-btn[aria-expanded="true"] {
+  background: rgba(109, 230, 123, 0.14);
 }
 
 /* ===== sidebar room icon (Bug 3 fix: 気泡感縮小) ===== */

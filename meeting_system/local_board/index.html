@@ -88,7 +88,17 @@ tailwind.config = {
 
     <footer class="sticky bottom-0 bg-dm-header border-t border-dm-border z-10">
       <div class="flex items-center gap-2 p-2 min-w-0">
-        <button id="composer-add-btn" class="composer-icon-btn flex-shrink-0" title="添付" aria-label="添付">＋</button>
+        <div class="relative flex-shrink-0">
+          <button id="composer-add-btn" class="composer-icon-btn" title="添付" aria-label="添付" aria-expanded="false">＋</button>
+          <div id="composer-add-popup" class="composer-popup hidden" role="menu" aria-labelledby="composer-add-btn">
+            <button id="composer-camera-btn" class="composer-popup-item" role="menuitem" aria-label="撮影">
+              <span class="composer-popup-icon">📷</span><span>撮影</span>
+            </button>
+            <button id="composer-image-btn" class="composer-popup-item" role="menuitem" aria-label="画像を選択">
+              <span class="composer-popup-icon">🖼️</span><span>画像を選択</span>
+            </button>
+          </div>
+        </div>
         <textarea id="shuji-input"
                   class="composer-textarea flex-1 min-w-0 min-h-[40px] max-h-32 px-3 py-2 bg-dm-input border border-dm-border
                          text-dm-text rounded-2xl text-sm placeholder-dm-text-dim
@@ -100,11 +110,7 @@ tailwind.config = {
                        flex items-center justify-center flex-shrink-0"
                 title="送信" aria-label="送信">▶</button>
       </div>
-      <div class="flex items-center gap-1 px-2 pb-2 min-w-0 composer-extras">
-        <button id="composer-camera-btn" class="composer-icon-btn-sm flex-shrink-0" title="カメラ" aria-label="カメラ">📷</button>
-        <button id="composer-image-btn" class="composer-icon-btn-sm flex-shrink-0" title="画像" aria-label="画像">🖼️</button>
-        <button id="composer-emoji-btn" class="composer-icon-btn-sm flex-shrink-0" title="絵文字" aria-label="絵文字">😀</button>
-        <button id="composer-mic-btn" class="composer-icon-btn-sm flex-shrink-0" title="マイク" aria-label="マイク">🎤</button>
+      <div class="flex items-center px-2 pb-2 min-w-0 composer-extras">
         <button id="interrupt-btn"
                 class="ml-auto bg-actor-validator text-white text-[11px] px-2 py-1 rounded-full shadow flex-shrink-0"
                 title="AI処理を強制中断" aria-label="割込">⏹ 割込</button>
