@@ -428,24 +428,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // R56: Quick action chip → composer prefill
-  const chip = e.target.closest('.quick-chip');
-  if (chip) {
-    const action = chip.dataset.action;
-    const prefillMap = {
-      'propose-reply':  '【返信を提案】',
-      'propose-topic': '【話題を提案】',
-      'analyze-mood':  '【ムードを分析】',
-    };
-    const inp = document.getElementById('shuji-input');
-    if (inp) {
-      const cur = inp.value.trim();
-      inp.value = cur ? `${cur}\n${prefillMap[action]} ` : `${prefillMap[action]} `;
-      inp.focus();
-    }
-    return;
-  }
-
   // R56: header settings - 詳細toggle
   if (e.target.closest('#header-settings-btn')) {
     const d = document.getElementById('header-details');

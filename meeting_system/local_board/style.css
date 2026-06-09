@@ -84,26 +84,6 @@ html, body {
 .date-separator { color: #8A8A8A; opacity: 0.6; }
 .date-separator .date-label { letter-spacing: 0.5px; }
 
-/* ===== Quick action bar chip ===== */
-.quick-chip {
-  background: transparent;
-  border: 1px solid #2A2A2A;
-  color: #F5F5F5;
-  border-radius: 9999px;
-  padding: 5px 14px;
-  font-size: 12px;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s;
-  cursor: pointer;
-}
-.quick-chip:hover {
-  background: rgba(109, 230, 123, 0.08);
-  border-color: #6DE67B;
-}
-.quick-chip:active {
-  background: rgba(109, 230, 123, 0.16);
-}
-
 /* ===== composer textarea (Bug 1+2 fix: iOS Safari縦書き化対策) ===== */
 .composer-textarea {
   writing-mode: horizontal-tb !important;
@@ -220,10 +200,6 @@ html, body {
 #sidebar::-webkit-scrollbar { width: 4px; }
 #sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 2px; }
 #sidebar::-webkit-scrollbar-track { background: transparent; }
-
-#quick-actions::-webkit-scrollbar { height: 4px; }
-#quick-actions::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 2px; }
-#quick-actions::-webkit-scrollbar-track { background: transparent; }
 
 /* ===== thread item color (dark theme) ===== */
 .thread-item .actor-pill {

@@ -845,6 +845,19 @@
       "consolidated_into_plus": ["composer-camera-btn", "composer-image-btn"],
       "r56_consensus_preserved": "100% (UI集約のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
       "monthly_cost_added_jpy": 0
+    },
+    "r56_r4_quick_action_bar_removal": {
+      "topic": "Quick action bar 3-chip 削除 (返信を提案/話題を提案/ムードを分析)",
+      "implementer": "事務Claude (直接実装、 Shujiさん明示指示)",
+      "implemented_jst": "2026-06-10 05:42",
+      "shuji_instruction": "返信を提案/話題を提案/ムードを分析 これ不要",
+      "changes": {
+        "index.html": "#quick-actions div (3-chip) 全削除",
+        "style.css": ".quick-chip 関連スタイル削除 + #quick-actions scrollbarスタイル削除",
+        "app.js": "Quick action chip click handler (prefillMap) 削除"
+      },
+      "r56_consensus_preserved": "100% (機能スコープ縮小のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
+      "monthly_cost_added_jpy": 0
     }
   }
 }
