@@ -326,9 +326,37 @@ async function refreshTimeline() {
     appended = true;
   }
   lastRenderedMsgByRoom[activeRoomId] = prevMsg;
-  if (appended && nearBottom) {
-    tl.scrollTop = tl.scrollHeight;
+  if (appended) {
+    if (nearBottom) {
+      tl.scrollTop = tl.scrollHeight;
+    } else {
+      // R59: 上スクロール読書中は自動スクロールしない代わりに新着バッジ表示 (GPT R21提案)
+      ensureNewMsgBadge(tl).classList.remove('hidden');
+    }
   }
+}
+
+function ensureNewMsgBadge(tl) {
+  let btn = document.getElementById('new-msg-badge');
+  if (btn) return btn;
+  btn = document.createElement('button');
+  btn.id = 'new-msg-badge';
+  btn.textContent = '↓ 新着あり';
+  btn.className =
+    'hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-40 ' +
+    'bg-dm-bubble-shuji text-black text-sm font-bold px-4 py-2 ' +
+    'rounded-full shadow-lg';
+  btn.addEventListener('click', () => {
+    tl.scrollTop = tl.scrollHeight;
+    btn.classList.add('hidden');
+  });
+  tl.addEventListener('scroll', () => {
+    if (tl.scrollHeight - tl.scrollTop - tl.clientHeight < 120) {
+      btn.classList.add('hidden');
+    }
+  });
+  document.body.appendChild(btn);
+  return btn;
 }
 
 // ===== R56: renderMessage (新tmpl-msg準拠) =====
