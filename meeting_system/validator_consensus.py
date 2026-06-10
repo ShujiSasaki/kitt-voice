@@ -103,6 +103,27 @@ def mark_consensus_if_established(
     state = read_state(room_id, base)
     established, reason = check_consensus_established(state)
     changed = False
+
+    # R61 fix #6 (3者合意 4巡連続一致 2026-06-10 21:16):
+    # 最新loopの3者判定が 全員 blocked / external_wait なら
+    # state["status"] に該当値を書込み → relay_worker が auto-pause できる。
+    # (パースは validator.py で済み、 status への永続化だけが欠落していた)
+    cur_loop_key = str(state.get("total_loops", 0))
+    cur_cands = state.get("consensus_candidates_per_loop", {}).get(cur_loop_key, {})
+    wait_values = [
+        v for a, v in cur_cands.items()
+        if a in SEQUENCE and v in ("blocked", "external_wait")
+    ]
+    actors_voted = [a for a in cur_cands if a in SEQUENCE]
+    if (len(actors_voted) == len(SEQUENCE)
+            and len(wait_values) == len(SEQUENCE)
+            and state.get("status") not in ("blocked", "external_wait")):
+        # 多数値 (同数なら blocked優先 = より強い停止)
+        new_status = ("blocked" if wait_values.count("blocked")
+                      >= wait_values.count("external_wait") else "external_wait")
+        state["status"] = new_status
+        changed = True
+
     if established and not state.get("is_consensus_established"):
         state["is_consensus_established"] = True
         state["consensus_established_at"] = datetime.now(JST).isoformat()
