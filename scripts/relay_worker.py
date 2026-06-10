@@ -264,13 +264,27 @@ async def _drive_one_turn(
     return j
 
 
+_worker_start_ts: dict[str, float] = {}
+
+
 def _heartbeat(base: Path, room_id: str) -> None:
-    """R58 Must Fix B: server.py が mtime < 5sで running と判定するためのtouch"""
+    """R58 Must Fix B: server.py が mtime < 5sで running と判定するためのtouch。
+
+    R61 bug fix: start_ts (worker uptime算出用) を 持つ → Watchdog 猶予判定で使う。
+    """
     try:
+        import time as _time
+        import os as _os
+        if room_id not in _worker_start_ts:
+            _worker_start_ts[room_id] = _time.time()
         hb_path = base / "data" / "projects" / room_id / "relay_heartbeat.json"
         hb_path.parent.mkdir(parents=True, exist_ok=True)
         hb_path.write_text(
-            json.dumps({"ts": __import__("time").time(), "pid": __import__("os").getpid()}),
+            json.dumps({
+                "ts": _time.time(),
+                "pid": _os.getpid(),
+                "start_ts": _worker_start_ts[room_id],
+            }),
             encoding="utf-8",
         )
     except Exception:

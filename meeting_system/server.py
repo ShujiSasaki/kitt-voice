@@ -144,13 +144,38 @@ _watchdog_fired_at: dict[str, float] = {}
 def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
     """relay稼働中に timeline が180秒更新なし → System警告inject + status強制idle。
     送信ロック (relay_worker_state=running連動) はrunning解除で自動unlockされる。
+
+    R61 bug fix: relay_worker起動直後の誤発火防止。
+    relay_heartbeat.json の mtime が timeline mtime より新しい場合
+    (= worker起動後 timeline更新前) は 起動からの経過時間でなく
+    heartbeat ageを基準にする。
     """
     tl = _timeline_path(base)
     if not tl.exists():
         return False
-    age = time.time() - tl.stat().st_mtime
-    if age <= WATCHDOG_STALL_SEC:
+    tl_age = time.time() - tl.stat().st_mtime
+    if tl_age <= WATCHDOG_STALL_SEC:
         return False
+    # R61: worker起動直後の猶予 (heartbeat mtime が tl mtimeより新しい → worker新規起動)
+    hb = base / "data" / "projects" / room_id / "relay_heartbeat.json"
+    if hb.exists():
+        hb_mtime = hb.stat().st_mtime
+        tl_mtime = tl.stat().st_mtime
+        if hb_mtime > tl_mtime:
+            # worker起動後 timeline未更新 = worker uptime を見る
+            worker_uptime = time.time() - hb_mtime
+            # heartbeat 自体は毎iteration update なので、
+            # 「heartbeat初回からの経過」 をproxyに first-loop json探す
+            try:
+                hb_data = json.loads(hb.read_text(encoding="utf-8"))
+                start_ts = hb_data.get("start_ts")
+                if start_ts:
+                    worker_uptime = time.time() - start_ts
+            except Exception:
+                pass
+            if worker_uptime < WATCHDOG_STALL_SEC:
+                return False
+    age = tl_age
     # 同一stallへの多重発火防止 (5分クールダウン)
     last_fired = _watchdog_fired_at.get(room_id, 0.0)
     if time.time() - last_fired < 300.0:
