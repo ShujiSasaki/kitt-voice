@@ -72,31 +72,45 @@ def build_report(topic: str, grep_pattern: str | None,
         lines = smoke_out.splitlines()
         smoke_out = "\n".join(lines[-5:]) if len(lines) > 5 else smoke_out
 
+    # smoke PASS/FAIL要約 (先頭に明示、 GPT R7要請)
+    smoke_pass = "結果:" in smoke_out and "FAIL, 0" not in smoke_out and "0 FAIL" in smoke_out
+    smoke_status = "✅ PASS" if smoke_pass else "❌ check下記詳細"
+
     body = f"""[Validator → 3者: 実装完了報告 R60 ①]
 
 # 議題
 {topic}
 
-# 4点セット
+# 4点セット — 検収まとめ (先に結論)
+- commit: `{commit[:8]}` ({commit.split(' ',1)[1] if ' ' in commit else ''})
+- smoke test: {smoke_status}
+- grep ({grep_pattern or 'skip'}): {len(grep_out.splitlines()) if grep_out else 0} 行ヒット
+- 変更ファイル数: {len([f for f in files.splitlines() if f.strip()])}
+- 未解決リスク: {'なし' if not risks else 'あり (下記)'}
+
+---
+
+# 4点セット — 完全証跡 (中略なし、 GPT R7要請)
+
 ## 1. commit
 {commit}
 
 ## 2. grep ({grep_pattern or 'skipped'})
 ```
-{grep_out[:2000]}
+{grep_out}
 ```
 
 ## 3. smoke test ({smoke_module or 'skipped'})
 ```
-{smoke_out[:1500]}
+{smoke_out}
 ```
 
 ## 4. E2E
-deferred (Phase C Live検証で代替)
+deferred (Phase C Live検証で代替)、 次回 relay_worker再起動で実証予定
 
 # 変更ファイル (HEAD~1..HEAD)
 ```
-{files[:1000]}
+{files}
 ```
 
 # 未解決リスク
