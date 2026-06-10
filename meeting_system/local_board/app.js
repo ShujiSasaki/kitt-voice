@@ -276,6 +276,53 @@ async function refreshRoomState() {
   submitBtn.title = shouldLock
     ? (workerRunning ? '自動relay動作中 (送信は完了後)' : 'AI処理中')
     : '送信';
+
+  // R61 D + E: 再開ボタン + stall_reason表示
+  ensureResumeBar(s);
+}
+
+// R61 D + E: 停止状態時に「再開」 floating bar表示
+function ensureResumeBar(s) {
+  let bar = document.getElementById('resume-bar');
+  const stall = s.stall_reason;
+  const stallStatuses = new Set(['external_wait', 'blocked', 'consensus_reached', 'paused_by_shuji']);
+  const showBar = !!stall && (stallStatuses.has(s.status) || s.is_consensus_established);
+  if (!showBar) {
+    if (bar) bar.remove();
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'resume-bar';
+    bar.className =
+      'fixed bottom-32 left-1/2 -translate-x-1/2 z-40 ' +
+      'bg-dm-bubble-shuji text-black text-sm font-bold ' +
+      'px-4 py-2 rounded-full shadow-lg flex items-center gap-2 cursor-pointer ' +
+      'hover:opacity-90 active:scale-95 transition';
+    bar.addEventListener('click', async () => {
+      if (!activeRoomId) return;
+      try {
+        const r = await authFetch(`${API}/rooms/${activeRoomId}/resume_relay`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({}),
+        });
+        const j = await r.json();
+        if (j.ok) {
+          showToast(`再開しました (prev: ${j.prev_status})`);
+          bar.remove();
+          refreshRoomState();
+        } else {
+          showToast(`再開失敗: ${j.error || ''}`);
+        }
+      } catch (e) {
+        showToast(`再開error: ${e.message}`);
+      }
+    });
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = '<span>' + (stall || '') + '</span>' +
+                  '<span class="ml-1 px-2 py-0.5 rounded bg-black/15">▶ 再開</span>';
 }
 
 // ===== R56: 日付セパレータ insert =====

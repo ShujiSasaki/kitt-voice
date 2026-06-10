@@ -364,6 +364,22 @@ def create_app(base: Path = DEFAULT_BASE):
         st["relay_worker_state"] = rw_state
         if rw_age is not None:
             st["relay_worker_heartbeat_age_sec"] = round(rw_age, 1)
+        # R61 E: stall_reason をヘッダ表示用に同梱
+        stall_reason = None
+        st_status = st.get("status")
+        if st.get("is_consensus_established"):
+            stall_reason = "✅ 合意成立 (再開で続行可)"
+        elif st_status == "external_wait":
+            stall_reason = "⌛ AI判断: 外部待ち (再開で続行可)"
+        elif st_status == "blocked":
+            stall_reason = "⏸ AI判断: 人間判断待ち"
+        elif st_status == "paused_by_shuji":
+            stall_reason = "🛑 Shujiさんが割込中"
+        elif st_status == "ai_processing" and rw_state == "off":
+            stall_reason = "⚠️ AI処理中だが relay_worker停止"
+        elif rw_state == "off" and st_status == "idle":
+            stall_reason = "💤 relay_worker未起動 (Mac側で起動必要)"
+        st["stall_reason"] = stall_reason
         return st
 
     @app.get("/api/rooms/{room_id}/timeline")
@@ -454,6 +470,32 @@ def create_app(base: Path = DEFAULT_BASE):
             raise HTTPException(status_code=403, detail="csrf_invalid")
         result = sigint_handler.request_interrupt(room_id, base)
         return result
+
+    # R61 D: 議題再開 (iPhone PWAから ワンタップで stall解除)
+    @app.post("/api/rooms/{room_id}/resume_relay")
+    async def post_resume_relay(
+        room_id: str, req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        state = read_state(room_id, base)
+        prev_status = state.get("status")
+        # Stall 関連の status を idle に戻し、 next_actor進める
+        if prev_status in ("blocked", "external_wait", "consensus_reached"):
+            state["status"] = "idle"
+        if state.get("is_consensus_established"):
+            state["is_consensus_established"] = False
+            state["consensus_established_at"] = None
+            state["consensus_established_loop"] = None
+            state["consensus_established_reason"] = "shuji_resumed"
+        # next_actor は維持 (既存の順序)
+        write_state_atomic(room_id, state, base)
+        return {
+            "ok": True,
+            "prev_status": prev_status,
+            "next_actor": state.get("next_actor"),
+        }
 
     @app.post("/api/rooms/{room_id}/activate")
     async def post_activate(
@@ -642,12 +684,21 @@ def create_app(base: Path = DEFAULT_BASE):
             consensus_candidate=consensus_candidate, base=base,
             consensus_value=consensus_value,  # R59 Q3
         )
-        # R59 Q3: blocked/external_wait なら status を該当値に切替 (relay_worker停止用)
+        # R59 Q3 / R61 B: blocked/external_wait → 同loop内に2者以上いる時のみ全体停止
+        # 1者だけなら 議論継続 (他2者で判定可能なケース、 Shujiさん指示 2026-06-10)
         if consensus_value in ("blocked", "external_wait"):
             try:
                 _st = read_state(room_id, base)
-                _st["status"] = consensus_value
-                write_state_atomic(room_id, _st, base)
+                cur_loop_key = str(_st.get("total_loops", 0))
+                cur_cands = _st.get("consensus_candidates_per_loop", {}).get(cur_loop_key, {})
+                same_loop_waiters = sum(
+                    1 for v in cur_cands.values()
+                    if v in ("blocked", "external_wait")
+                )
+                if same_loop_waiters >= 2:
+                    _st["status"] = consensus_value
+                    write_state_atomic(room_id, _st, base)
+                # else: 1者だけなら status維持 (worker進行継続)
             except Exception:
                 pass
         loop_for_record = loop_override if loop_override is not None else new_state.get("total_loops")
@@ -837,6 +888,7 @@ def self_test() -> bool:
         "/api/rooms/{room_id}/submit", "/api/rooms/{room_id}/interrupt",
         "/api/rooms/{room_id}/activate", "/api/thread/{parent_msg_id}",
         "/api/rooms/{room_id}/inject_ai_message",
+        "/api/rooms/{room_id}/resume_relay",
         "/api/rooms/{room_id}/upload",
         "/api/rooms/{room_id}/attachments/{filename}",
         "/api/projects", "/api/projects/autolink",
