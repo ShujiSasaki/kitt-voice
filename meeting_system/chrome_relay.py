@@ -131,9 +131,9 @@ async def send_prompt(page, actor: str, text: str) -> None:
     - GPTの ProseMirror では fill() が text入らず → keyboard.insert_text 優先
     - keyboard events は 前面tabにのみ届く → bring_to_front 必須
     """
-    # R61 fix #4: keyboard events を効かせるため tab前面化
+    # R61 fix #4: keyboard events を効かせるため tab前面化 (5秒timeout)
     try:
-        await page.bring_to_front()
+        await asyncio.wait_for(page.bring_to_front(), timeout=5.0)
     except Exception:
         pass
     sel = SELECTORS[actor]
