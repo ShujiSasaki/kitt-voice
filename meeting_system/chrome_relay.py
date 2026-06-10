@@ -174,12 +174,33 @@ MIN_RESPONSE_CHARS = 80
 RELOAD_AFTER_SEC = 90.0
 
 
+async def get_last_response_text(page, actor: str) -> str:
+    """R62 fix #7: 送信前の最終応答 (baseline) を取得。 応答鮮度検知用。"""
+    sel = SELECTORS[actor]
+    try:
+        loc = page.locator(sel["last_response"]).last
+        return await loc.inner_text(timeout=3_000)
+    except Exception:
+        return ""
+
+
 async def wait_and_extract(
     page,
     actor: str,
     stabilize_sec: float = 3.0,
     max_wait_sec: float = 240.0,  # R59.2: 180→240 (Thinking余裕)
+    baseline_text: str = "",  # R62 fix #7: 送信前の旧応答 (同一なら未生成扱い)
 ) -> str:
+    """R62 fix #7 (3者合意 2026-06-10 22:09):
+    旧応答誤取得バグの根絶 — 送信前の baseline と同一テキストは
+    「まだ新応答が生成されていない」 とみなし stable判定しない。
+    (Gemini 2330chars×3回ループの真因: 安定テキスト=旧応答 を即回収していた)
+    """
+    import hashlib
+    baseline_hash = hashlib.sha1(
+        (baseline_text or "").strip().encode("utf-8")
+    ).hexdigest() if baseline_text else None
+
     sel = SELECTORS[actor]
     loc = page.locator(sel["last_response"]).last
     prev = ""
@@ -194,8 +215,25 @@ async def wait_and_extract(
             cur = await loc.inner_text(timeout=5_000)
         except Exception:
             continue
+        cur_strip = cur.strip()
+        # R62 fix #7: baseline と同一 = 旧応答 → 未生成扱い (stable判定しない)
+        if baseline_hash and cur_strip:
+            cur_hash = hashlib.sha1(cur_strip.encode("utf-8")).hexdigest()
+            if cur_hash == baseline_hash:
+                prev = cur
+                stable_since = None
+                # 旧応答のまま90秒 → 新応答がDOMに来ない可能性 → reload
+                if not reloaded and elapsed >= RELOAD_AFTER_SEC:
+                    try:
+                        await page.reload(wait_until="domcontentloaded", timeout=15_000)
+                        await asyncio.sleep(3.0)
+                        loc = page.locator(sel["last_response"]).last
+                        reloaded = True
+                    except Exception:
+                        pass
+                continue
         # R59.2: 短文 (Thinking / placeholder) は stable判定の対象にしない
-        if cur == prev and cur.strip() and len(cur.strip()) >= MIN_RESPONSE_CHARS:
+        if cur == prev and cur_strip and len(cur_strip) >= MIN_RESPONSE_CHARS:
             if stable_since is None:
                 stable_since = elapsed
             elif elapsed - stable_since >= stabilize_sec:
@@ -216,7 +254,7 @@ async def wait_and_extract(
                 stable_since = None
             except Exception:
                 pass
-    raise TimeoutError(f"{actor} 応答が {max_wait_sec}s 以内に安定せず")
+    raise TimeoutError(f"{actor} 応答が {max_wait_sec}s 以内に安定せず (鮮度検知: baseline={'有' if baseline_hash else '無'})")
 
 
 async def relay_turn(
@@ -230,9 +268,11 @@ async def relay_turn(
     """
     ctx = await attach_chrome(f"http://127.0.0.1:{cdp_port}")
     page = await find_tab(ctx, actor)
+    # R62 fix #7: 送信前の旧応答を baseline として記録 (鮮度検知)
+    baseline = await get_last_response_text(page, actor)
     try:
         await send_prompt(page, actor, prompt_text)
-        return await wait_and_extract(page, actor)
+        return await wait_and_extract(page, actor, baseline_text=baseline)
     except Exception as e:
         if not enable_reload_retry:
             raise
@@ -258,8 +298,10 @@ async def relay_turn(
             await asyncio.sleep(4.0)
             # find_tab再取得 (reloadでpageオブジェクト同じだがlocator再構築のため)
             page = await find_tab(ctx, actor)
+            # R62 fix #7: retry時も baseline再取得 (reload後の最新旧応答)
+            baseline2 = await get_last_response_text(page, actor)
             await send_prompt(page, actor, prompt_text)
-            return await wait_and_extract(page, actor)
+            return await wait_and_extract(page, actor, baseline_text=baseline2)
         except Exception as e2:
             raise type(last_err)(
                 f"{actor} 1st_fail={last_err} | reload_retry_fail={e2}"
