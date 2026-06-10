@@ -191,20 +191,33 @@ async def _drive_one_turn(
 
     # R59 bug fix: Watchdog validator inject等は relay順序に影響しない
     # → 最後msgが validator/system系なら 1個手前を「実 last_actor」 とみなす
-    last_msg = msgs[-1]
-    last_actor = last_msg.get("actor")
-    if last_actor not in ("shuji", "gpt", "gemini", "claude"):
-        # validator / system系をskip して 1個前の actor探す
-        prev = next(
-            (m for m in reversed(msgs[:-1])
-             if m.get("actor") in ("shuji", "gpt", "gemini", "claude")),
-            None,
-        )
-        if prev is None:
-            return {"skip": True, "reason": "no_real_last_actor"}
-        last_actor = prev.get("actor")
+    last_real = next(
+        (m for m in reversed(msgs)
+         if m.get("actor") in ("shuji", "gpt", "gemini", "claude")),
+        None,
+    )
+    if last_real is None:
+        return {"skip": True, "reason": "no_real_last_actor"}
+    last_actor = last_real.get("actor")
+    # R61 fix #5 (Fable5 root cause解明 2026-06-10 21:05):
+    # resume_relay 後に next_actor=gpt へ reset されると、
+    # timeline 最後の実発言者も gpt のケースで 永久 silent skip していた。
+    # → 「直前発言」 とみなすのは last_real が 120秒以内の場合のみ。
+    # それより古い = reset/再開後 → 重複送信リスクなし → 進行してよい。
     if last_actor in SEQUENCE and last_actor == next_actor:
-        return {"skip": True, "reason": "next_actor_already_spoke_just_now"}
+        last_ts_recent = False
+        ts_str = last_real.get("ts", "")
+        try:
+            from datetime import datetime as _dt
+            # "2026-06-10 20:07:45 JST" 形式
+            t = _dt.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
+            age_sec = (_dt.now() - t).total_seconds()
+            last_ts_recent = age_sec < 120.0
+        except Exception:
+            last_ts_recent = True  # parse不能なら安全側 (skip)
+        if last_ts_recent:
+            return {"skip": True, "reason": "next_actor_already_spoke_just_now"}
+        # 古い発言 → 進行 (重複防止は server側 R58.1 #10 の 409 guardが二重防御)
 
     prompt = _format_prompt(state, msgs, next_actor)
     _log(f"→ {next_actor} via CDP {cdp_port} ({len(prompt)} chars)")
@@ -330,8 +343,14 @@ async def run_room(
             elif result.get("error"):
                 await asyncio.sleep(max(poll, 5.0))
             elif result.get("skip"):
+                # R61 fix #5: silent skip 撲滅 — 理由が変わった時だけ log
+                reason = result.get("reason", "?")
+                if getattr(run_room, "_last_skip", None) != reason:
+                    _log(f"⏭ skip: {reason}")
+                    run_room._last_skip = reason
                 await asyncio.sleep(poll)
             else:
+                run_room._last_skip = None
                 await asyncio.sleep(poll)
         except KeyboardInterrupt:
             _log("interrupted")
