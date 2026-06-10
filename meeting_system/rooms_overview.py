@@ -49,8 +49,11 @@ def _room_summary(room_id: str, base: Path) -> dict:
     return {
         "room_id": room_id,
         "title": state.get("project_name") or room_id,
-        "icon": icon_cfg["icon"],
-        "color": icon_cfg["color"],
+        # R62: state.json の icon/color を優先 (R55 create_room / R59 Q4 PATCH 設定値)
+        "icon": state.get("icon") or icon_cfg["icon"],
+        "color": state.get("color") or icon_cfg["color"],
+        "archived": state.get("archived", False),
+        "project_id": state.get("project_id"),
         "cdp_port": state.get("chrome_cdp_port"),
         "chrome_profile_dir": str(
             Path("/Users/shuji/Library/Application Support/Google") / f"Chrome-{room_id}"
@@ -74,6 +77,8 @@ def _room_summary(room_id: str, base: Path) -> dict:
 def generate(base: Path = DEFAULT_BASE,
              active_room_id: str | None = None) -> dict:
     rooms = [_room_summary(rid, base) for rid in _list_rooms(base)]
+    # R62: archived部屋は sidebar非表示 (Shuji要望「テストの部屋が邪魔」 2026-06-10)
+    rooms = [r for r in rooms if not r.get("archived")]
     processing = None
     consensus_unread = 0
     shuji_unread_total = 0
