@@ -309,6 +309,15 @@ async def relay_turn(
     """
     ctx = await attach_chrome(f"http://127.0.0.1:{cdp_port}")
     page = await find_tab(ctx, actor)
+    # R62 fix #9: Geminiは送信前reload (複数session同期によるDOM stale対策、
+    # Shuji報告「またgeminiで止まってる」 2026-06-10 23:14)
+    if actor == "gemini":
+        try:
+            await page.reload(wait_until="domcontentloaded", timeout=15_000)
+            await asyncio.sleep(3.0)
+            page = await find_tab(ctx, actor)
+        except Exception:
+            pass
     # R62 fix #7: 送信前の旧応答を baseline として記録 (鮮度検知)
     baseline = await get_last_response_text(page, actor)
     try:
