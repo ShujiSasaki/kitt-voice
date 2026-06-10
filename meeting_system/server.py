@@ -173,11 +173,20 @@ def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
     }
     queue_io.append_timeline(record, base=base)
 
-    state["status"] = "idle"
+    # R60.1 (Shujiさん指摘 2026-06-10 19:05): "コントロールをShujiさんに返却"
+    # と表示してるのに idle のままで worker続行 → 同じactor再呼出 → 永遠 stall
+    # 修正: external_wait に切替 → R59 Q3経路でworker auto-pause + Shuji介入待ち
+    state["status"] = "external_wait"
+    # 次の actor 進めて Shuji再開時に同じstallに再陥らないように
+    cur_next = state.get("next_actor")
+    seq = ["gpt", "gemini", "claude"]
+    if cur_next in seq:
+        idx = seq.index(cur_next)
+        state["next_actor"] = seq[(idx + 1) % len(seq)]
     write_state_atomic(room_id, state, base)
     try:
         notification_controller.notify(
-            f"relay stall検知: {stalled_actor} {int(WATCHDOG_STALL_SEC)}s無応答 (room={room_id})",
+            f"relay stall検知: {stalled_actor} {int(WATCHDOG_STALL_SEC)}s無応答 (room={room_id}) → external_wait",
             level="normal", base=base,
         )
     except Exception:
