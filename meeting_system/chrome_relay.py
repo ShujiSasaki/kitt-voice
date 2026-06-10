@@ -184,6 +184,47 @@ async def get_last_response_text(page, actor: str) -> str:
         return ""
 
 
+STOP_BUTTON_SELECTORS = (
+    'button[aria-label="回答を停止"], '
+    'button[aria-label="Stop"], '
+    'button[data-testid="stop-button"], '
+    'button[aria-label*="stop" i]'
+)
+
+
+async def _verify_generation_started(
+    page, actor: str, baseline: str, check_sec: float = 20.0,
+) -> bool:
+    """R62 fix #8: 送信後に生成が実際に始まったか確認。
+
+    生成開始の証拠 (どちらか):
+    - 停止ボタンが可視 (生成中UI)
+    - last_response テキストが baseline から変化
+
+    20秒以内に確認できなければ False (送信click空振りの可能性)。
+    """
+    baseline_strip = (baseline or "").strip()
+    elapsed = 0.0
+    while elapsed < check_sec:
+        await asyncio.sleep(2.0)
+        elapsed += 2.0
+        # 1. 停止ボタン可視 = 生成中
+        try:
+            stop = page.locator(STOP_BUTTON_SELECTORS).first
+            if await stop.is_visible(timeout=1_000):
+                return True
+        except Exception:
+            pass
+        # 2. 応答テキスト変化
+        try:
+            cur = await get_last_response_text(page, actor)
+            if cur.strip() and cur.strip() != baseline_strip:
+                return True
+        except Exception:
+            pass
+    return False
+
+
 async def wait_and_extract(
     page,
     actor: str,
@@ -272,6 +313,12 @@ async def relay_turn(
     baseline = await get_last_response_text(page, actor)
     try:
         await send_prompt(page, actor, prompt_text)
+        # R62 fix #8: 送信後20秒以内に生成開始を確認 (Shuji報告: Geminiターンで進まない)
+        # 生成開始の証拠: stop btn可視 or 応答テキストがbaselineから変化
+        started = await _verify_generation_started(page, actor, baseline)
+        if not started:
+            # 送信click空振りの可能性 → 1回だけ即再送
+            await send_prompt(page, actor, prompt_text)
         return await wait_and_extract(page, actor, baseline_text=baseline)
     except Exception as e:
         if not enable_reload_retry:
