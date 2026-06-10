@@ -124,11 +124,30 @@ def mark_consensus_if_established(
 def reset_consensus_on_shuji_input(
     room_id: str, base: Path = DEFAULT_BASE,
 ) -> dict:
+    """R59 bug fix: Shuji submit時に loop状態も完全reset (新議題扱い)。
+    過去 timeline.jsonl は touch しない (改ざん禁止仕様)、
+    state.json の loop/cands のみリセット。
+    """
     state = read_state(room_id, base)
+    changed = False
     if state.get("is_consensus_established"):
         state["is_consensus_established"] = False
+        state["consensus_established_at"] = None
+        state["consensus_established_loop"] = None
         state["consensus_established_reason"] = "reset: shuji_new_input"
+        changed = True
+    if state.get("status") in ("consensus_reached", "blocked", "external_wait"):
         state["status"] = "idle"
+        changed = True
+    # 新議題として 巡回カウンタもリセット (R59 bug fix、 17:48 Shuji報告)
+    if state.get("total_loops", 0) > 0:
+        state["total_loops"] = 0
+        state["current_turn_in_loop"] = 0
+        state["next_actor"] = "gpt"
+        state["consensus_candidates_per_loop"] = {}
+        state["loops_history"] = []
+        changed = True
+    if changed:
         write_state_atomic(room_id, state, base)
     return state
 
