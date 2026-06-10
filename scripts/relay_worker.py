@@ -184,9 +184,20 @@ async def _drive_one_turn(
     if not msgs:
         return {"skip": True, "reason": "timeline_empty"}
 
-    last_actor = msgs[-1].get("actor")
+    # R59 bug fix: Watchdog validator inject等は relay順序に影響しない
+    # → 最後msgが validator/system系なら 1個手前を「実 last_actor」 とみなす
+    last_msg = msgs[-1]
+    last_actor = last_msg.get("actor")
     if last_actor not in ("shuji", "gpt", "gemini", "claude"):
-        return {"skip": True, "reason": f"unknown_last_actor:{last_actor}"}
+        # validator / system系をskip して 1個前の actor探す
+        prev = next(
+            (m for m in reversed(msgs[:-1])
+             if m.get("actor") in ("shuji", "gpt", "gemini", "claude")),
+            None,
+        )
+        if prev is None:
+            return {"skip": True, "reason": "no_real_last_actor"}
+        last_actor = prev.get("actor")
     if last_actor in SEQUENCE and last_actor == next_actor:
         return {"skip": True, "reason": "next_actor_already_spoke_just_now"}
 
