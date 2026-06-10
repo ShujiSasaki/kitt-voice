@@ -871,6 +871,18 @@
       },
       "phase_b_done_jst": "2026-06-10 09:55",
       "phase_c_done_jst": "2026-06-10 10:00",
+      "phase_d_done_jst": "2026-06-10 10:08",
+      "phase_d_implementation": {
+        "server_changes": [
+          "inject_ai_message に notify_consensus_reached 自動接続 (consensus_established時)",
+          "inject_ai_message に validator FAIL → notify level=normal 異常通知",
+          "inject_ai_message に unread_count +=1 (AI応答inject時、 Shujiさん未確認分)",
+          "submit に unread_count = 0 reset (Shuji発言で既読扱い)"
+        ],
+        "new_file": "scripts/health_check_tabs.py (約100行、 CDP接続+3者tab有無 + exit code)",
+        "reused_modules": ["notification_controller.notify_consensus_reached", "notification_controller.notify", "chrome_relay.attach_chrome", "chrome_relay.find_tab", "state_schema.read_state/write_state_atomic"],
+        "smoke_test_pass": "AI inject 3回 → unread=3、 Shuji submit → unread=0 reset、 AI再inject → unread=1、 R2 Claude → consensus_established=True + minutes自動生成 + notify発火、 final status=consensus_reached"
+      },
       "phase_c_implementation": {
         "new_file": "scripts/relay_worker.py (約240行、 self_test PASS)",
         "design": "server.py物理プロセス分離、 timeline.jsonl + state.json をポーリング監視、 next_actor自動呼出",

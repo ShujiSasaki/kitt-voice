@@ -293,6 +293,7 @@ def create_app(base: Path = DEFAULT_BASE):
             f"shuji_to_{nxt}_{room_id}", body, sender="shuji", base=base,
         )
         state["last_shuji_input_ts"] = datetime.now(JST).isoformat()
+        state["unread_count"] = 0  # Phase D: Shuji発言で 既読扱い
         validator_consensus.reset_consensus_on_shuji_input(room_id, base)
         write_state_atomic(room_id, state, base)
         queue_io.append_timeline({
@@ -423,13 +424,50 @@ def create_app(base: Path = DEFAULT_BASE):
 
         consensus_state = validator_consensus.mark_consensus_if_established(room_id, base=base)
         minutes_info = None
-        if consensus_state.get("is_consensus_established") and not new_state.get("is_consensus_established"):
+        notify_info = None
+        newly_established = (
+            consensus_state.get("is_consensus_established")
+            and not new_state.get("is_consensus_established")
+        )
+        if newly_established:
             try:
                 minutes_info = minutes.generate_minutes(
-                    room_id, consensus_state.get("consensus_established_loop") or loop_for_record, base=base,
+                    room_id,
+                    consensus_state.get("consensus_established_loop") or loop_for_record,
+                    base=base,
                 )
             except Exception as e:
                 minutes_info = {"error": str(e)}
+            try:
+                notify_info = notification_controller.notify_consensus_reached(
+                    room_id=room_id,
+                    topic_title=consensus_state.get("current_topic") or consensus_state.get("topic_title"),
+                    base=base,
+                )
+            except Exception as e:
+                notify_info = {"error": str(e)}
+
+        # validator FAIL → 異常通知 (level=normal)、 ただし connstrain unset時はskip
+        if not validator_payload.get("pass"):
+            try:
+                notification_controller.notify(
+                    f"⚠️ validator FAIL: room={room_id} actor={actor} "
+                    f"items={validator_payload.get('items')} "
+                    f"violations={validator_payload.get('violations')}",
+                    level="normal",
+                    title="ぐるぐる3者会議 — validator_error",
+                    base=base,
+                )
+            except Exception:
+                pass  # 通知失敗で本体APIを落とさない
+
+        # unread_count: AI応答inject時に+1 (Shujiさん未確認分)
+        try:
+            cur_state = read_state(room_id, base)
+            cur_state["unread_count"] = int(cur_state.get("unread_count", 0)) + 1
+            write_state_atomic(room_id, cur_state, base)
+        except Exception:
+            pass
 
         return {
             "ok": True, "msg_id": msg_id, "actor": actor,
