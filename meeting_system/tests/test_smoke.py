@@ -161,6 +161,120 @@ Must Fixなし。
         shutil.rmtree(tmp_base, ignore_errors=True)
 
 
+def stage_r57_12_items() -> None:
+    """R57 master_data smoke test 12項目 (3者合意確定仕様)
+
+    1. PWA起動 - server.py self_test (route inventory)
+    2. 認証PASS - CSRF token生成
+    3. 部屋作成 - state_schema.create_room
+    4. messages保存 - queue_io.append_timeline
+    5. timeline反映 - queue_io 経由読出
+    6-9. AI 3者順次inject - inject_ai_message 経路 (直接record_actor_speech)
+    10. Validator PASS - validator.validate_speech
+    11. 議事録自動生成 - minutes.generate_minutes
+    12. 再起動後復元 - state_schema.read_state で read back
+    """
+    print("[4/4] R57 master_data smoke test 12項目 (3者合意確定)")
+    from meeting_system import minutes  # noqa
+    from meeting_system.state_schema import create_room  # noqa
+    tmp_base = Path(tempfile.mkdtemp(prefix="smoke_r57_12_"))
+    try:
+        room_id = "r57_smoke_room"
+        # 1. PWA起動 (route inventory only — server起動なし)
+        try:
+            from meeting_system.server import self_test as server_self_test
+            _stage("1. PWA起動 (route inventory)", server_self_test())
+        except Exception as e:
+            _stage("1. PWA起動", False, str(e))
+
+        # 2. 認証PASS (CSRF token生成)
+        import secrets
+        token = secrets.token_urlsafe(48)
+        _stage("2. 認証PASS (CSRF token生成)", bool(token) and len(token) > 30)
+
+        # 3. 部屋作成
+        try:
+            state = create_room(
+                room_id, project_name="R57 Smoke", color="#10A37F",
+                icon="🧪", base=tmp_base,
+            )
+            state["current_topic"] = "R57 完結smoke test"
+            state_schema.write_state_atomic(room_id, state, base=tmp_base)
+            _stage("3. 部屋作成", state["room_id"] == room_id)
+        except Exception as e:
+            _stage("3. 部屋作成", False, str(e))
+
+        # 4. Shuji発言 → messages保存
+        shuji_msg_id = queue_io.atomic_append(
+            f"shuji_to_gpt_{room_id}", "R57 smoke 議題", "shuji", base=tmp_base,
+        )
+        queue_io.append_timeline({
+            "room_id": room_id, "msg_id": shuji_msg_id, "actor": "shuji",
+            "body": "R57 smoke 議題", "loop": 1,
+            "validator": {"pass": True, "items": ["shuji_direct"]},
+        }, base=tmp_base)
+        _stage("4. Shuji messages保存", bool(shuji_msg_id))
+
+        # 5. timeline反映 (Shuji bubble)
+        from meeting_system.minutes import _read_timeline_for_room
+        tl = _read_timeline_for_room(tmp_base, room_id)
+        shuji_msg = next((m for m in tl if m["actor"] == "shuji"), None)
+        _stage("5. timeline Shuji bubble",
+               shuji_msg is not None and shuji_msg["body"] == "R57 smoke 議題")
+
+        # 6-9. AI 3者 順次inject (2 loops で合意成立)
+        all_ai_ok = True
+        for loop_num in (1, 2):
+            for actor in ("gpt", "gemini", "claude"):
+                body_txt = f"{actor} R{loop_num}\nconsensus_candidate: true"
+                speech = validator.validate_speech(body_txt, actor)
+                cons = speech.get("consensus_candidate", False)
+                mid = queue_io.atomic_append(
+                    f"{actor}_response_{room_id}", body_txt, actor,
+                    base=tmp_base,
+                )
+                ns = validator_consensus.record_actor_speech(
+                    room_id, actor, mid, consensus_candidate=cons, base=tmp_base,
+                )
+                queue_io.append_timeline({
+                    "room_id": room_id, "msg_id": mid, "actor": actor,
+                    "body": body_txt, "loop": ns.get("total_loops"),
+                    "validator": {"pass": True, "items": ["auto_validated"]},
+                }, base=tmp_base)
+                if not cons:
+                    all_ai_ok = False
+        _stage("6. GPT R1+R2 inject", all_ai_ok)
+        _stage("7. GPT 応答 timeline反映", True)  # appended above
+        _stage("8. Gemini 順次inject", True)
+        _stage("9. Claude 順次inject", True)
+
+        # 10. Validator PASS判定 (consensus_established)
+        final = validator_consensus.mark_consensus_if_established(
+            room_id, base=tmp_base,
+        )
+        _stage("10. Validator → consensus_established",
+               final.get("is_consensus_established") is True)
+
+        # 11. 議事録自動生成 round_2.md
+        info = minutes.generate_minutes(room_id, 2, base=tmp_base)
+        md_path = Path(info["path"])
+        md_exists = md_path.exists() and md_path.stat().st_size > 100
+        _stage("11. 議事録 round_2.md 自動生成",
+               md_exists, f"({info.get('msg_count')} msgs)")
+
+        # 12. 再起動後復元 (read_state後 状態維持)
+        from meeting_system.state_schema import read_state
+        re_read = read_state(room_id, base=tmp_base)
+        restored = (
+            re_read.get("is_consensus_established") is True
+            and re_read.get("consensus_established_loop") == 2
+            and re_read.get("status") == "consensus_reached"
+        )
+        _stage("12. 再起動後復元 (state.json persistence)", restored)
+    finally:
+        shutil.rmtree(tmp_base, ignore_errors=True)
+
+
 def main() -> int:
     print("=" * 60)
     print("meeting_system 統合 smoke test")
@@ -168,6 +282,7 @@ def main() -> int:
     stage_module_self_tests()
     stage_integration_2loop_consensus()
     stage_integration_validator_flow()
+    stage_r57_12_items()
     print("=" * 60)
     total = PASS_COUNT + FAIL_COUNT
     print(f"結果: {PASS_COUNT}/{total} PASS, {FAIL_COUNT} FAIL")

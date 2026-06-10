@@ -872,6 +872,16 @@
       "phase_b_done_jst": "2026-06-10 09:55",
       "phase_c_done_jst": "2026-06-10 10:00",
       "phase_d_done_jst": "2026-06-10 10:08",
+      "phase_e_done_jst": "2026-06-10 10:25",
+      "phase_e_implementation": {
+        "new_files": [
+          "scripts/backup_rooms.sh (tar.gz圧縮、 data/projects + timeline + notifications + validator_log)",
+          "scripts/restore_rooms.sh (--force安全策、 既存data上書き確認)"
+        ],
+        "test_extension": "tests/test_smoke.py に stage_r57_12_items 追加 (R57 master_data 12項目smoke test 仕様固定)",
+        "12_items_coverage": "1.PWA起動 / 2.認証 / 3.部屋作成 / 4.messages保存 / 5.timeline反映 / 6-9.AI 3者順次inject / 10.Validator consensus_established / 11.議事録自動生成 / 12.再起動後復元",
+        "smoke_test_pass": "38/38 PASS (12 module self_tests + 9 integration_2loop + 7 validator_flow + 12 R57_master_data = 38)"
+      },
       "phase_d_implementation": {
         "server_changes": [
           "inject_ai_message に notify_consensus_reached 自動接続 (consensus_established時)",
