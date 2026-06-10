@@ -194,12 +194,50 @@ async def wait_and_extract(
 
 
 async def relay_turn(
-    cdp_port: int, actor: str, prompt_text: str
+    cdp_port: int, actor: str, prompt_text: str,
+    enable_reload_retry: bool = True,
 ) -> str:
+    """R60 ④: 失敗時 tab reload + 1回 retry (Shuji要請 2026-06-10)。
+
+    各AIが「止まった」 (送信btn無し / 応答stale / locator timeout) に対し
+    自動 reload試行で回復させる。
+    """
     ctx = await attach_chrome(f"http://127.0.0.1:{cdp_port}")
     page = await find_tab(ctx, actor)
-    await send_prompt(page, actor, prompt_text)
-    return await wait_and_extract(page, actor)
+    try:
+        await send_prompt(page, actor, prompt_text)
+        return await wait_and_extract(page, actor)
+    except Exception as e:
+        if not enable_reload_retry:
+            raise
+        # 失敗 → reload + 1回 retry
+        last_err = e
+        try:
+            # 「停止ボタン」 押しを最初に試す (Gemini hang対策)
+            for stop_sel in (
+                'button[aria-label="回答を停止"]',
+                'button[aria-label="Stop"]',
+                'button[data-testid="stop-button"]',
+            ):
+                try:
+                    btn = page.locator(stop_sel).first
+                    await btn.wait_for(state="visible", timeout=2_000)
+                    await btn.click()
+                    await asyncio.sleep(2.0)
+                    break
+                except Exception:
+                    continue
+            # tab reload
+            await page.reload(wait_until="domcontentloaded", timeout=20_000)
+            await asyncio.sleep(4.0)
+            # find_tab再取得 (reloadでpageオブジェクト同じだがlocator再構築のため)
+            page = await find_tab(ctx, actor)
+            await send_prompt(page, actor, prompt_text)
+            return await wait_and_extract(page, actor)
+        except Exception as e2:
+            raise type(last_err)(
+                f"{actor} 1st_fail={last_err} | reload_retry_fail={e2}"
+            ) from e2
 
 
 def self_test() -> bool:
