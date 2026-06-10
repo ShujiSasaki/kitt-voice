@@ -136,6 +136,55 @@ def _filter_room(msgs: list[dict], room_id: str) -> list[dict]:
     return [m for m in msgs if m.get("room_id") == room_id]
 
 
+# R58.1 #9: Watchdog 180s (Gemini R3仕様確定 + GPT R3/R6全面採用)
+WATCHDOG_STALL_SEC = 180.0
+_watchdog_fired_at: dict[str, float] = {}
+
+
+def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
+    """relay稼働中に timeline が180秒更新なし → System警告inject + status強制idle。
+    送信ロック (relay_worker_state=running連動) はrunning解除で自動unlockされる。
+    """
+    tl = _timeline_path(base)
+    if not tl.exists():
+        return False
+    age = time.time() - tl.stat().st_mtime
+    if age <= WATCHDOG_STALL_SEC:
+        return False
+    # 同一stallへの多重発火防止 (5分クールダウン)
+    last_fired = _watchdog_fired_at.get(room_id, 0.0)
+    if time.time() - last_fired < 300.0:
+        return False
+    _watchdog_fired_at[room_id] = time.time()
+
+    stalled_actor = (state.get("next_actor") or "?").upper()
+    warn_body = (
+        f"⚠️ [System] {stalled_actor}の応答が{int(WATCHDOG_STALL_SEC)}秒間"
+        "途絶えたため、 リレーを一時停止しコントロールをShujiさんに返却しました"
+    )
+    record = {
+        "room_id": room_id,
+        "msg_id": f"watchdog_{room_id}_{int(time.time())}",
+        "actor": "validator",
+        "body": warn_body,
+        "raw": warn_body,
+        "tags": {"system": "watchdog_180s"},
+        "validator": {"pass": True, "items": ["system_watchdog"]},
+    }
+    queue_io.append_timeline(record, base=base)
+
+    state["status"] = "idle"
+    write_state_atomic(room_id, state, base)
+    try:
+        notification_controller.notify(
+            f"relay stall検知: {stalled_actor} {int(WATCHDOG_STALL_SEC)}s無応答 (room={room_id})",
+            level="normal", base=base,
+        )
+    except Exception:
+        pass
+    return True
+
+
 def create_app(base: Path = DEFAULT_BASE):
     if FastAPI is None:
         raise RuntimeError(
@@ -279,10 +328,19 @@ def create_app(base: Path = DEFAULT_BASE):
             try:
                 age = time.time() - hb_path.stat().st_mtime
                 rw_age = age
-                if age < 5.0:
+                # R58.1 #8: 5.0s → 10.0s (Gemini R3: macOS 12 I/Oバッファによる
+                # ランプチャタリング防止バッファ)
+                if age < 10.0:
                     rw_state = "running"
                 else:
                     rw_state = "off"
+            except Exception:
+                pass
+        # R58.1 #9: Watchdog 180s — relay稼働中のCDPハング救済
+        if rw_state == "running":
+            try:
+                if _check_relay_stall(room_id, st, base):
+                    st = read_state(room_id, base)
             except Exception:
                 pass
         if st.get("is_consensus_established"):
@@ -447,6 +505,17 @@ def create_app(base: Path = DEFAULT_BASE):
         body = (data.get("body") or "").strip()
         if not body:
             return JSONResponse({"error": "empty_body"}, status_code=400)
+        # R58.1 #10: 順番違反actor 409拒否 (発言Claude R3提案 + GPT R4/R6 + Gemini R7全面採用)
+        # validator は System message/監査inject用に順番外許可
+        if actor in ("gpt", "gemini", "claude"):
+            _turn_state = read_state(room_id, base)
+            _expected = _turn_state.get("next_actor")
+            if _expected and actor != _expected:
+                return JSONResponse(
+                    {"error": "turn_violation",
+                     "expected_actor": _expected, "got_actor": actor},
+                    status_code=409,
+                )
         client_msg_id = (data.get("client_msg_id") or "").strip()
         if client_msg_id and _check_replay(client_msg_id):
             return {"ok": True, "msg_id": client_msg_id, "deduplicated": True}
