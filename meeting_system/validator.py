@@ -106,21 +106,38 @@ def check_no_parallel_send(transmission_log: list[dict]) -> ValidationResult:
 
 
 CONSENSUS_RE = re.compile(
-    r"consensus_candidate\s*[:=]\s*(true|false)", re.IGNORECASE
+    r"consensus_candidate\s*[:=]\s*(true|false|blocked|external_wait)",
+    re.IGNORECASE,
 )
 OVERALL_RE = re.compile(
-    r"overall_consensus_candidate\s*[:=]\s*(true|false)", re.IGNORECASE
+    r"overall_consensus_candidate\s*[:=]\s*(true|false|blocked|external_wait)",
+    re.IGNORECASE,
 )
+
+# R59 Q3: 3値化 (Gemini/GPT/発言Claude R5合意)
+CONSENSUS_VALUES = {"true", "false", "blocked", "external_wait"}
 
 
 def extract_consensus_candidate(text: str) -> bool:
+    """legacy bool API (true/false以外は false扱い)"""
+    v = extract_consensus_value(text)
+    return v == "true"
+
+
+def extract_consensus_value(text: str) -> str:
+    """R59 Q3: 3値返却 true / false / blocked / external_wait"""
     m = OVERALL_RE.search(text)
     if m:
-        return m.group(1).lower() == "true"
+        return m.group(1).lower()
     matches = CONSENSUS_RE.findall(text)
     if not matches:
-        return False
-    return any(v.lower() == "true" for v in matches)
+        return "false"
+    # true があれば true、 次に blocked、 next external_wait、 最後 false
+    norm = [v.lower() for v in matches]
+    for priority in ("true", "blocked", "external_wait"):
+        if priority in norm:
+            return priority
+    return "false"
 
 
 def extract_thread_audits(text: str) -> list[dict]:
@@ -147,9 +164,29 @@ def validate_speech(text: str, speaker: str) -> dict:
             k: {"passed": v.passed, "violations": v.violations}
             for k, v in results.items()
         },
-        "consensus_candidate": extract_consensus_candidate(text),
+        "consensus_candidate": extract_consensus_candidate(text),  # legacy bool
+        "consensus_value": extract_consensus_value(text),  # R59 Q3: 3値
         "thread_audits": extract_thread_audits(text),
     }
+
+
+# R59 Q2: pwa_summary抽出
+import re as _re_q2  # noqa
+PWA_SUMMARY_RE = _re_q2.compile(
+    r"<pwa_summary>(.*?)</pwa_summary>", _re_q2.DOTALL | _re_q2.IGNORECASE,
+)
+
+
+def extract_pwa_summary(text: str, fallback_max: int = 200) -> str:
+    """R59 Q2: <pwa_summary>...</pwa_summary> 抽出 (なければ body先頭200字 fallback)"""
+    m = PWA_SUMMARY_RE.search(text or "")
+    if m:
+        s = m.group(1).strip()
+        if s:
+            return s[:fallback_max]
+    fallback = (text or "").strip().splitlines()
+    head = " ".join(ln.strip() for ln in fallback[:3] if ln.strip())
+    return head[:fallback_max]
 
 
 ABNORMAL_NOTIFICATION_CONDITIONS = {

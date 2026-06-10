@@ -488,6 +488,49 @@ def create_app(base: Path = DEFAULT_BASE):
         notification_controller.write_config(cur, base)
         return {"ok": True, "config": cur}
 
+    # R59 Q4: 会議室編集 PATCH (名前/説明/色/アイコン/参加AI/順番/議題/アーカイブ + 変更履歴)
+    EDITABLE_FIELDS = {
+        "project_name", "description", "color", "icon",
+        "current_topic", "topic_title",
+        "participants", "actor_sequence", "archived",
+        "notify_level",
+    }
+
+    @app.patch("/api/rooms/{room_id}")
+    async def patch_room(
+        room_id: str, req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        if "/" in room_id or ".." in room_id:
+            raise HTTPException(status_code=400, detail="invalid_room_id")
+        data = await req.json()
+        if not isinstance(data, dict):
+            return JSONResponse({"error": "invalid_body"}, status_code=400)
+        state = read_state(room_id, base)
+        if not state.get("room_id"):
+            raise HTTPException(status_code=404, detail="room_not_found")
+        changes = []
+        for k, v in data.items():
+            if k not in EDITABLE_FIELDS:
+                continue
+            old = state.get(k)
+            if old == v:
+                continue
+            state[k] = v
+            changes.append({"field": k, "old": old, "new": v})
+        if not changes:
+            return {"ok": True, "changes": [], "msg": "no_changes"}
+        # 変更履歴 append-only
+        state.setdefault("edit_history", []).append({
+            "ts": datetime.now(JST).isoformat(),
+            "editor": "shuji",
+            "changes": changes,
+        })
+        write_state_atomic(room_id, state, base)
+        return {"ok": True, "changes": changes}
+
     @app.post("/api/rooms/{room_id}/inject_ai_message")
     async def post_inject_ai_message(
         room_id: str, req: Request, user=Depends(verify_basic),
@@ -525,6 +568,8 @@ def create_app(base: Path = DEFAULT_BASE):
 
         speech_result = validator.validate_speech(body, actor)
         consensus_candidate = bool(speech_result.get("consensus_candidate"))
+        consensus_value = speech_result.get("consensus_value", "false")  # R59 Q3
+        pwa_summary = validator.extract_pwa_summary(body)  # R59 Q2
         v_results = speech_result.get("results") or {}
         v_items = [k for k, v in v_results.items() if v.get("passed")]
         v_violations = {k: v.get("violations") for k, v in v_results.items() if not v.get("passed")}
@@ -547,7 +592,16 @@ def create_app(base: Path = DEFAULT_BASE):
         new_state = validator_consensus.record_actor_speech(
             room_id=room_id, actor=actor, msg_id=msg_id,
             consensus_candidate=consensus_candidate, base=base,
+            consensus_value=consensus_value,  # R59 Q3
         )
+        # R59 Q3: blocked/external_wait なら status を該当値に切替 (relay_worker停止用)
+        if consensus_value in ("blocked", "external_wait"):
+            try:
+                _st = read_state(room_id, base)
+                _st["status"] = consensus_value
+                write_state_atomic(room_id, _st, base)
+            except Exception:
+                pass
         loop_for_record = loop_override if loop_override is not None else new_state.get("total_loops")
 
         record = {
@@ -559,6 +613,8 @@ def create_app(base: Path = DEFAULT_BASE):
             "tags": tags,
             "validator": validator_payload,
             "loop": loop_for_record,
+            "summary": pwa_summary,  # R59 Q2: PWA要約 (200字)
+            "consensus_value": consensus_value,  # R59 Q3
         }
         queue_io.append_timeline(record, base=base)
 

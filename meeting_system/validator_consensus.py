@@ -26,7 +26,11 @@ def record_actor_speech(
     msg_id: str,
     consensus_candidate: bool,
     base: Path = DEFAULT_BASE,
+    consensus_value: str | None = None,
 ) -> dict:
+    """R59 Q3: consensus_value で 3値 (true/false/blocked/external_wait) を受け取れる。
+    consensus_value未指定なら legacy bool consensus_candidate から true/false に変換。
+    """
     state = read_state(room_id, base)
 
     if state["current_turn_in_loop"] == 0:
@@ -36,7 +40,10 @@ def record_actor_speech(
     cur_loop = state["total_loops"]
     loop_key = str(cur_loop)
     state["consensus_candidates_per_loop"].setdefault(loop_key, {})
-    state["consensus_candidates_per_loop"][loop_key][actor] = bool(consensus_candidate)
+    # R59 Q3: 3値保存 (legacy bool→strに正規化)
+    if consensus_value is None:
+        consensus_value = "true" if consensus_candidate else "false"
+    state["consensus_candidates_per_loop"][loop_key][actor] = consensus_value
 
     if state["loops_history"]:
         state["loops_history"][-1][f"{actor}_msg_id"] = msg_id
@@ -70,8 +77,14 @@ def check_consensus_established(state: dict) -> Tuple[bool, str]:
     last_key = str(completed)
     cands = state.get("consensus_candidates_per_loop", {}).get(last_key, {})
     for a in SEQUENCE:
-        if not cands.get(a):
-            return (False, f"loop {completed}: {a}.consensus_candidate != true")
+        v = cands.get(a)
+        # R59 Q3: 3値対応 (true/False/blocked/external_wait)
+        if v is True or v == "true":
+            continue
+        # blocked / external_wait は「人間介入待ち」 で 合意未成立扱い
+        if v in ("blocked", "external_wait"):
+            return (False, f"loop {completed}: {a}={v} (人間介入待ち)")
+        return (False, f"loop {completed}: {a}.consensus_candidate != true (got {v!r})")
 
     history = state.get("loops_history", [])
     if len(history) < completed:

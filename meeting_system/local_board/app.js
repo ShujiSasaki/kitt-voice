@@ -384,9 +384,27 @@ function renderMessage(msg, prevMsg = null) {
     senderLabel.textContent = ACTOR_LABEL[msg.actor] || msg.actor || '?';
   }
 
-  // bubble本体
+  // R59 Q2: PWA表示は <pwa_summary> 200字、 全文は「証跡▼」 展開で
   const body = frag.querySelector('.msg-body');
-  body.innerHTML = renderMarkdownSafe(msg.body);
+  const summary = (msg.summary || '').trim();
+  const hasFullBody = msg.body && msg.body.length > (summary.length || 0);
+  if (summary && hasFullBody) {
+    // 短縮表示モード
+    body.innerHTML = renderMarkdownSafe(summary);
+    body.dataset.fullBody = msg.body;  // 証跡で使う
+    body.dataset.shortMode = '1';
+  } else {
+    body.innerHTML = renderMarkdownSafe(msg.body || summary);
+  }
+  // R59 Q3: consensus_value ラベル表示 (blocked/external_wait のみ目立たせる)
+  const cv = msg.consensus_value;
+  if (cv && cv !== 'true' && cv !== 'false') {
+    const badge = document.createElement('span');
+    badge.className = 'inline-block text-[10px] px-1.5 py-0.5 rounded ml-1 mt-1 ' +
+      'bg-orange-500/30 text-orange-200 font-semibold';
+    badge.textContent = cv === 'blocked' ? '⏸ 判断待ち' : '⌛ 外部待ち';
+    body.appendChild(badge);
+  }
 
   // R57 Phase F: 画像attachments 表示
   const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
@@ -406,7 +424,16 @@ function renderMessage(msg, prevMsg = null) {
     body.appendChild(wrap);
   });
 
-  // 証跡 (折りたたみ)
+  // 証跡 (折りたたみ) — R59 Q2: 展開時 short mode を full body に置換するイベント
+  const evidence = frag.querySelector('.msg-evidence');
+  if (evidence && body.dataset.shortMode === '1') {
+    evidence.addEventListener('toggle', () => {
+      if (evidence.open && body.dataset.shortMode === '1') {
+        body.innerHTML = renderMarkdownSafe(body.dataset.fullBody || msg.body);
+        body.dataset.shortMode = '0';
+      }
+    });
+  }
   frag.querySelector('.raw-markdown code').textContent = msg.raw || msg.body || '';
   frag.querySelector('.validator-log code').textContent =
     JSON.stringify(msg.validator || {}, null, 2);

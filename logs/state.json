@@ -846,6 +846,28 @@
       "r56_consensus_preserved": "100% (UI集約のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
       "monthly_cost_added_jpy": 0
     },
+    "r59_4specs_implementation": {
+      "topic": "R59 3者合意 4仕様 (R57 Live再テスト で合意成立、 loop 5)",
+      "implementer": "事務Claude (Q1 合意通り 私が担当)",
+      "implemented_jst": "2026-06-10 17:35",
+      "specs": {
+        "Q1_implementation_role": "合意後の実装は事務Claudeが担当 (体制合意、 doc化)",
+        "Q2_pwa_summary": "各AIは全文発言、 <pwa_summary>200字</pwa_summary> 出力。 PWA表示は summary、 「証跡▼」 タップで全文展開",
+        "Q3_consensus_3values": "true/false/blocked/external_wait の 3値化。 blocked/external_waitは人間介入待ちで自動relay停止",
+        "Q4_room_edit_patch": "PATCH /api/rooms/{room_id} で 名前/説明/色/アイコン/参加AI/順番/議題/アーカイブ 編集。 過去発言改ざん禁止 + edit_history append-only"
+      },
+      "implementation": {
+        "validator.py": "extract_consensus_value (3値) + extract_pwa_summary 追加",
+        "validator_consensus.py": "record_actor_speech consensus_value 引数追加 + check_consensus_established 3値対応",
+        "state_schema.py": "edit_history/description/participants/actor_sequence/archived 追加",
+        "server.py": "inject_ai_message に Q2/Q3反映 + state.status=blocked/external_wait切替 + PATCH /api/rooms/{room_id} (EDITABLE_FIELDS制限)",
+        "relay_worker.py": "status=blocked/external_wait/archived で auto-pause + prompt 5sec (Q2+Q3指示追加)",
+        "app.js": "renderMessage: summary表示 → 証跡▼で full body展開 + consensus_value badge (⏸判断待ち / ⌛外部待ち)"
+      },
+      "smoke_test_pass": "Q2抽出 + Q3 3値 + Q4 PATCH + edit_history + path traversal block + invalid field 無視 全PASS",
+      "background_consensus_loop": 5,
+      "monthly_cost_added_jpy": 0
+    },
     "r58_must_fix_implementation": {
       "topic": "R57 Live実テスト中に 3者一致で出た Must Fix 7点 実装",
       "implementer": "事務Claude (Shujiさん明示指示 P)",

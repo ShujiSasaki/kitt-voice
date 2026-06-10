@@ -69,6 +69,12 @@ def default_state(
         "last_shuji_input_ts": None,
         "interrupt_ts": None,
         "tabs": {},
+        # R59 Q4: 会議室編集履歴
+        "edit_history": [],
+        "description": "",
+        "participants": ["gpt", "gemini", "claude"],
+        "actor_sequence": ["gpt", "gemini", "claude"],
+        "archived": False,
     }
 
 

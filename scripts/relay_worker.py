@@ -145,11 +145,16 @@ def _format_prompt(
     lines.append("---")
     lines.append("")
     lines.append("# あなた (本ターン) のタスク")
-    lines.append("以下4セクションで応答してください:")
+    lines.append("以下5セクションで応答してください:")
     lines.append("1. 自身の意見・回答 (簡潔に、 1000文字以内推奨)")
     lines.append("2. 前走者発言への監査・批判")
-    lines.append("3. consensus_candidate判定 (consensus_candidate: true|false)")
-    lines.append("4. 末尾に必ず Verify token 含む")
+    lines.append("3. consensus_candidate判定 (R59 Q3: true / false / blocked / external_wait)")
+    lines.append("   - true: 合意成立可")
+    lines.append("   - false: 議論継続必要")
+    lines.append("   - blocked: 人間の判断待ち (自動relay停止)")
+    lines.append("   - external_wait: 外部ログ/操作待ち (自動relay停止)")
+    lines.append("4. <pwa_summary>200文字程度の口語要約</pwa_summary> (R59 Q2: PWA表示用)")
+    lines.append("5. 末尾に必ず Verify token 含む")
     lines.append("")
     lines.append("(合意成立基準: 3者全員 consensus_candidate=true で 2巡目以降)")
     if total_loops >= 3:
@@ -242,6 +247,16 @@ async def run_room(
             if state.get("is_consensus_established"):
                 _log("✅ consensus_established — pausing 30s")
                 await asyncio.sleep(30)
+                continue
+            # R59 Q3: blocked / external_wait なら 自動pause (人間介入待ち)
+            if state.get("status") in ("blocked", "external_wait"):
+                _log(f"⏸ status={state['status']} — pausing 60s, awaiting Shuji intervention")
+                await asyncio.sleep(60)
+                continue
+            # R59 Q4: archived なら無限pause
+            if state.get("archived"):
+                _log("📦 room archived — pausing 120s")
+                await asyncio.sleep(120)
                 continue
             # R58.2: max_loops 超過 → 強制停止 (runaway防止)
             cur_loops = state.get("total_loops", 0)
