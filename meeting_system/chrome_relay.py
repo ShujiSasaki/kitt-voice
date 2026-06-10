@@ -142,11 +142,17 @@ async def send_prompt(page, actor: str, text: str) -> None:
         await asyncio.sleep(RATE_LIMIT_INTERVAL_SEC)
 
 
+# R59.2: thinking mode で placeholder/短文を stable判定しない 閾値
+MIN_RESPONSE_CHARS = 80
+# R59.2: 一定経過で reload試行 (GPT Thinking が DOMにrenderingされない bug)
+RELOAD_AFTER_SEC = 90.0
+
+
 async def wait_and_extract(
     page,
     actor: str,
     stabilize_sec: float = 3.0,
-    max_wait_sec: float = 180.0,
+    max_wait_sec: float = 240.0,  # R59.2: 180→240 (Thinking余裕)
 ) -> str:
     sel = SELECTORS[actor]
     loc = page.locator(sel["last_response"]).last
@@ -154,6 +160,7 @@ async def wait_and_extract(
     stable_since: Optional[float] = None
     elapsed = 0.0
     interval = 1.0
+    reloaded = False
     while elapsed < max_wait_sec:
         await asyncio.sleep(interval)
         elapsed += interval
@@ -161,7 +168,8 @@ async def wait_and_extract(
             cur = await loc.inner_text(timeout=5_000)
         except Exception:
             continue
-        if cur == prev and cur.strip():
+        # R59.2: 短文 (Thinking / placeholder) は stable判定の対象にしない
+        if cur == prev and cur.strip() and len(cur.strip()) >= MIN_RESPONSE_CHARS:
             if stable_since is None:
                 stable_since = elapsed
             elif elapsed - stable_since >= stabilize_sec:
@@ -169,6 +177,19 @@ async def wait_and_extract(
         else:
             prev = cur
             stable_since = None
+        # R59.2: 90秒経過しても短文のまま → reload (Thinking mode rendering bug対策)
+        if (not reloaded and elapsed >= RELOAD_AFTER_SEC
+                and len((prev or "").strip()) < MIN_RESPONSE_CHARS):
+            try:
+                await page.reload(wait_until="domcontentloaded", timeout=15_000)
+                await asyncio.sleep(3.0)
+                # reload後 locator再取得
+                loc = page.locator(sel["last_response"]).last
+                reloaded = True
+                prev = ""
+                stable_since = None
+            except Exception:
+                pass
     raise TimeoutError(f"{actor} 応答が {max_wait_sec}s 以内に安定せず")
 
 
