@@ -160,12 +160,14 @@ def _format_prompt(
     lines.append("5. 末尾に必ず Verify token 含む")
     lines.append("")
     lines.append("(合意成立基準: 3者全員 consensus_candidate=true で 2巡目以降)")
-    if total_loops >= 3:
+    if total_loops >= 2:
         lines.append("")
-        lines.append(
-            "⚠️ 既に3巡以上議論済み。 これ以上 false判定で議論継続する価値があるか厳しく自己診断せよ。 "
-            "改善余地が小さい場合は true 判定で合意成立に向かう判断も妥当。"
-        )
+        lines.append("⚠️ Shujiさんからの指示 (2026-06-10 18:55):")
+        lines.append("「回答が安定しない。 GPTとGeminiが揺れることが多い」")
+        lines.append("- 過去のloopで他者が既に true表明済なら、 大きな未解決リスクがない限り true 同意で収束させよ")
+        lines.append("- 完璧を求めて false / external_wait を連発しない")
+        lines.append("- 「中略」 「証跡不足」 等の場合は **具体的に何の追加証跡が必要か** を 1点だけ明示せよ (今回は事務Claudeが必ず再inject)")
+        lines.append("- 改善余地が 'nice-to-have' レベルなら true、 'must-fix' なら false")
     return "\n".join(lines)
 
 
