@@ -127,10 +127,15 @@ def _split_for_rate_limit(
 
 
 async def send_prompt(page, actor: str, text: str) -> None:
-    """R61 fix #3 (Shuji指摘 2026-06-10 20:50):
-    GPTの ProseMirror では fill() が text入らず → 送信btn appearせず → timeout。
-    keyboard.insert_text を 第一手段に。
+    """R61 fix #3+#4:
+    - GPTの ProseMirror では fill() が text入らず → keyboard.insert_text 優先
+    - keyboard events は 前面tabにのみ届く → bring_to_front 必須
     """
+    # R61 fix #4: keyboard events を効かせるため tab前面化
+    try:
+        await page.bring_to_front()
+    except Exception:
+        pass
     sel = SELECTORS[actor]
     input_loc = page.locator(sel["input"]).first
     await input_loc.wait_for(state="visible", timeout=30_000)
