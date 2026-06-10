@@ -358,6 +358,50 @@ def create_app(base: Path = DEFAULT_BASE):
         notification_controller.write_config(cur, base)
         return {"ok": True, "config": cur}
 
+    @app.post("/api/rooms/{room_id}/inject_ai_message")
+    async def post_inject_ai_message(
+        room_id: str, req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        data = await req.json()
+        actor = (data.get("actor") or "").strip().lower()
+        if actor not in ("gpt", "gemini", "claude", "validator"):
+            return JSONResponse(
+                {"error": "invalid_actor", "allowed": ["gpt", "gemini", "claude", "validator"]},
+                status_code=400,
+            )
+        body = (data.get("body") or "").strip()
+        if not body:
+            return JSONResponse({"error": "empty_body"}, status_code=400)
+        client_msg_id = (data.get("client_msg_id") or "").strip()
+        if client_msg_id and _check_replay(client_msg_id):
+            return {"ok": True, "msg_id": client_msg_id, "deduplicated": True}
+        raw = data.get("raw") or body
+        tags = data.get("tags") or {}
+        validator_payload = data.get("validator") or {
+            "pass": True, "items": ["ai_injected_no_validator_yet"],
+        }
+        loop = data.get("loop")
+        msg_id = queue_io.atomic_append(
+            f"{actor}_response_{room_id}", body, sender=actor,
+            msg_id=client_msg_id or None, base=base,
+        )
+        record = {
+            "room_id": room_id,
+            "msg_id": msg_id,
+            "actor": actor,
+            "body": body,
+            "raw": raw,
+            "tags": tags,
+            "validator": validator_payload,
+        }
+        if loop is not None:
+            record["loop"] = loop
+        queue_io.append_timeline(record, base=base)
+        return {"ok": True, "msg_id": msg_id, "actor": actor}
+
     @app.get("/api/events")
     async def events(user=Depends(verify_basic)):
         async def stream():
@@ -387,6 +431,7 @@ def self_test() -> bool:
         "/api/rooms/{room_id}/state", "/api/rooms/{room_id}/timeline",
         "/api/rooms/{room_id}/submit", "/api/rooms/{room_id}/interrupt",
         "/api/rooms/{room_id}/activate", "/api/thread/{parent_msg_id}",
+        "/api/rooms/{room_id}/inject_ai_message",
         "/api/notification", "/api/events",
     ]
     missing = [e for e in expected if e not in routes]

@@ -846,6 +846,32 @@
       "r56_consensus_preserved": "100% (UI集約のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
       "monthly_cost_added_jpy": 0
     },
+    "r57_meeting_system_completion_consensus": {
+      "topic": "「ぐるぐる3者会議」 PWA開発を完結させるための残り工程を 事務Claudeに指示する",
+      "consensus_established": true,
+      "consensus_established_loop": 2,
+      "consensus_established_jst": "2026-06-10 09:56:24",
+      "r57_closed": true,
+      "go_sign_to_clerk_claude": true,
+      "loops_history": {
+        "R1": {"gpt": "true (4186chars)", "gemini": "true (3914chars, GPTに100%全面同意)", "speaking_claude": "true (9243chars, Phase 1既存12モジュール流用)"},
+        "R2": {"gpt": "true + consensus_established=true (2554chars)", "gemini": "true + consensus_established=true (2227chars)", "speaking_claude": "true + consensus_established=true + r57_closed=true + go_sign=true"}
+      },
+      "master_data_locked": {
+        "integrated_6_item_packet": "必須残り工程 + 優先順位(P0-P3) + 担当区分 + 期待成果物 + 工数感 + 依存関係",
+        "must_fix_5_items": ["relay_worker.py分離", "JSONL真値化(SQLite不使用)", "event-driven trigger", "smoke test 12項目固定", "Phase 1既存12モジュール流用"],
+        "smoke_test_12_items": "完結判定 (PWA起動/認証/発言送信/messages保存/timeline反映/relay_worker→GPT/GPT応答/Gemini順次/Claude順次/Validator PASS/議事録保存/再起動後復元)"
+      },
+      "phase_a_done_jst": "2026-06-10 09:45",
+      "phase_a_implementation": {
+        "added_endpoint": "POST /api/rooms/{room_id}/inject_ai_message",
+        "guards": ["actor whitelist {gpt,gemini,claude,validator}", "non-empty body", "CSRF token", "replay protection"],
+        "reused_modules": ["queue_io.atomic_append", "queue_io.append_timeline"],
+        "smoke_test_pass": "4/4 (route inventory + happy path + invalid_actor + empty_body + csrf_invalid)"
+      },
+      "phase_b_to_f_remaining": "B: relay_state + Validator自動接続 + 議事録生成 / C: relay_worker.py分離 + CDP / D: 異常通知 + unread + health / E: backup/restore + smoke test拡張 / F: 画像/streaming/quick action拡張",
+      "monthly_cost_added_jpy": 0
+    },
     "r56_r4_quick_action_bar_removal": {
       "topic": "Quick action bar 3-chip 削除 (返信を提案/話題を提案/ムードを分析)",
       "implementer": "事務Claude (直接実装、 Shujiさん明示指示)",
