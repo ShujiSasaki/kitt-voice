@@ -869,6 +869,15 @@
         "reused_modules": ["queue_io.atomic_append", "queue_io.append_timeline"],
         "smoke_test_pass": "4/4 (route inventory + happy path + invalid_actor + empty_body + csrf_invalid)"
       },
+      "phase_b_done_jst": "2026-06-10 09:55",
+      "phase_b_implementation": {
+        "validator_auto_attached": "inject_ai_message 内で validator.validate_speech 自動実行、 consensus_candidate抽出 + all_passed判定",
+        "state_progression": "validator_consensus.record_actor_speech で next_actor/current_turn_in_loop/loops_history/consensus_candidates_per_loop 自動更新",
+        "consensus_auto_mark": "validator_consensus.mark_consensus_if_established で 3者合意成立時 is_consensus_established + status=consensus_reached 自動セット",
+        "minutes_auto_generate": "consensus_established 即時 data/projects/{room_id}/minutes/round_{N}.md auto-save",
+        "new_module": "meeting_system/minutes.py (約100行、 self_test PASS)",
+        "smoke_test_full_cycle": "R1×3 + R2×3 → R2 Claude時 is_consensus_established=True + status=consensus_reached + round_2.md自動生成、 next_actor進行 gpt→gemini→claude→gpt循環確認"
+      },
       "phase_b_to_f_remaining": "B: relay_state + Validator自動接続 + 議事録生成 / C: relay_worker.py分離 + CDP / D: 異常通知 + unread + health / E: backup/restore + smoke test拡張 / F: 画像/streaming/quick action拡張",
       "monthly_cost_added_jpy": 0
     },

@@ -45,7 +45,7 @@ from .state_schema import (
     create_room, RoomAlreadyExistsError,
 )
 from . import queue_io, rooms_overview, notification_controller, sigint_handler
-from . import validator_consensus
+from . import validator_consensus, validator, minutes
 
 STATIC = Path(__file__).parent / "local_board"
 
@@ -380,14 +380,35 @@ def create_app(base: Path = DEFAULT_BASE):
             return {"ok": True, "msg_id": client_msg_id, "deduplicated": True}
         raw = data.get("raw") or body
         tags = data.get("tags") or {}
-        validator_payload = data.get("validator") or {
-            "pass": True, "items": ["ai_injected_no_validator_yet"],
+        loop_override = data.get("loop")
+
+        speech_result = validator.validate_speech(body, actor)
+        consensus_candidate = bool(speech_result.get("consensus_candidate"))
+        v_results = speech_result.get("results") or {}
+        v_items = [k for k, v in v_results.items() if v.get("passed")]
+        v_violations = {k: v.get("violations") for k, v in v_results.items() if not v.get("passed")}
+        validator_payload = {
+            "pass": bool(speech_result.get("all_passed")),
+            "items": v_items or ["auto_validated"],
         }
-        loop = data.get("loop")
+        if v_violations:
+            validator_payload["violations"] = v_violations
+
+        # Allow caller-provided validator payload to override (e.g. relay_worker forcing)
+        if data.get("validator"):
+            validator_payload = data["validator"]
+
         msg_id = queue_io.atomic_append(
             f"{actor}_response_{room_id}", body, sender=actor,
             msg_id=client_msg_id or None, base=base,
         )
+
+        new_state = validator_consensus.record_actor_speech(
+            room_id=room_id, actor=actor, msg_id=msg_id,
+            consensus_candidate=consensus_candidate, base=base,
+        )
+        loop_for_record = loop_override if loop_override is not None else new_state.get("total_loops")
+
         record = {
             "room_id": room_id,
             "msg_id": msg_id,
@@ -396,11 +417,29 @@ def create_app(base: Path = DEFAULT_BASE):
             "raw": raw,
             "tags": tags,
             "validator": validator_payload,
+            "loop": loop_for_record,
         }
-        if loop is not None:
-            record["loop"] = loop
         queue_io.append_timeline(record, base=base)
-        return {"ok": True, "msg_id": msg_id, "actor": actor}
+
+        consensus_state = validator_consensus.mark_consensus_if_established(room_id, base=base)
+        minutes_info = None
+        if consensus_state.get("is_consensus_established") and not new_state.get("is_consensus_established"):
+            try:
+                minutes_info = minutes.generate_minutes(
+                    room_id, consensus_state.get("consensus_established_loop") or loop_for_record, base=base,
+                )
+            except Exception as e:
+                minutes_info = {"error": str(e)}
+
+        return {
+            "ok": True, "msg_id": msg_id, "actor": actor,
+            "loop": loop_for_record,
+            "consensus_candidate": consensus_candidate,
+            "validator_pass": validator_payload.get("pass"),
+            "next_actor": consensus_state.get("next_actor"),
+            "is_consensus_established": consensus_state.get("is_consensus_established"),
+            "minutes": minutes_info,
+        }
 
     @app.get("/api/events")
     async def events(user=Depends(verify_basic)):
