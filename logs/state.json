@@ -870,6 +870,17 @@
         "smoke_test_pass": "4/4 (route inventory + happy path + invalid_actor + empty_body + csrf_invalid)"
       },
       "phase_b_done_jst": "2026-06-10 09:55",
+      "phase_c_done_jst": "2026-06-10 10:00",
+      "phase_c_implementation": {
+        "new_file": "scripts/relay_worker.py (約240行、 self_test PASS)",
+        "design": "server.py物理プロセス分離、 timeline.jsonl + state.json をポーリング監視、 next_actor自動呼出",
+        "reused_modules": ["chrome_relay.relay_turn (CDP接続 + tab探索 + 応答抽出)", "state_schema.read_state", "queue_io"],
+        "loop": "while True: read_state → next_actor判定 → chrome_relay.relay_turn → POST inject_ai_message → server側で validator + state自動進行 + minutes auto-save → consensus_established=true で 30s pause",
+        "args": "--room (必須) --cdp-port --base --poll --server --basic-user --basic-pass",
+        "skip_conditions": ["consensus_established", "ai_processing_in_flight", "invalid_next_actor", "timeline_empty", "next_actor_already_spoke_just_now"],
+        "smoke_test_pass": "self_test (prompt構造) + HTTP roundtrip (shuji submit→state→prompt組立→GPT inject→loop=1+cons=true+next=gemini)",
+        "untested_in_smoke": "chrome_relay.relay_turn 実呼出 (要 Chrome --remote-debugging-port=9222 起動状態)"
+      },
       "phase_b_implementation": {
         "validator_auto_attached": "inject_ai_message 内で validator.validate_speech 自動実行、 consensus_candidate抽出 + all_passed判定",
         "state_progression": "validator_consensus.record_actor_speech で next_actor/current_turn_in_loop/loops_history/consensus_candidates_per_loop 自動更新",
