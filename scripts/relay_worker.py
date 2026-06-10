@@ -14,8 +14,16 @@ relay_worker — R57 Phase C: 順次リレー自動進行 background worker
 - meeting_system.queue_io (timeline読取)
 
 起動:
-    python3 scripts/relay_worker.py --room test_room_001 --cdp-port 9222
-    python3 scripts/relay_worker.py --room test_room_001 --base /Users/shuji/Desktop/kitt-voice/meeting_system
+    python3 scripts/relay_worker.py                       # R63: 自動roomルーター (FIFO最古優先)
+    python3 scripts/relay_worker.py --room test_room_001  # 従来: 固定room
+    python3 scripts/relay_worker.py --cdp-port 9222 --base /Users/shuji/Desktop/kitt-voice/meeting_system
+
+R63 自動ルーター (3者合意 2026-06-11 07:07):
+- --room 省略時、 全room走査 → 最古の未処理Shuji submitの部屋へ自動アタッチ (FIFO)
+- 現部屋が収束 (合意成立/blocked/external_wait/max_loops) するまで切替えない
+- 同一部屋の複数submitも投入順処理 (queue_io ts が保証)
+- inject堅牢化: 200確認 + 失敗時1回リトライ + ターン完了ログ
+- 単一worker直列のまま (多重worker不採用 — 3 AI tabは1セットのため)
 
 止める: Ctrl+C
 """
@@ -29,6 +37,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -105,6 +114,95 @@ def _read_timeline_for_room(base: Path, room_id: str) -> list[dict]:
         if m.get("room_id") == room_id:
             msgs.append(m)
     return msgs
+
+
+# ---------------------------------------------------------------------------
+# R63: 自動roomルーター (FIFO最古優先)
+# ---------------------------------------------------------------------------
+
+# 収束扱いの status (これらは Shuji介入 or 新submitまで relay対象外)
+STOP_STATUSES = ("blocked", "external_wait", "consensus_reached", "paused_by_shuji")
+
+
+def _parse_ts(s: str | None) -> datetime | None:
+    """timeline形式 '2026-06-11 06:57:05 JST' と ISO形式の両対応 (naive JSTで比較)"""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.replace("T", " ")[:19], "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return None
+
+
+def _room_pending(state: dict, max_loops: int) -> bool:
+    """未処理のShuji submitを持ち relay進行が必要なroomか"""
+    if state.get("archived"):
+        return False
+    if state.get("is_consensus_established"):
+        return False
+    if state.get("status") in STOP_STATUSES:
+        return False
+    if state.get("total_loops", 0) >= max_loops:
+        return False
+    if not state.get("last_shuji_input_ts"):
+        return False  # 一度もsubmitされていないroom
+    return True
+
+
+def _pending_since(room_id: str, base: Path, state: dict) -> datetime | None:
+    """FIFO key = 現在の未処理batchの最初のShuji submit時刻。
+
+    最後のAI発言より後のshuji発言群 = 待機中batch → その先頭ts。
+    議論進行中 (最後がAI発言) なら state.last_shuji_input_ts にfallback。
+    """
+    msgs = _read_timeline_for_room(base, room_id)
+    last_ai_idx = -1
+    for i, m in enumerate(msgs):
+        if m.get("actor") in SEQUENCE:
+            last_ai_idx = i
+    waiting = [m for m in msgs[last_ai_idx + 1:] if m.get("actor") == "shuji"]
+    ts = _parse_ts(waiting[0].get("ts")) if waiting else None
+    if ts is None:
+        ts = _parse_ts(state.get("last_shuji_input_ts"))
+    return ts
+
+
+def _scan_pending_rooms(base: Path, max_loops: int) -> list[tuple[datetime, str]]:
+    """全room走査 → pending roomを (pending_since, room_id) 昇順 (FIFO) で返す"""
+    result: list[tuple[datetime, str]] = []
+    proj_dir = base / "projects"
+    if not proj_dir.exists():
+        return result
+    for d in sorted(proj_dir.iterdir()):
+        if not (d / "state.json").exists():
+            continue
+        room_id = d.name
+        try:
+            state = read_state(room_id, base)
+        except Exception:
+            continue
+        if not _room_pending(state, max_loops):
+            continue
+        ts = _pending_since(room_id, base, state)
+        if ts is None:
+            continue
+        result.append((ts, room_id))
+    result.sort(key=lambda x: x[0])
+    return result
+
+
+def _converged_reason(state: dict, max_loops: int) -> str | None:
+    """現在の部屋が「一区切り」 (収束) したか。 切替してよい理由 or None"""
+    if state.get("archived"):
+        return "archived"
+    if state.get("is_consensus_established"):
+        return "consensus_established"
+    st = state.get("status")
+    if st in STOP_STATUSES:
+        return f"status={st}"
+    if state.get("total_loops", 0) >= max_loops:
+        return f"max_loops={max_loops}"
+    return None
 
 
 def _format_prompt(
@@ -220,7 +318,7 @@ async def _drive_one_turn(
         # 古い発言 → 進行 (重複防止は server側 R58.1 #10 の 409 guardが二重防御)
 
     prompt = _format_prompt(state, msgs, next_actor)
-    _log(f"→ {next_actor} via CDP {cdp_port} ({len(prompt)} chars)")
+    _log(f"→ {next_actor} [room={room_id}] via CDP {cdp_port} ({len(prompt)} chars)")
     try:
         resp_text = await chrome_relay.relay_turn(cdp_port, next_actor, prompt)
     except Exception as e:
@@ -257,19 +355,31 @@ async def _drive_one_turn(
 
     _log(f"← {next_actor} {len(resp_text)} chars")
 
-    csrf = _csrf(server_base, auth)
-    status, j = _http(
-        server_base,
-        f"/api/rooms/{room_id}/inject_ai_message", "POST",
-        body={"actor": next_actor, "body": resp_text, "raw": resp_text},
-        csrf=csrf, auth=auth,
-    )
-    if status >= 400:
-        _log(f"⚠ inject_ai_message {status}: {j}")
+    # R63 inject堅牢化: 200確認 + 失敗時1回リトライ (応答消失防止 — 発言Claude R57報告由来)
+    status, j = 0, {}
+    for attempt in (1, 2):
+        try:
+            csrf = _csrf(server_base, auth)
+            status, j = _http(
+                server_base,
+                f"/api/rooms/{room_id}/inject_ai_message", "POST",
+                body={"actor": next_actor, "body": resp_text, "raw": resp_text},
+                csrf=csrf, auth=auth,
+            )
+        except Exception as e:
+            status, j = 0, {"detail": f"inject_exception: {e}"}
+        if status == 200:
+            break
+        _log(f"⚠ inject_ai_message attempt {attempt}/2 status={status}: {str(j)[:200]}")
+        if status == 409:  # turn guard: 論理的拒否 → リトライしない
+            break
+        if attempt == 1:
+            await asyncio.sleep(2.0)
+    if status != 200:
         return {"error": f"inject_failed:{status}", "detail": j}
 
     _log(
-        f"✓ injected actor={j.get('actor')} loop={j.get('loop')} "
+        f"✓ turn complete room={room_id} actor={j.get('actor')} loop={j.get('loop')} "
         f"cons={j.get('consensus_candidate')} "
         f"next={j.get('next_actor')} "
         f"established={j.get('is_consensus_established')}"
@@ -360,9 +470,65 @@ async def run_room(
             await asyncio.sleep(max(poll, 5.0))
 
 
+async def run_router(
+    base: Path, cdp_port: int | None,
+    poll: float, server_base: str, auth: tuple[str, str] | None,
+    max_loops: int = DEFAULT_MAX_LOOPS,
+) -> None:
+    """R63: 自動roomルーター — FIFO最古優先で room へアタッチ、 収束まで切替禁止"""
+    _log(f"start ROUTER mode (R63 auto room switching) base={base} cdp={cdp_port} "
+         f"poll={poll}s server={server_base} max_loops={max_loops}")
+    current: str | None = None
+    last_served: str | None = None
+    while True:
+        try:
+            if current is None:
+                pending = _scan_pending_rooms(base, max_loops)
+                if not pending:
+                    # idle: 直前に処理したroomへheartbeat (PWA lamp維持)
+                    if last_served:
+                        _heartbeat(base, last_served)
+                    await asyncio.sleep(poll)
+                    continue
+                current = pending[0][1]
+                queue_view = [(r, ts.strftime("%H:%M:%S")) for ts, r in pending]
+                _log(f"🔀 attach room={current} (FIFO oldest) queue={queue_view}")
+
+            _heartbeat(base, current)
+            state = read_state(current, base)
+            reason = _converged_reason(state, max_loops)
+            if reason:
+                _log(f"🏁 room={current} converged ({reason}) — detach、 次のFIFO roomへ")
+                last_served = current
+                current = None
+                await asyncio.sleep(1.0)
+                continue
+
+            port = cdp_port or state.get("chrome_cdp_port") or 9222
+            result = await _drive_one_turn(current, base, port, server_base, auth)
+            if result.get("error"):
+                await asyncio.sleep(max(poll, 5.0))
+            elif result.get("skip"):
+                reason_s = result.get("reason", "?")
+                if getattr(run_router, "_last_skip", None) != reason_s:
+                    _log(f"⏭ skip [{current}]: {reason_s}")
+                    run_router._last_skip = reason_s
+                await asyncio.sleep(poll)
+            else:
+                run_router._last_skip = None
+                await asyncio.sleep(poll)
+        except KeyboardInterrupt:
+            _log("interrupted")
+            return
+        except Exception as e:
+            _log(f"⚠ router loop error: {e}")
+            await asyncio.sleep(max(poll, 5.0))
+
+
 def main() -> int:
-    p = argparse.ArgumentParser(description="R57 relay_worker (Phase C)")
-    p.add_argument("--room", required=True)
+    p = argparse.ArgumentParser(description="relay_worker (R57 Phase C + R63 router)")
+    p.add_argument("--room", default=None,
+                   help="固定room (省略時: R63自動roomルーター FIFO最古優先)")
     p.add_argument("--cdp-port", type=int, default=None)
     p.add_argument("--base", default=str(DEFAULT_BASE))
     p.add_argument("--poll", type=float, default=DEFAULT_POLL_INTERVAL)
@@ -376,10 +542,16 @@ def main() -> int:
     auth = ((args.basic_user, args.basic_pass)
             if args.basic_user and args.basic_pass else None)
     try:
-        asyncio.run(run_room(
-            args.room, Path(args.base).resolve(), args.cdp_port,
-            args.poll, args.server, auth, args.max_loops,
-        ))
+        if args.room:
+            asyncio.run(run_room(
+                args.room, Path(args.base).resolve(), args.cdp_port,
+                args.poll, args.server, auth, args.max_loops,
+            ))
+        else:
+            asyncio.run(run_router(
+                Path(args.base).resolve(), args.cdp_port,
+                args.poll, args.server, auth, args.max_loops,
+            ))
     except KeyboardInterrupt:
         return 0
     return 0
@@ -399,6 +571,66 @@ def self_test() -> bool:
     assert "GPT R1" in prompt
     assert "consensus_candidate" in prompt
     print("PASS: relay_worker self_test (prompt structure)")
+
+    # --- R63: router unit tests ---
+    # _parse_ts 両形式
+    t1 = _parse_ts("2026-06-11 06:57:05 JST")
+    t2 = _parse_ts("2026-06-11T07:02:03.985535+09:00")
+    assert t1 and t2 and t2 > t1, f"_parse_ts: {t1} / {t2}"
+    assert _parse_ts(None) is None
+    assert _parse_ts("garbage") is None
+
+    # _room_pending
+    base_state = {"archived": False, "is_consensus_established": False,
+                  "status": "idle", "total_loops": 1,
+                  "last_shuji_input_ts": "2026-06-11T06:00:00+09:00"}
+    assert _room_pending(dict(base_state), 5)
+    assert not _room_pending({**base_state, "archived": True}, 5)
+    assert not _room_pending({**base_state, "is_consensus_established": True}, 5)
+    assert not _room_pending({**base_state, "status": "external_wait"}, 5)
+    assert not _room_pending({**base_state, "status": "consensus_reached"}, 5)
+    assert not _room_pending({**base_state, "total_loops": 5}, 5)
+    assert not _room_pending({**base_state, "last_shuji_input_ts": None}, 5)
+    print("PASS: relay_worker self_test (R63 _room_pending / _parse_ts)")
+
+    # _scan_pending_rooms FIFO順 (temp baseに2 room作成、 古いsubmit部屋が先頭)
+    import shutil
+    import tempfile
+    sys.path.insert(0, str(REPO_ROOT))
+    from meeting_system import state_schema as _ss
+    tmp = Path(tempfile.mkdtemp(prefix="r63_router_test_"))
+    try:
+        for rid, sub_ts in (("room_new", "2026-06-11T07:30:00+09:00"),
+                            ("room_old", "2026-06-11T07:10:00+09:00")):
+            st = _ss.default_state(rid)
+            st["last_shuji_input_ts"] = sub_ts
+            _ss.write_state_atomic(rid, st, tmp)
+        tl = tmp / "data" / "timeline.jsonl"
+        tl.parent.mkdir(parents=True, exist_ok=True)
+        tl.write_text(
+            json.dumps({"room_id": "room_old", "actor": "shuji",
+                        "ts": "2026-06-11 07:10:00 JST"}) + "\n"
+            + json.dumps({"room_id": "room_new", "actor": "shuji",
+                          "ts": "2026-06-11 07:30:00 JST"}) + "\n",
+            encoding="utf-8")
+        pending = _scan_pending_rooms(tmp, 5)
+        assert [r for _, r in pending] == ["room_old", "room_new"], \
+            f"FIFO order wrong: {pending}"
+        # 収束したroomは除外
+        st_old = _ss.read_state("room_old", tmp)
+        st_old["status"] = "consensus_reached"
+        st_old["is_consensus_established"] = True
+        _ss.write_state_atomic("room_old", st_old, tmp)
+        pending2 = _scan_pending_rooms(tmp, 5)
+        assert [r for _, r in pending2] == ["room_new"], f"converged除外失敗: {pending2}"
+        # _converged_reason
+        assert _converged_reason(st_old, 5) == "consensus_established"
+        assert _converged_reason({"status": "external_wait"}, 5) == "status=external_wait"
+        assert _converged_reason({"status": "idle", "total_loops": 5}, 5) == "max_loops=5"
+        assert _converged_reason({"status": "idle", "total_loops": 1}, 5) is None
+        print("PASS: relay_worker self_test (R63 FIFO scan + converged)")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return True
 
 
