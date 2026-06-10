@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from fastapi import FastAPI, Request, HTTPException, Depends
+    from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, Form
     from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -32,6 +32,9 @@ except ImportError as _fastapi_import_error:
     Request = None  # type: ignore
     HTTPException = None  # type: ignore
     Depends = None  # type: ignore
+    UploadFile = None  # type: ignore
+    File = None  # type: ignore
+    Form = None  # type: ignore
     StreamingResponse = None  # type: ignore
     FileResponse = None  # type: ignore
     JSONResponse = None  # type: ignore
@@ -59,6 +62,13 @@ CSRF_TTL_SECONDS = 86400
 _csrf_tokens: dict[str, float] = {}
 _seen_msg_ids: set[str] = set()
 _MAX_SEEN_MSG_IDS = 10000
+
+# Phase F: 画像upload
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg", "image/jpg": ".jpg",
+    "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp",
+}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB
 
 
 def _detect_tailscale_ip() -> str:
@@ -296,7 +306,7 @@ def create_app(base: Path = DEFAULT_BASE):
         state["unread_count"] = 0  # Phase D: Shuji発言で 既読扱い
         validator_consensus.reset_consensus_on_shuji_input(room_id, base)
         write_state_atomic(room_id, state, base)
-        queue_io.append_timeline({
+        record = {
             "room_id": room_id,
             "msg_id": msg_id,
             "actor": "shuji",
@@ -304,7 +314,11 @@ def create_app(base: Path = DEFAULT_BASE):
             "raw": body,
             "tags": {},
             "validator": {"pass": True, "items": ["shuji_direct"]},
-        }, base=base)
+        }
+        attachments = data.get("attachments")
+        if isinstance(attachments, list) and attachments:
+            record["attachments"] = attachments
+        queue_io.append_timeline(record, base=base)
         return {"ok": True, "msg_id": msg_id}
 
     @app.post("/api/rooms/{room_id}/interrupt")
@@ -479,6 +493,63 @@ def create_app(base: Path = DEFAULT_BASE):
             "minutes": minutes_info,
         }
 
+    @app.post("/api/rooms/{room_id}/upload")
+    async def post_upload(
+        room_id: str, req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        # room_id safety
+        if "/" in room_id or ".." in room_id or not room_id.strip():
+            raise HTTPException(status_code=400, detail="invalid_room_id")
+        form = await req.form()
+        upload = form.get("file")
+        if upload is None or not hasattr(upload, "filename"):
+            raise HTTPException(status_code=400, detail="file_missing")
+        content_type = (upload.content_type or "").lower()
+        ext = ALLOWED_IMAGE_TYPES.get(content_type)
+        if not ext:
+            return JSONResponse(
+                {"error": "invalid_content_type",
+                 "allowed": list(ALLOWED_IMAGE_TYPES.keys()),
+                 "got": content_type},
+                status_code=400,
+            )
+        data = await upload.read()
+        if len(data) > MAX_UPLOAD_BYTES:
+            return JSONResponse(
+                {"error": "file_too_large",
+                 "max_bytes": MAX_UPLOAD_BYTES, "got": len(data)},
+                status_code=413,
+            )
+        if not data:
+            return JSONResponse({"error": "empty_file"}, status_code=400)
+        att_dir = base / "data" / "attachments" / room_id
+        att_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(JST).strftime("%Y%m%d_%H%M%S_%f")
+        secure_name = f"{ts}{ext}"
+        out_path = att_dir / secure_name
+        out_path.write_bytes(data)
+        url = f"/api/rooms/{room_id}/attachments/{secure_name}"
+        return {
+            "ok": True, "url": url, "filename": secure_name,
+            "content_type": content_type, "size_bytes": len(data),
+        }
+
+    @app.get("/api/rooms/{room_id}/attachments/{filename}")
+    async def get_attachment(
+        room_id: str, filename: str, user=Depends(verify_basic),
+    ):
+        if "/" in room_id or ".." in room_id:
+            raise HTTPException(status_code=400, detail="invalid_room_id")
+        if "/" in filename or ".." in filename or "\\" in filename:
+            raise HTTPException(status_code=400, detail="invalid_filename")
+        path = base / "data" / "attachments" / room_id / filename
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="not_found")
+        return FileResponse(path)
+
     @app.get("/api/events")
     async def events(user=Depends(verify_basic)):
         async def stream():
@@ -509,6 +580,8 @@ def self_test() -> bool:
         "/api/rooms/{room_id}/submit", "/api/rooms/{room_id}/interrupt",
         "/api/rooms/{room_id}/activate", "/api/thread/{parent_msg_id}",
         "/api/rooms/{room_id}/inject_ai_message",
+        "/api/rooms/{room_id}/upload",
+        "/api/rooms/{room_id}/attachments/{filename}",
         "/api/notification", "/api/events",
     ]
     missing = [e for e in expected if e not in routes]

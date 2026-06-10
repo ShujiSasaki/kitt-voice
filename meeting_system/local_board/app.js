@@ -112,19 +112,21 @@ function showToast(msg, durationMs = 3000) {
 }
 
 // ===== R50承継: Replay-protected submit =====
-async function submitWithRetry(body, maxRetries = 3) {
+async function submitWithRetry(body, opts = {}, maxRetries = 3) {
   const clientMsgId = (crypto.randomUUID && crypto.randomUUID()) ||
     `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const payload = {
+    actor: 'shuji', body,
+    client_msg_id: clientMsgId,
+  };
+  if (opts && opts.attachments) payload.attachments = opts.attachments;
   let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
       const r = await authFetch(`${API}/rooms/${activeRoomId}/submit`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          actor: 'shuji', body,
-          client_msg_id: clientMsgId,
-        }),
+        body: JSON.stringify(payload),
       });
       if (r.ok) return r.json();
       if (r.status === 409 || r.status === 400) return r.json();
@@ -326,6 +328,24 @@ function renderMessage(msg, prevMsg = null) {
   const body = frag.querySelector('.msg-body');
   body.innerHTML = renderMarkdownSafe(msg.body);
 
+  // R57 Phase F: 画像attachments 表示
+  const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
+  atts.forEach(a => {
+    if (!a || !a.url) return;
+    const ct = (a.content_type || '').toLowerCase();
+    if (!ct.startsWith('image/')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-attachment mt-2';
+    const img = document.createElement('img');
+    img.src = a.url;
+    img.alt = a.filename || 'attachment';
+    img.loading = 'lazy';
+    img.className = 'rounded-2xl max-w-full max-h-72 cursor-zoom-in';
+    img.addEventListener('click', () => openImageModal(a.url));
+    wrap.appendChild(img);
+    body.appendChild(wrap);
+  });
+
   // 証跡 (折りたたみ)
   frag.querySelector('.raw-markdown code').textContent = msg.raw || msg.body || '';
   frag.querySelector('.validator-log code').textContent =
@@ -447,11 +467,14 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // R56-r2: popup item (📷撮影 / 🖼️画像選択) は Phase 2 で機能化
+  // R57-r57-PhaseF: popup item (📷撮影 / 🖼️画像選択) 実機能 — file picker起動
   const popupItem = e.target.closest('#composer-camera-btn, #composer-image-btn');
   if (popupItem) {
-    const label = popupItem.id === 'composer-camera-btn' ? '撮影' : '画像選択';
-    showToast(`${label} 機能はPhase 2予定`);
+    const isCamera = popupItem.id === 'composer-camera-btn';
+    const input = document.getElementById(
+      isCamera ? 'file-input-camera' : 'file-input-library',
+    );
+    if (input) input.click();
     const popup = document.getElementById('composer-add-popup');
     const btn = document.getElementById('composer-add-btn');
     if (popup) popup.classList.add('hidden');
@@ -531,6 +554,82 @@ function setupSSE() {
   };
   connect();
 }
+
+// ===== R57 Phase F: 画像upload + modal =====
+async function uploadAndSendImage(file) {
+  if (!activeRoomId) {
+    showToast('会議室を選択してください');
+    return;
+  }
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast(`画像ではないファイル: ${file.type}`);
+    return;
+  }
+  try {
+    const csrf = await fetchCsrf();
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(`${API}/rooms/${activeRoomId}/upload`, {
+      method: 'POST',
+      headers: {
+        ...(authB64 ? {'Authorization': `Basic ${authB64}`} : {}),
+        'X-CSRF-Token': csrf,
+      },
+      body: fd,
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({error: r.statusText}));
+      showToast(`upload失敗: ${j.error || r.statusText}`);
+      return;
+    }
+    const meta = await r.json();
+    // upload成功 → message送信 (添付付き)
+    const text = `📷 ${meta.filename}`;
+    const j = await submitWithRetry(text, {
+      attachments: [{
+        url: meta.url,
+        filename: meta.filename,
+        content_type: meta.content_type,
+        size_bytes: meta.size_bytes,
+      }],
+    });
+    if (j.ok) {
+      showToast('画像送信成功');
+    } else {
+      showToast(`送信失敗: ${j.error || '不明'}`);
+    }
+  } catch (e) {
+    showToast(`upload error: ${e.message}`);
+  }
+}
+
+function openImageModal(url) {
+  let modal = document.getElementById('img-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'img-modal';
+    modal.className = 'fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4';
+    modal.innerHTML =
+      '<button class="absolute top-4 right-4 text-white text-3xl font-bold" aria-label="閉じる">×</button>' +
+      '<img id="img-modal-img" class="max-w-full max-h-full rounded-2xl object-contain" />';
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal || e.target.tagName === 'BUTTON') {
+        modal.remove();
+      }
+    });
+    document.body.appendChild(modal);
+  }
+  document.getElementById('img-modal-img').src = url;
+}
+
+document.addEventListener('change', (e) => {
+  const inp = e.target.closest('#file-input-camera, #file-input-library');
+  if (!inp) return;
+  const file = inp.files && inp.files[0];
+  if (file) uploadAndSendImage(file);
+  inp.value = '';  // reset so same file can be re-selected
+});
 
 // ===== Init =====
 (async () => {

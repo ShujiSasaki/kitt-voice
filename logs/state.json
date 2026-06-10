@@ -873,6 +873,34 @@
       "phase_c_done_jst": "2026-06-10 10:00",
       "phase_d_done_jst": "2026-06-10 10:08",
       "phase_e_done_jst": "2026-06-10 10:25",
+      "phase_f_done_jst": "2026-06-10 10:35",
+      "phase_f_implementation": {
+        "scope": "📷撮影 / 🖼️画像選択 実機能 (R57で 'P2、 本丸ではない' 確認済の装飾実装)",
+        "server_changes": [
+          "POST /api/rooms/{room_id}/upload (UploadFile, content-type whitelist, 10MB limit, server-generated secure_name)",
+          "GET /api/rooms/{room_id}/attachments/{filename} (path traversal block)",
+          "post_submit に attachments配列受領 + timeline record保存"
+        ],
+        "frontend_changes": [
+          "index.html: hidden file-input-camera (capture=environment) + file-input-library",
+          "app.js: composer popup item click → file picker起動 (R56-r3 集約UI実機能化)",
+          "app.js: renderMessage に msg.attachments → img tag生成 (cursor-zoom-in + onclick modal)",
+          "app.js: uploadAndSendImage(file) helper + openImageModal(url)",
+          "app.js: submitWithRetry(body, opts) で attachments対応",
+          "app.js: change event listener (file-input → uploadAndSendImage)"
+        ],
+        "security": [
+          "content-type whitelist (image/jpeg|png|gif|webp)",
+          "10MB size limit (413 Request Entity Too Large)",
+          "empty body block",
+          "CSRF token required",
+          "client filename 無視 (server-generated timestamp + ext)",
+          "path traversal block on attachment GET",
+          "room_id sanitization"
+        ],
+        "smoke_test_pass": "8/8 + full flow (happy / invalid_ct / empty / too_large / no_csrf / dangerous_filename / traversal_access + upload→submit attachments→timeline retains)",
+        "new_dependency": "python-multipart (FastAPI File/Form用、 既にfastapi同梱依存だが明示install)"
+      },
       "phase_e_implementation": {
         "new_files": [
           "scripts/backup_rooms.sh (tar.gz圧縮、 data/projects + timeline + notifications + validator_log)",

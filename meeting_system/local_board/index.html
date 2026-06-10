@@ -81,6 +81,8 @@ tailwind.config = {
     </main>
 
     <footer class="sticky bottom-0 bg-dm-header border-t border-dm-border z-10">
+      <input type="file" id="file-input-camera" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="file-input-library" accept="image/*" class="hidden">
       <div class="flex items-center gap-2 p-2 min-w-0">
         <div class="relative flex-shrink-0">
           <button id="composer-add-btn" class="composer-icon-btn" title="添付" aria-label="添付" aria-expanded="false">＋</button>
