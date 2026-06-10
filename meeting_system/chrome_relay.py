@@ -127,17 +127,38 @@ def _split_for_rate_limit(
 
 
 async def send_prompt(page, actor: str, text: str) -> None:
+    """R61 fix #3 (Shuji指摘 2026-06-10 20:50):
+    GPTの ProseMirror では fill() が text入らず → 送信btn appearせず → timeout。
+    keyboard.insert_text を 第一手段に。
+    """
     sel = SELECTORS[actor]
     input_loc = page.locator(sel["input"]).first
     await input_loc.wait_for(state="visible", timeout=30_000)
     await input_loc.click()
     for chunk in _split_for_rate_limit(text, actor):
+        # R61 fix #3: ProseMirror系 (GPT/Claude) は keyboard.insert_text を優先
+        inserted = False
         try:
-            await input_loc.fill(chunk)
-        except Exception:
             await page.keyboard.insert_text(chunk)
+            inserted = True
+        except Exception:
+            pass
+        if not inserted:
+            try:
+                await input_loc.fill(chunk)
+            except Exception:
+                pass
+        # 送信btn appear待ち (text入力後だから現れるはず)
         send_loc = page.locator(sel["send"]).first
         await send_loc.wait_for(state="visible", timeout=10_000)
+        # btn disabled (空入力) チェック避け
+        try:
+            disabled = await send_loc.get_attribute("disabled")
+        except Exception:
+            disabled = None
+        if disabled is not None:
+            # disabled なら 別 click trigger試行
+            await page.keyboard.press("End")
         await send_loc.click()
         await asyncio.sleep(RATE_LIMIT_INTERVAL_SEC)
 
