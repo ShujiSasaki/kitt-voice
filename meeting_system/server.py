@@ -143,13 +143,16 @@ _watchdog_fired_at: dict[str, float] = {}
 
 def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
     """relay稼働中に timeline が180秒更新なし → System警告inject + status強制idle。
-    送信ロック (relay_worker_state=running連動) はrunning解除で自動unlockされる。
 
-    R61 bug fix: relay_worker起動直後の誤発火防止。
-    relay_heartbeat.json の mtime が timeline mtime より新しい場合
-    (= worker起動後 timeline更新前) は 起動からの経過時間でなく
-    heartbeat ageを基準にする。
+    R61 fix #2: worker pause中の過剰発火防止。
+    status が idle以外 (external_wait/blocked/consensus_reached/paused_by_shuji)
+    なら 既に stop状態 → Watchdog発火対象外
     """
+    # R61 fix #2: stop状態は 既に「Shuji介入待ち」 = Watchdog不要
+    if state.get("status") in ("external_wait", "blocked", "consensus_reached", "paused_by_shuji"):
+        return False
+    if state.get("is_consensus_established"):
+        return False
     tl = _timeline_path(base)
     if not tl.exists():
         return False
