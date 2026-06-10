@@ -42,6 +42,10 @@ from meeting_system.state_schema import (  # noqa: E402
 SEQUENCE = ["gpt", "gemini", "claude"]
 DEFAULT_POLL_INTERVAL = 2.0
 DEFAULT_SERVER_BASE = "https://100.70.20.113:8765"
+# R58.2: max_loop limit (runaway防止 — 2026-06-10 36-loop runaway事件)
+DEFAULT_MAX_LOOPS = 5
+# R58.2: prompt縮小 (timeline最新N件のみ抜粋、 19000+ chars → ~3000 chars想定)
+DEFAULT_RECENT_MSGS = 9  # 直近3 loops分 (= 1 loop 3 msgs × 3)
 
 _ctx = ssl.create_default_context()
 _ctx.check_hostname = False
@@ -100,23 +104,41 @@ def _read_timeline_for_room(base: Path, room_id: str) -> list[dict]:
     return msgs
 
 
-def _format_prompt(state: dict, msgs: list[dict], next_actor: str) -> str:
+def _format_prompt(
+    state: dict, msgs: list[dict], next_actor: str,
+    recent_n: int = DEFAULT_RECENT_MSGS,
+) -> str:
     topic = state.get("current_topic") or state.get("topic_title") or "(議題未設定)"
+    total_loops = state.get("total_loops", 0)
     lines = [
         f"[Clerk(自動) → {next_actor}: {topic}]",
-        f"current_loop: {state.get('total_loops', 0)}",
+        f"current_loop: {total_loops}",
         f"current_turn_in_loop: {state.get('current_turn_in_loop', 0)}",
         f"next_actor: {next_actor}",
         "",
-        "## これまでの発言 (時系列)",
-        "",
     ]
-    # context window: 最新N件 (R57 Phase Cは簡易、 将来はloop境界で切る)
-    recent = msgs[-15:]
+    # R58.2: 最初のShuji発言 (議題本文) を必ず含める
+    shuji_first = next((m for m in msgs if m.get("actor") == "shuji"), None)
+    if shuji_first:
+        lines.append("## 議題 (Shuji原文)")
+        lines.append("")
+        for ln in (shuji_first.get("body") or "").splitlines():
+            lines.append(f"> {ln}")
+        lines.append("")
+    if total_loops >= 3:
+        lines.append(f"## 進行状況サマリー (loops完了: {total_loops})")
+        lines.append("※過去 timeline は省略 (最新発言のみ提示)、 議論長期化のため簡潔判定を求む")
+        lines.append("")
+    lines.append(f"## 直近の発言 (最新{recent_n}件)")
+    lines.append("")
+    recent = msgs[-recent_n:]
     for m in recent:
         actor = m.get("actor", "?")
         body = (m.get("body") or "").strip()
-        lines.append(f"### {actor}")
+        # R58.2: 長文は切り詰め
+        if len(body) > 600:
+            body = body[:600] + "\n…(中略)…"
+        lines.append(f"### {actor} (loop={m.get('loop','-')})")
         for ln in body.splitlines():
             lines.append(f"> {ln}")
         lines.append("")
@@ -124,12 +146,18 @@ def _format_prompt(state: dict, msgs: list[dict], next_actor: str) -> str:
     lines.append("")
     lines.append("# あなた (本ターン) のタスク")
     lines.append("以下4セクションで応答してください:")
-    lines.append("1. 自身の意見・回答")
+    lines.append("1. 自身の意見・回答 (簡潔に、 1000文字以内推奨)")
     lines.append("2. 前走者発言への監査・批判")
     lines.append("3. consensus_candidate判定 (consensus_candidate: true|false)")
-    lines.append("4. 末尾に必ず inspiration / 末尾token 含む")
+    lines.append("4. 末尾に必ず Verify token 含む")
     lines.append("")
-    lines.append("（合意成立基準: 3者全員 consensus_candidate=true で 2巡目以降）")
+    lines.append("(合意成立基準: 3者全員 consensus_candidate=true で 2巡目以降)")
+    if total_loops >= 3:
+        lines.append("")
+        lines.append(
+            "⚠️ 既に3巡以上議論済み。 これ以上 false判定で議論継続する価値があるか厳しく自己診断せよ。 "
+            "改善余地が小さい場合は true 判定で合意成立に向かう判断も妥当。"
+        )
     return "\n".join(lines)
 
 
@@ -203,8 +231,10 @@ def _heartbeat(base: Path, room_id: str) -> None:
 async def run_room(
     room_id: str, base: Path, cdp_port: int | None,
     poll: float, server_base: str, auth: tuple[str, str] | None,
+    max_loops: int = DEFAULT_MAX_LOOPS,
 ) -> None:
-    _log(f"start room={room_id} base={base} cdp={cdp_port} poll={poll}s server={server_base}")
+    _log(f"start room={room_id} base={base} cdp={cdp_port} poll={poll}s "
+         f"server={server_base} max_loops={max_loops}")
     while True:
         try:
             _heartbeat(base, room_id)
@@ -212,6 +242,12 @@ async def run_room(
             if state.get("is_consensus_established"):
                 _log("✅ consensus_established — pausing 30s")
                 await asyncio.sleep(30)
+                continue
+            # R58.2: max_loops 超過 → 強制停止 (runaway防止)
+            cur_loops = state.get("total_loops", 0)
+            if cur_loops >= max_loops:
+                _log(f"⚠ max_loops {max_loops} reached (current={cur_loops}) — pausing 60s, awaiting Shuji")
+                await asyncio.sleep(60)
                 continue
             port = cdp_port or state.get("chrome_cdp_port") or 9222
             result = await _drive_one_turn(room_id, base, port, server_base, auth)
@@ -240,6 +276,8 @@ def main() -> int:
     p.add_argument("--poll", type=float, default=DEFAULT_POLL_INTERVAL)
     p.add_argument("--server", default=DEFAULT_SERVER_BASE,
                    help="server.py base URL (default: https://100.70.20.113:8765)")
+    p.add_argument("--max-loops", type=int, default=DEFAULT_MAX_LOOPS,
+                   help=f"max loops before pause (default: {DEFAULT_MAX_LOOPS})")
     p.add_argument("--basic-user", default=None)
     p.add_argument("--basic-pass", default=None)
     args = p.parse_args()
@@ -248,7 +286,7 @@ def main() -> int:
     try:
         asyncio.run(run_room(
             args.room, Path(args.base).resolve(), args.cdp_port,
-            args.poll, args.server, auth,
+            args.poll, args.server, auth, args.max_loops,
         ))
     except KeyboardInterrupt:
         return 0
