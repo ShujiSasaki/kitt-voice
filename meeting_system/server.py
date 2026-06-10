@@ -506,6 +506,7 @@ def create_app(base: Path = DEFAULT_BASE):
             raise HTTPException(status_code=403, detail="csrf_invalid")
         state = read_state(room_id, base)
         prev_status = state.get("status")
+        prev_loops = state.get("total_loops", 0)
         # Stall 関連の status を idle に戻し、 next_actor進める
         if prev_status in ("blocked", "external_wait", "consensus_reached"):
             state["status"] = "idle"
@@ -514,12 +515,21 @@ def create_app(base: Path = DEFAULT_BASE):
             state["consensus_established_at"] = None
             state["consensus_established_loop"] = None
             state["consensus_established_reason"] = "shuji_resumed"
-        # next_actor は維持 (既存の順序)
+        # R61 fix: max_loops制限を解除するため total_loopsを 0にreset
+        # (timeline.jsonl の過去発言は不変、 cands/loops_historyのみ resetで新議題扱い)
+        state["total_loops"] = 0
+        state["current_turn_in_loop"] = 0
+        state["consensus_candidates_per_loop"] = {}
+        state["loops_history"] = []
+        # next_actor は gpt にreset (新議題は順序最初から)
+        state["next_actor"] = "gpt"
         write_state_atomic(room_id, state, base)
         return {
             "ok": True,
             "prev_status": prev_status,
+            "prev_loops": prev_loops,
             "next_actor": state.get("next_actor"),
+            "loops_reset": True,
         }
 
     @app.post("/api/rooms/{room_id}/activate")
