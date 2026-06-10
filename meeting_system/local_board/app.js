@@ -309,6 +309,13 @@ async function refreshTimeline() {
   const hint = document.getElementById('empty-hint');
   if (hint) hint.classList.add('hidden');
 
+  // R59 fix: スクロール強制戻り防止 (Shuji報告 2026-06-10)
+  // 追加前に「ユーザーが最下部付近にいるか」を記録し、
+  // (a) 新メッセージあり かつ (b) 元々最下部付近 のときだけ自動スクロール
+  const nearBottom =
+    tl.scrollHeight - tl.scrollTop - tl.clientHeight < 120;
+
+  let appended = false;
   let prevMsg = lastRenderedMsgByRoom[activeRoomId] || null;
   for (const msg of data.messages) {
     if (tl.querySelector(`[data-msg-id="${CSS.escape(msg.msg_id)}"]`)) continue;
@@ -316,9 +323,12 @@ async function refreshTimeline() {
     tl.appendChild(renderMessage(msg, prevMsg));
     lastMsgIdByRoom[activeRoomId] = msg.msg_id;
     prevMsg = msg;
+    appended = true;
   }
   lastRenderedMsgByRoom[activeRoomId] = prevMsg;
-  tl.scrollTop = tl.scrollHeight;
+  if (appended && nearBottom) {
+    tl.scrollTop = tl.scrollHeight;
+  }
 }
 
 // ===== R56: renderMessage (新tmpl-msg準拠) =====
