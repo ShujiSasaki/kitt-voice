@@ -75,6 +75,10 @@ def default_state(
         "participants": ["gpt", "gemini", "claude"],
         "actor_sequence": ["gpt", "gemini", "claude"],
         "archived": False,
+        # R60 ②: プロジェクト単位管理 + 自動紐付け
+        "project_id": None,
+        "repo_path": None,
+        "tool": None,  # claude_code / codex / manual / other
     }
 
 

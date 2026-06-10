@@ -48,7 +48,7 @@ from .state_schema import (
     create_room, RoomAlreadyExistsError,
 )
 from . import queue_io, rooms_overview, notification_controller, sigint_handler
-from . import validator_consensus, validator, minutes
+from . import validator_consensus, validator, minutes, projects
 
 STATIC = Path(__file__).parent / "local_board"
 
@@ -488,12 +488,51 @@ def create_app(base: Path = DEFAULT_BASE):
         notification_controller.write_config(cur, base)
         return {"ok": True, "config": cur}
 
+    # R60 ②: projects list / register / autolink
+    @app.get("/api/projects")
+    async def get_projects(user=Depends(verify_basic)):
+        return {"projects": projects.list_projects(base)}
+
+    @app.post("/api/projects")
+    async def post_register_project(
+        req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        data = await req.json()
+        try:
+            res = projects.register_project(
+                project_id=data.get("project_id", ""),
+                repo_path=data.get("repo_path"),
+                tool=data.get("tool", "manual"),
+                room_id=data.get("room_id", ""),
+                participants=data.get("participants"),
+                default_order=data.get("default_order"),
+                base=base,
+            )
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return {"ok": True, "project": res}
+
+    @app.get("/api/projects/autolink")
+    async def get_autolink(cwd: str, user=Depends(verify_basic)):
+        """起動時自動紐付け。 cwd を投げると 1件返るか None (=Shuji確認必要)"""
+        found = projects.find_project_by_path(cwd, base)
+        return {
+            "matched": bool(found),
+            "project": found,
+            "cwd": cwd,
+        }
+
     # R59 Q4: 会議室編集 PATCH (名前/説明/色/アイコン/参加AI/順番/議題/アーカイブ + 変更履歴)
     EDITABLE_FIELDS = {
         "project_name", "description", "color", "icon",
         "current_topic", "topic_title",
         "participants", "actor_sequence", "archived",
         "notify_level",
+        # R60 ②
+        "project_id", "repo_path", "tool",
     }
 
     @app.patch("/api/rooms/{room_id}")
@@ -791,6 +830,7 @@ def self_test() -> bool:
         "/api/rooms/{room_id}/inject_ai_message",
         "/api/rooms/{room_id}/upload",
         "/api/rooms/{room_id}/attachments/{filename}",
+        "/api/projects", "/api/projects/autolink",
         "/api/notification", "/api/events",
     ]
     missing = [e for e in expected if e not in routes]

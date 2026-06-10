@@ -46,6 +46,9 @@ DEFAULT_SERVER_BASE = "https://100.70.20.113:8765"
 DEFAULT_MAX_LOOPS = 5
 # R58.2: prompt縮小 (timeline最新N件のみ抜粋、 19000+ chars → ~3000 chars想定)
 DEFAULT_RECENT_MSGS = 9  # 直近3 loops分 (= 1 loop 3 msgs × 3)
+# R60 ③: 連続無応答失敗 → external_wait自動停止 (Claude R5提案)
+MAX_CONSECUTIVE_FAILURES = 3
+_consecutive_failures: dict[str, int] = {}
 
 _ctx = ssl.create_default_context()
 _ctx.check_hostname = False
@@ -207,7 +210,35 @@ async def _drive_one_turn(
         resp_text = await chrome_relay.relay_turn(cdp_port, next_actor, prompt)
     except Exception as e:
         _log(f"⚠ chrome_relay failed: {e}")
+        # R60 ③: 連続失敗カウンタ加算 → MAX到達で external_wait inject
+        _consecutive_failures[room_id] = _consecutive_failures.get(room_id, 0) + 1
+        if _consecutive_failures[room_id] >= MAX_CONSECUTIVE_FAILURES:
+            _log(
+                f"⛔ {MAX_CONSECUTIVE_FAILURES} consecutive failures — "
+                f"injecting external_wait via validator"
+            )
+            try:
+                csrf_t = _csrf(server_base, auth)
+                warn_body = (
+                    f"⛔ [System] {next_actor.upper()} の応答取得が "
+                    f"{MAX_CONSECUTIVE_FAILURES}回連続失敗 (last: {str(e)[:120]}) "
+                    f"— 自動relayを external_wait で停止しました。 "
+                    f"Shuji 介入後、 worker再起動 or status=idle に手動更新で復帰。\n"
+                    f"consensus_candidate: external_wait\n"
+                    f"[Validator-Verify: R60-AUTOSTOP-N-FAILURES]"
+                )
+                _http(
+                    server_base,
+                    f"/api/rooms/{room_id}/inject_ai_message", "POST",
+                    body={"actor": "validator", "body": warn_body},
+                    csrf=csrf_t, auth=auth,
+                )
+                _consecutive_failures[room_id] = 0  # reset
+            except Exception as e2:
+                _log(f"⚠ external_wait inject失敗: {e2}")
         return {"error": str(e), "actor": next_actor}
+    # 成功 → カウンタreset
+    _consecutive_failures[room_id] = 0
 
     _log(f"← {next_actor} {len(resp_text)} chars")
 
