@@ -270,13 +270,56 @@ def create_app(base: Path = DEFAULT_BASE):
 
     @app.get("/api/rooms/{room_id}/state")
     async def get_room_state(room_id: str, user=Depends(verify_basic)):
-        return read_state(room_id, base)
+        st = read_state(room_id, base)
+        # R58 Must Fix B: relay_worker.py heartbeat状態 を 同梱
+        hb_path = base / "data" / "projects" / room_id / "relay_heartbeat.json"
+        rw_state = "off"
+        rw_age = None
+        if hb_path.exists():
+            try:
+                age = time.time() - hb_path.stat().st_mtime
+                rw_age = age
+                if age < 5.0:
+                    rw_state = "running"
+                else:
+                    rw_state = "off"
+            except Exception:
+                pass
+        if st.get("is_consensus_established"):
+            ce_at = st.get("consensus_established_at")
+            try:
+                if ce_at:
+                    ce_dt = datetime.fromisoformat(ce_at)
+                    if (datetime.now(JST) - ce_dt).total_seconds() < 10:
+                        rw_state = "done"
+            except Exception:
+                pass
+        st["relay_worker_state"] = rw_state
+        if rw_age is not None:
+            st["relay_worker_heartbeat_age_sec"] = round(rw_age, 1)
+        return st
 
     @app.get("/api/rooms/{room_id}/timeline")
     async def get_room_timeline(
         room_id: str, since: str = "", user=Depends(verify_basic),
     ):
         msgs = _filter_room(_read_timeline(base, since), room_id)
+        # R58 Must Fix A: 各msgに read_count + 4者中の comma separated read_by を同梱
+        rr_path = base / "data" / "projects" / room_id / "read_receipts.json"
+        if rr_path.exists():
+            try:
+                rr = json.loads(rr_path.read_text(encoding="utf-8"))
+                for m in msgs:
+                    info = rr.get(m.get("msg_id", ""), {})
+                    read_by = info.get("read_by", [])
+                    # author を read_by から除く (受信者のみカウント)
+                    author = m.get("actor")
+                    receivers = [r for r in read_by if r != author]
+                    m["read_count"] = len(receivers)
+                    m["read_by"] = receivers
+                    m["read_total"] = 3  # 4者 - 自分 = 3者がreader
+            except Exception:
+                pass
         return {"messages": msgs}
 
     @app.post("/api/rooms/{room_id}/submit")
@@ -306,6 +349,20 @@ def create_app(base: Path = DEFAULT_BASE):
         state["unread_count"] = 0  # Phase D: Shuji発言で 既読扱い
         validator_consensus.reset_consensus_on_shuji_input(room_id, base)
         write_state_atomic(room_id, state, base)
+        # R58 Must Fix A: shuji が tab確認で 全AI既読
+        try:
+            rr_path = base / "data" / "projects" / room_id / "read_receipts.json"
+            if rr_path.exists():
+                rr = json.loads(rr_path.read_text(encoding="utf-8"))
+                for m_id, info in rr.items():
+                    if "shuji" not in info.get("read_by", []):
+                        info["read_by"].append("shuji")
+                rr_path.write_text(
+                    json.dumps(rr, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+        except Exception:
+            pass
         record = {
             "room_id": room_id,
             "msg_id": msg_id,
@@ -480,6 +537,33 @@ def create_app(base: Path = DEFAULT_BASE):
             cur_state = read_state(room_id, base)
             cur_state["unread_count"] = int(cur_state.get("unread_count", 0)) + 1
             write_state_atomic(room_id, cur_state, base)
+        except Exception:
+            pass
+
+        # R58 Must Fix A: 既読(n/3) 実値連動
+        # - 新AI inject = 既存全msgs の read_by に 今 inject した actor を追加 (発言前に過去履歴を読んだ扱い)
+        # - 自msgは read_by = [actor] で開始 (n=0)
+        try:
+            rr_path = base / "data" / "projects" / room_id / "read_receipts.json"
+            rr_path.parent.mkdir(parents=True, exist_ok=True)
+            rr = {}
+            if rr_path.exists():
+                try:
+                    rr = json.loads(rr_path.read_text(encoding="utf-8"))
+                except Exception:
+                    rr = {}
+            for m_id, info in rr.items():
+                if actor not in info.get("read_by", []):
+                    info.setdefault("read_by", []).append(actor)
+            rr[msg_id] = {
+                "author": actor,
+                "read_by": [actor],
+                "ts": datetime.now(JST).isoformat(),
+            }
+            rr_path.write_text(
+                json.dumps(rr, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
         except Exception:
             pass
 

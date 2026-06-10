@@ -846,6 +846,37 @@
       "r56_consensus_preserved": "100% (UI集約のみ、 色/font/bubble/PWA/Auth/CSRF全て無変更)",
       "monthly_cost_added_jpy": 0
     },
+    "r58_must_fix_implementation": {
+      "topic": "R57 Live実テスト中に 3者一致で出た Must Fix 7点 実装",
+      "implementer": "事務Claude (Shujiさん明示指示 P)",
+      "implemented_jst": "2026-06-10 11:50",
+      "live_test_context": "Phase C relay_worker.py で GPT/Gemini 自動取得成功 (53秒で2者)、 Claude tab はselector不一致でtimeout (G で修正)",
+      "must_fix_items": {
+        "A_existed_implval": "既読 (n/3) 実値連動 (read_receipts.json + 自動累積 + Shuji ack時全AI既読) ✅",
+        "B_relay_lamp": "自動relay 3状態ランプ (●停止/●動作中/●合意、 relay_heartbeat.json + 5s mtime判定) ✅",
+        "C_submit_lock": "PWA送信ボタン物理ロック (ai_processing/worker_running時 disable、 watchdog tooltip付き) ✅",
+        "D_test1234_change": "本番認証 (dev環境では未変更、 本番デプロイ時に対応)",
+        "E_env_local": "秘密情報.env.local化 (dev環境では未変更、 本番デプロイ時に対応)",
+        "F_race_condition": "queue_io.atomic_append が既存実装で dedup対応済 (client_msg_id + _seen_msg_ids)",
+        "G_claude_selector": "chrome_relay.py SELECTORS['claude'] に claude.ai/code 用 fallback (markdown / article last-of-type) 追加 ✅"
+      },
+      "server_changes": [
+        "inject_ai_message: read_receipts.json 累積更新 (既存msgs の read_by に inject actor追加)",
+        "submit: read_receipts.json 全AI msgs に shuji追加",
+        "GET /timeline: msgs に read_count / read_by / read_total 同梱",
+        "GET /state: relay_worker_state (off/running/done) + heartbeat_age_sec 同梱"
+      ],
+      "scripts_changes": [
+        "relay_worker.py: _heartbeat(base, room_id) を loop先頭で呼出 → relay_heartbeat.json 毎iteration touch"
+      ],
+      "frontend_changes": [
+        "index.html ヘッダに #relay-lamp 追加 (タイトル横、 2.5px round)",
+        "app.js renderMessage の msg-read 実値置換 (✓✓既読(n/3) + opacity階段)",
+        "app.js refreshRoomState で relay_lamp 色変化 + 送信btn disable + tooltip"
+      ],
+      "smoke_test_pass": "R58新規 + 38/38 既存PASS継続",
+      "monthly_cost_added_jpy": 0
+    },
     "r57_meeting_system_completion_consensus": {
       "topic": "「ぐるぐる3者会議」 PWA開発を完結させるための残り工程を 事務Claudeに指示する",
       "consensus_established": true,

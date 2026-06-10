@@ -253,7 +253,29 @@ async function refreshRoomState() {
   dot('dot-gemini', s.next_actor === 'gemini' ? 'active' : (turn >= 2 || s.total_loops > 0 ? 'done' : 'idle'));
   dot('dot-claude', s.next_actor === 'claude' ? 'active' : (turn === 0 && s.total_loops > 0 ? 'done' : 'idle'));
 
-  document.getElementById('submit-btn').disabled = (s.status === 'ai_processing');
+  // R58 Must Fix B: relay_worker 3状態ランプ
+  const lamp = document.getElementById('relay-lamp');
+  if (lamp) {
+    const rwState = s.relay_worker_state || 'off';
+    const color = rwState === 'running' ? 'bg-yellow-400 animate-pulse'
+                : rwState === 'done'    ? 'bg-green-400'
+                                        : 'bg-dm-text-dim';
+    lamp.className = 'w-2.5 h-2.5 rounded-full flex-shrink-0 ' + color;
+    lamp.title = `relay_worker: ${rwState}` +
+      (typeof s.relay_worker_heartbeat_age_sec === 'number'
+        ? ` (heartbeat ${s.relay_worker_heartbeat_age_sec}s)` : '');
+  }
+
+  // R58 Must Fix C: PWA送信ボタン物理ロック
+  // ai_processing or relay_worker動作中で disable、 hung検出で auto unlock
+  const submitBtn = document.getElementById('submit-btn');
+  const workerRunning = s.relay_worker_state === 'running';
+  const aiProcessing = s.status === 'ai_processing';
+  const shouldLock = aiProcessing || workerRunning;
+  submitBtn.disabled = shouldLock;
+  submitBtn.title = shouldLock
+    ? (workerRunning ? '自動relay動作中 (送信は完了後)' : 'AI処理中')
+    : '送信';
 }
 
 // ===== R56: 日付セパレータ insert =====
@@ -376,9 +398,20 @@ function renderMessage(msg, prevMsg = null) {
   if (msg.loop) loopEl.textContent = `${msg.loop}巡`;
   else loopEl.remove();
 
+  // R58 Must Fix A: 既読(n/3) 実値表示 (全 actor で受信者0-3)
   const readEl = frag.querySelector('.msg-read');
-  if (msg.actor === 'shuji') readEl.textContent = '✓✓既読 (3/3)';
-  else readEl.remove();
+  const rc = typeof msg.read_count === 'number' ? msg.read_count : null;
+  const rt = typeof msg.read_total === 'number' ? msg.read_total : 3;
+  if (rc !== null) {
+    readEl.textContent = `✓✓既読 (${rc}/${rt})`;
+    if (rc === 0) readEl.style.opacity = '0.4';
+    else if (rc < rt) readEl.style.opacity = '0.7';
+    else readEl.style.opacity = '1.0';
+  } else if (msg.actor === 'shuji') {
+    readEl.textContent = '✓✓既読 (3/3)';  // fallback
+  } else {
+    readEl.remove();
+  }
 
   // 監査スレッド button
   const auditCount = (msg.audits || []).length;

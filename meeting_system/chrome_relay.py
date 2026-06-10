@@ -53,15 +53,23 @@ SELECTORS = {
         ),
     },
     "claude": {
-        "input": 'div.tiptap.ProseMirror[contenteditable="true"], div[contenteditable="true"].ProseMirror',
+        "input": (
+            'div.tiptap.ProseMirror[contenteditable="true"], '
+            'div[contenteditable="true"].ProseMirror, '
+            'div[contenteditable="true"]'
+        ),
         "send": (
             'button[aria-label="Send Message"], '
             'button[aria-label*="送信"], '
             'button[aria-label*="Send"]'
         ),
+        # R58 Must Fix G: claude.ai/code session (Claude Code) は data-is-streaming等を持たない
+        # → markdownクラス last要素 / streaming無効fallback / message-content等を順に試す
         "last_response": (
             'div[data-is-streaming="false"]:last-of-type, '
-            'div.font-claude-message:last-of-type'
+            'div.font-claude-message:last-of-type, '
+            'div[class*="markdown"]:last-of-type, '
+            'article:last-of-type'
         ),
     },
 }

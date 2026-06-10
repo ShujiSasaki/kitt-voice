@@ -47,6 +47,7 @@ tailwind.config = {
     <header class="sticky top-0 z-20 bg-dm-header border-b border-dm-border">
       <div class="flex items-center gap-2 px-3 py-3 min-w-0">
         <h1 class="text-base font-semibold text-dm-text truncate min-w-0 flex-1" id="active-room-title">会議</h1>
+        <span id="relay-lamp" class="w-2.5 h-2.5 rounded-full bg-dm-text-dim flex-shrink-0" title="relay_worker: off" aria-label="relay状態"></span>
         <div class="ml-auto flex items-center gap-2 flex-shrink-0">
           <select id="notify-level" class="text-xs bg-dm-input border border-dm-border text-dm-text rounded-full px-2 py-1">
             <option value="off">通知OFF</option>

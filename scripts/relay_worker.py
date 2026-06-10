@@ -187,6 +187,19 @@ async def _drive_one_turn(
     return j
 
 
+def _heartbeat(base: Path, room_id: str) -> None:
+    """R58 Must Fix B: server.py が mtime < 5sで running と判定するためのtouch"""
+    try:
+        hb_path = base / "data" / "projects" / room_id / "relay_heartbeat.json"
+        hb_path.parent.mkdir(parents=True, exist_ok=True)
+        hb_path.write_text(
+            json.dumps({"ts": __import__("time").time(), "pid": __import__("os").getpid()}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
 async def run_room(
     room_id: str, base: Path, cdp_port: int | None,
     poll: float, server_base: str, auth: tuple[str, str] | None,
@@ -194,6 +207,7 @@ async def run_room(
     _log(f"start room={room_id} base={base} cdp={cdp_port} poll={poll}s server={server_base}")
     while True:
         try:
+            _heartbeat(base, room_id)
             state = read_state(room_id, base)
             if state.get("is_consensus_established"):
                 _log("✅ consensus_established — pausing 30s")
