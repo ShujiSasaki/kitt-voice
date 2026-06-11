@@ -35,6 +35,24 @@ def _overview_path(base: Path) -> Path:
     return base / "data" / "rooms_overview.json"
 
 
+# R65: relay_worker が書出す処理中room (30秒超過で stale = worker停止扱い)
+ROUTER_STATE_STALE_SEC = 30.0
+
+
+def _router_active_room(base: Path) -> str | None:
+    import time as _time
+    p = base / "data" / "router_state.json"
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text(encoding=ENC))
+    except Exception:
+        return None
+    if _time.time() - float(d.get("updated", 0)) > ROUTER_STATE_STALE_SEC:
+        return None
+    return d.get("active_room")
+
+
 def _list_rooms(base: Path) -> list[str]:
     projects = base / "projects"
     if not projects.exists():
@@ -79,11 +97,14 @@ def generate(base: Path = DEFAULT_BASE,
     rooms = [_room_summary(rid, base) for rid in _list_rooms(base)]
     # R62: archived部屋は sidebar非表示 (Shuji要望「テストの部屋が邪魔」 2026-06-10)
     rooms = [r for r in rooms if not r.get("archived")]
-    processing = None
+    # R65: worker処理中room (router_state.json由来、 ai_processing statusはfallback)
+    router_room = _router_active_room(base)
+    processing = router_room
     consensus_unread = 0
     shuji_unread_total = 0
     for r in rooms:
-        if r["status"] == "ai_processing":
+        r["is_processing"] = (r["room_id"] == router_room)
+        if processing is None and r["status"] == "ai_processing":
             processing = r["room_id"]
         shuji_unread_total += r.get("unread_count", 0)
         if r["is_consensus_established"]:
@@ -148,7 +169,26 @@ def self_test() -> bool:
         data2 = read_overview(tmp_base)
         assert data2["schema_version"] == 1
 
-        print("PASS: rooms_overview self_test")
+        # R65: is_processing — router_state.json なし → 全False
+        assert all(r["is_processing"] is False for r in data["rooms"])
+        # router_state.json 書込み → 該当roomのみ True
+        import time as _t
+        rs = tmp_base / "data" / "router_state.json"
+        rs.parent.mkdir(parents=True, exist_ok=True)
+        rs.write_text(json.dumps({"active_room": "btc_auto_trade", "updated": _t.time()}),
+                      encoding=ENC)
+        data3 = generate(tmp_base)
+        flags = {r["room_id"]: r["is_processing"] for r in data3["rooms"]}
+        assert flags["btc_auto_trade"] is True, f"is_processing付与失敗: {flags}"
+        assert flags["delivery_offer_ai"] is False
+        assert data3["global"]["processing_room_id"] == "btc_auto_trade"
+        # stale (31秒前) → 全False
+        rs.write_text(json.dumps({"active_room": "btc_auto_trade", "updated": _t.time() - 31}),
+                      encoding=ENC)
+        data4 = generate(tmp_base)
+        assert all(r["is_processing"] is False for r in data4["rooms"]), "stale判定失敗"
+
+        print("PASS: rooms_overview self_test (R65 is_processing含む)")
         return True
     finally:
         shutil.rmtree(tmp_base, ignore_errors=True)

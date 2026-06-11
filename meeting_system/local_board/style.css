@@ -167,8 +167,26 @@ html, body {
 }
 
 /* ===== sidebar room icon (Bug 3 fix: 気泡感縮小) ===== */
+/* R65: selected (Shujiさん閲覧中、 緑枠) — クライアント側 activeRoomId 連動 */
 .room-icon-btn[aria-current="true"] .room-icon-shape {
   box-shadow: 0 0 0 2px #6DE67B;
+}
+
+/* R65: processing (worker処理中、 琥珀パルス + リレー中バッジ) — selectedとは別色で分離 */
+@keyframes processing-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #FBBF24; }
+  50%      { box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.35); }
+}
+.room-icon-btn.is-processing .room-icon-shape {
+  animation: processing-pulse 1.5s ease-in-out infinite;
+}
+/* selected かつ processing の併発時は 両輪表示 (緑内枠 + 琥珀パルス) */
+@keyframes processing-pulse-selected {
+  0%, 100% { box-shadow: 0 0 0 2px #6DE67B, 0 0 0 4px #FBBF24; }
+  50%      { box-shadow: 0 0 0 2px #6DE67B, 0 0 0 7px rgba(251, 191, 36, 0.35); }
+}
+.room-icon-btn[aria-current="true"].is-processing .room-icon-shape {
+  animation: processing-pulse-selected 1.5s ease-in-out infinite;
 }
 
 /* ===== 合意成立時の room アイコン緑グロー (R50継続、 Bug 3 fix で半径縮小) ===== */

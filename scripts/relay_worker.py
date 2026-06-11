@@ -390,6 +390,22 @@ async def _drive_one_turn(
 _worker_start_ts: dict[str, float] = {}
 
 
+def _write_router_active(base: Path, room_id: str | None) -> None:
+    """R65: worker処理中roomを書出し → rooms_overview が is_processing に変換。
+
+    room_id=None は idle (処理中なし)。updated が30秒超過で stale扱い (server側判定)。
+    """
+    try:
+        p = base / "data" / "router_state.json"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            json.dumps({"active_room": room_id, "updated": time.time()}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
 def _heartbeat(base: Path, room_id: str) -> None:
     """R58 Must Fix B: server.py が mtime < 5sで running と判定するためのtouch。
 
@@ -426,25 +442,30 @@ async def run_room(
             _heartbeat(base, room_id)
             state = read_state(room_id, base)
             if state.get("is_consensus_established"):
+                _write_router_active(base, None)  # R65: 収束中 = 処理中ではない
                 _log("✅ consensus_established — pausing 30s")
                 await asyncio.sleep(30)
                 continue
             # R59 Q3: blocked / external_wait なら 自動pause (人間介入待ち)
             if state.get("status") in ("blocked", "external_wait"):
+                _write_router_active(base, None)
                 _log(f"⏸ status={state['status']} — pausing 60s, awaiting Shuji intervention")
                 await asyncio.sleep(60)
                 continue
             # R59 Q4: archived なら無限pause
             if state.get("archived"):
+                _write_router_active(base, None)
                 _log("📦 room archived — pausing 120s")
                 await asyncio.sleep(120)
                 continue
             # R58.2: max_loops 超過 → 強制停止 (runaway防止)
             cur_loops = state.get("total_loops", 0)
             if cur_loops >= max_loops:
+                _write_router_active(base, None)
                 _log(f"⚠ max_loops {max_loops} reached (current={cur_loops}) — pausing 60s, awaiting Shuji")
                 await asyncio.sleep(60)
                 continue
+            _write_router_active(base, room_id)  # R65: 処理中
             port = cdp_port or state.get("chrome_cdp_port") or 9222
             result = await _drive_one_turn(room_id, base, port, server_base, auth)
             if result.get("done"):
@@ -488,6 +509,7 @@ async def run_router(
                     # idle: 直前に処理したroomへheartbeat (PWA lamp維持)
                     if last_served:
                         _heartbeat(base, last_served)
+                    _write_router_active(base, None)  # R65: idle = 強調なし
                     await asyncio.sleep(poll)
                     continue
                 current = pending[0][1]
@@ -495,12 +517,14 @@ async def run_router(
                 _log(f"🔀 attach room={current} (FIFO oldest) queue={queue_view}")
 
             _heartbeat(base, current)
+            _write_router_active(base, current)  # R65: 処理中room書出し
             state = read_state(current, base)
             reason = _converged_reason(state, max_loops)
             if reason:
                 _log(f"🏁 room={current} converged ({reason}) — detach、 次のFIFO roomへ")
                 last_served = current
                 current = None
+                _write_router_active(base, None)
                 await asyncio.sleep(1.0)
                 continue
 

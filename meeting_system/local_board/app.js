@@ -204,11 +204,17 @@ async function refreshSidebar() {
     }
     previousConsensusByRoom[room.room_id] = !!room.is_consensus_established;
 
-    if (data.global?.active_room_id === room.room_id) {
+    // R65: selected = クライアント側の閲覧中room (server globalの先頭固定強調は廃止)
+    if (activeRoomId === room.room_id) {
       btn.setAttribute('aria-current', 'true');
     } else {
       btn.removeAttribute('aria-current');
     }
+
+    // R65: processing = worker処理中room (「リレー中」バッジ + 琥珀パルス)
+    btn.classList.toggle('is-processing', !!room.is_processing);
+    const procBadge = btn.querySelector('.processing-badge');
+    if (procBadge) procBadge.classList.toggle('hidden', !room.is_processing);
   }
 
   for (const btn of Array.from(sidebar.querySelectorAll('.room-icon-btn'))) {
