@@ -285,20 +285,23 @@ def create_app(base: Path = DEFAULT_BASE):
             )
         return credentials.username
 
+    # R65.1: iOS PWAの強キャッシュ対策 — UIファイルは毎回鮮度確認させる (304は軽量)
+    _NO_CACHE = {"Cache-Control": "no-cache, must-revalidate"}
+
     @app.get("/")
     async def index(user=Depends(verify_basic)):
         idx = STATIC / "index.html"
         if not idx.exists():
             return JSONResponse({"error": "index.html not found"}, status_code=404)
-        return FileResponse(idx)
+        return FileResponse(idx, headers=_NO_CACHE)
 
     @app.get("/app.js")
     async def app_js(user=Depends(verify_basic)):
-        return FileResponse(STATIC / "app.js")
+        return FileResponse(STATIC / "app.js", headers=_NO_CACHE)
 
     @app.get("/style.css")
     async def style_css(user=Depends(verify_basic)):
-        return FileResponse(STATIC / "style.css")
+        return FileResponse(STATIC / "style.css", headers=_NO_CACHE)
 
     @app.get("/manifest.json")
     async def manifest():
@@ -318,7 +321,14 @@ def create_app(base: Path = DEFAULT_BASE):
 
     @app.get("/api/rooms/overview")
     async def get_overview(user=Depends(verify_basic)):
-        return rooms_overview.refresh(base)
+        data = rooms_overview.refresh(base)
+        # R65.1: UI自動更新 — app.js の mtime を ui_version として返す。
+        # client は load時の値と比較し、 変化したら自動full reload (iOS PWAキャッシュ対策)
+        try:
+            data["global"]["ui_version"] = str(int((STATIC / "app.js").stat().st_mtime))
+        except Exception:
+            pass
+        return data
 
     @app.post("/api/rooms/create")
     async def post_create_room(

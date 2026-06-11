@@ -165,8 +165,22 @@ async function fetchJSON(url, opts) {
 }
 
 // ===== Sidebar (R55合意 room list、 R56で dark theme色適用) =====
+// R65.1: UI自動更新 — server の ui_version (app.js mtime) が変わったら full reload。
+// iOS PWA が index.html/app.js を強キャッシュして更新が届かない問題の恒久対策。
+let uiVersion = null;
+function checkUiVersion(v) {
+  if (!v) return false;
+  if (uiVersion === null) { uiVersion = v; return false; }
+  if (uiVersion !== v) {
+    location.replace('/?u=' + Date.now());  // query付き navigation でキャッシュ回避
+    return true;
+  }
+  return false;
+}
+
 async function refreshSidebar() {
   const data = await fetchJSON(`${API}/rooms/overview`);
+  if (checkUiVersion(data.global?.ui_version)) return;
   const sidebar = document.getElementById('sidebar');
   const tmpl = document.getElementById('tmpl-room-icon');
   const existing = new Set();
