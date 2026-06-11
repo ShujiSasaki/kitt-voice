@@ -130,6 +130,10 @@ def mark_consensus_if_established(
         state["consensus_established_reason"] = reason
         state["consensus_established_loop"] = state.get("total_loops")
         state["status"] = "consensus_reached"
+        # R64: 合意成立ごとに 合意まとめ を1回提示 (consensus_summary.py が消費)
+        state["summary_pending"] = True
+        state["summary_sent"] = False
+        state["summary_sent_at"] = None
         changed = True
     elif not established and state.get("is_consensus_established"):
         state["is_consensus_established"] = False
@@ -156,6 +160,12 @@ def reset_consensus_on_shuji_input(
         state["consensus_established_at"] = None
         state["consensus_established_loop"] = None
         state["consensus_established_reason"] = "reset: shuji_new_input"
+        changed = True
+    # R64: 新議題 → まとめフラグもリセット (次の合意で再発火)
+    if state.get("summary_pending") or state.get("summary_sent"):
+        state["summary_pending"] = False
+        state["summary_sent"] = False
+        state["summary_sent_at"] = None
         changed = True
     if state.get("status") in ("consensus_reached", "blocked", "external_wait"):
         state["status"] = "idle"

@@ -49,6 +49,7 @@ from .state_schema import (
 )
 from . import queue_io, rooms_overview, notification_controller, sigint_handler
 from . import validator_consensus, validator, minutes, projects
+from . import consensus_summary
 
 STATIC = Path(__file__).parent / "local_board"
 
@@ -764,6 +765,7 @@ def create_app(base: Path = DEFAULT_BASE):
             consensus_state.get("is_consensus_established")
             and not new_state.get("is_consensus_established")
         )
+        summary_info = None
         if newly_established:
             try:
                 minutes_info = minutes.generate_minutes(
@@ -773,6 +775,11 @@ def create_app(base: Path = DEFAULT_BASE):
                 )
             except Exception as e:
                 minutes_info = {"error": str(e)}
+            # R64: 合意まとめ自動提示 (timeline inject + 議事録 + フラグ反転)
+            try:
+                summary_info = consensus_summary.generate_and_inject(room_id, base=base)
+            except Exception as e:
+                summary_info = {"error": str(e)}
             try:
                 notify_info = notification_controller.notify_consensus_reached(
                     room_id=room_id,
@@ -839,6 +846,7 @@ def create_app(base: Path = DEFAULT_BASE):
             "next_actor": consensus_state.get("next_actor"),
             "is_consensus_established": consensus_state.get("is_consensus_established"),
             "minutes": minutes_info,
+            "consensus_summary": summary_info,
         }
 
     @app.post("/api/rooms/{room_id}/upload")
