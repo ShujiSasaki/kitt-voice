@@ -511,7 +511,9 @@ def create_app(base: Path = DEFAULT_BASE):
         prev_status = state.get("status")
         prev_loops = state.get("total_loops", 0)
         # Stall 関連の status を idle に戻し、 next_actor進める
-        if prev_status in ("blocked", "external_wait", "consensus_reached"):
+        # R63.1: paused_by_shuji も解除対象 (割込→submit→再開 が始まらないbug修正)
+        if prev_status in ("blocked", "external_wait", "consensus_reached",
+                           "paused_by_shuji"):
             state["status"] = "idle"
         if state.get("is_consensus_established"):
             state["is_consensus_established"] = False
