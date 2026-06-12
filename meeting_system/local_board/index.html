@@ -34,7 +34,7 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<link rel="stylesheet" href="/style.css?v=r70">
+<link rel="stylesheet" href="/style.css?v=r71">
 </head>
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
@@ -54,12 +54,26 @@ tailwind.config = {
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
+          <button id="search-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="検索" title="検索とフィルタ">🔍</button>
           <button id="jump-summary-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="最新の合意まとめへ" title="最新の合意まとめへジャンプ">📋</button>
           <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く">⚙</button>
         </div>
       </div>
       <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
       <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate" id="global-relay-status"></div>
+      <div id="search-bar" class="hidden px-3 pb-2 flex items-center gap-1.5 flex-wrap">
+        <input id="search-input" type="search" placeholder="この部屋を検索..."
+               class="flex-1 min-w-[140px] text-sm bg-dm-input border border-dm-border text-dm-text
+                      rounded-full px-3 py-1 focus:outline-none">
+        <div id="actor-filters" class="flex items-center gap-1 text-[11px]">
+          <button data-filter="" class="filter-chip active">全部</button>
+          <button data-filter="shuji" class="filter-chip">Shuji</button>
+          <button data-filter="gpt" class="filter-chip">GPT</button>
+          <button data-filter="gemini" class="filter-chip">Gemini</button>
+          <button data-filter="claude" class="filter-chip">Claude</button>
+          <button data-filter="validator" class="filter-chip">⚙</button>
+        </div>
+      </div>
       <details id="header-details" class="px-4 pb-2">
         <summary class="text-xs text-dm-text-dim cursor-pointer select-none hover:text-dm-text">▼ 状態詳細</summary>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-dm-text-dim">
@@ -197,6 +211,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r70"></script>
+<script src="/app.js?v=r71"></script>
 </body>
 </html>

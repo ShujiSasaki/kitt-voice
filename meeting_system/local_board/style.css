@@ -67,6 +67,51 @@ footer {
   margin-top: -2px;
 }
 
+/* ===== UI-P1: 長文折りたたみ ===== */
+.msg-body.collapsed {
+  max-height: 240px;
+  overflow: hidden;
+  position: relative;
+}
+.msg-body.collapsed::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 48px;
+  background: linear-gradient(transparent, rgba(42, 42, 42, 0.95));
+  pointer-events: none;
+}
+.msg[data-actor="shuji"] .msg-body.collapsed::after {
+  background: linear-gradient(transparent, rgba(109, 230, 123, 0.95));
+}
+
+/* ===== UI-P1: コードコピー ===== */
+.code-copy-btn {
+  position: absolute;
+  top: 4px; right: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #E5E7EB;
+}
+.code-copy-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+/* ===== UI-P1: 検索/フィルタで非マッチを隠す ===== */
+.msg.filtered-out, .date-separator.filtered-out { display: none; }
+
+.filter-chip {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #9CA3AF;
+}
+.filter-chip.active {
+  background: #6DE67B;
+  color: #000;
+  font-weight: 700;
+}
+
 /* ===== UI-P0: タイピングインジケータ ===== */
 .typing-dots i {
   display: inline-block;

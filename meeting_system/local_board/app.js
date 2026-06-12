@@ -565,6 +565,22 @@ function renderMessage(msg, prevMsg = null) {
   } else {
     body.innerHTML = renderMarkdownSafe(msg.body || summary);
   }
+  addCodeCopyButtons(body);  // UI-P1: コードコピー
+
+  // UI-P1: 長文折りたたみ「もっと見る」 (X/LINE風)
+  if (body.dataset.shortMode !== '1' && (body.textContent || '').length > 600) {
+    body.classList.add('collapsed');
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'more-btn text-[11px] font-bold mt-1 opacity-80 hover:opacity-100';
+    more.textContent = '▼ もっと見る';
+    more.addEventListener('click', () => {
+      const collapsed = body.classList.toggle('collapsed');
+      more.textContent = collapsed ? '▼ もっと見る' : '▲ 閉じる';
+    });
+    body.after(more);
+  }
+
   // R59 Q3: consensus_value ラベル表示 (blocked/external_wait のみ目立たせる)
   const cv = msg.consensus_value;
   if (cv && cv !== 'true' && cv !== 'false') {
@@ -600,6 +616,7 @@ function renderMessage(msg, prevMsg = null) {
       if (evidence.open && body.dataset.shortMode === '1') {
         body.innerHTML = renderMarkdownSafe(body.dataset.fullBody || msg.body);
         body.dataset.shortMode = '0';
+        addCodeCopyButtons(body);  // UI-P1: 全文展開後もコピーボタン付与
       }
     });
   }
@@ -706,6 +723,28 @@ async function activateRoom(roomId) {
   markRead();
 }
 
+// ===== UI-P1: コードブロックのコピーボタン (ChatGPT風) =====
+function addCodeCopyButtons(scope) {
+  scope.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.code-copy-btn')) return;
+    const codeText = pre.innerText;
+    const btn = document.createElement('button');
+    btn.className = 'code-copy-btn';
+    btn.type = 'button';
+    btn.textContent = 'コピー';
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(codeText);
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = 'コピー'; }, 1500);
+      } catch (_) {}
+    });
+    pre.style.position = 'relative';
+    pre.appendChild(btn);
+  });
+}
+
 // ===== UI-P0: タイピングインジケータ (LINE/ChatGPT風) =====
 function updateTypingIndicator() {
   const el = document.getElementById('typing-indicator');
@@ -750,6 +789,50 @@ function showSendError(message) {
   }
   bar.querySelector('.send-error-text').textContent = `⚠ 送信失敗: ${message}`;
 }
+
+// ===== UI-P1: 部屋内検索 + actorフィルタ (クライアント側、 0円) =====
+let searchQuery = '';
+let actorFilter = '';
+
+function applySearchFilter() {
+  const q = searchQuery.toLowerCase();
+  document.querySelectorAll('#timeline .msg').forEach(m => {
+    const matchActor = !actorFilter || m.dataset.actor === actorFilter;
+    const matchText = !q || (m.textContent || '').toLowerCase().includes(q);
+    m.classList.toggle('filtered-out', !(matchActor && matchText));
+  });
+  const active = !!(q || actorFilter);
+  document.querySelectorAll('#timeline .date-separator').forEach(d =>
+    d.classList.toggle('filtered-out', active));
+}
+
+document.getElementById('search-btn')?.addEventListener('click', () => {
+  const bar = document.getElementById('search-bar');
+  const opened = bar.classList.toggle('hidden');
+  if (opened) {  // 閉じた → フィルタ解除
+    searchQuery = ''; actorFilter = '';
+    document.getElementById('search-input').value = '';
+    document.querySelectorAll('.filter-chip').forEach(c =>
+      c.classList.toggle('active', !c.dataset.filter));
+    applySearchFilter();
+  } else {
+    document.getElementById('search-input').focus();
+  }
+});
+
+document.getElementById('search-input')?.addEventListener('input', (e) => {
+  searchQuery = e.target.value.trim();
+  applySearchFilter();
+});
+
+document.getElementById('actor-filters')?.addEventListener('click', (e) => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  actorFilter = chip.dataset.filter || '';
+  document.querySelectorAll('.filter-chip').forEach(c =>
+    c.classList.toggle('active', c === chip));
+  applySearchFilter();
+});
 
 // ===== UX改善: 📋最新の合意まとめへジャンプ =====
 document.getElementById('jump-summary-btn')?.addEventListener('click', () => {
