@@ -49,12 +49,23 @@ def _hash(text: str) -> str:
     return hashlib.sha1(text.encode(ENC)).hexdigest()[:12]
 
 
+import re
+
+PWA_SUMMARY_RE = re.compile(r"<pwa_summary>.*?</pwa_summary>", re.DOTALL)
+
+
 def extract_clerk_request(bodies: list[str]) -> str:
-    """発言本文のリストから依頼ブロックを抽出 (最長候補を採用)"""
+    """発言本文のリストから依頼ブロックを抽出 (最長候補を採用)
+
+    pwa_summary内は除外 (2026-06-12: 「事務Claudeに依頼を貼るか決めて」という
+    Shuji向け質問の断片を依頼として誤発射した事故への対処)。
+    1行だけの候補も依頼文として成立しないため捨てる。
+    """
     best = ""
     for b in bodies:
         if not b:
             continue
+        b = PWA_SUMMARY_RE.sub("", b)
         idx = -1
         for marker in REQUEST_MARKERS:
             idx = b.find(marker)
@@ -76,6 +87,9 @@ def extract_clerk_request(bodies: list[str]) -> str:
                 blank_streak = 0
             block_lines.append(ln)
         candidate = "\n".join(block_lines).strip()[:MAX_REQUEST_CHARS]
+        # 1行だけ (マーカー行のみ) は依頼として成立しない断片 → 捨てる
+        if len([ln for ln in candidate.splitlines() if ln.strip()]) < 2:
+            continue
         if len(candidate) > len(best):
             best = candidate
     return best
@@ -191,6 +205,12 @@ def self_test() -> bool:
         req = extract_clerk_request([body])
         assert "修正仕様" in req and "FRの補完" in req, f"抽出失敗: {req}"
         assert "含めない" not in req
+        # pwa_summary内のマーカーは無視 (Shuji向け質問の誤発射防止)
+        noise = ("考察\n<pwa_summary>(A)事務Claudeに依頼を貼るか(B)私がやるか"
+                 "決めてください</pwa_summary>\n続き")
+        assert extract_clerk_request([noise]) == "", "pwa_summary除外失敗"
+        # マーカー行のみの断片も依頼にしない
+        assert extract_clerk_request(["事務Claudeに依頼します。"]) == ""
         # 2. timeline からの抽出 + 書き出し
         tl = tmp / "data" / "timeline.jsonl"
         tl.parent.mkdir(parents=True)
