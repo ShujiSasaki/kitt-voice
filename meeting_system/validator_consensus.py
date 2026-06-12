@@ -33,6 +33,18 @@ def record_actor_speech(
     """
     state = read_state(room_id, base)
 
+    # P1-① (2026-06-12 包括指示): validator等の非SEQUENCE actorは
+    # 巡回カウンタ・判定記録に一切影響させない。
+    # 旧実装は validator inject が total_loops を進め、空のcandsで
+    # mark_consensus_if_established が合意成立を誤リセットする副作用があった
+    # (完了報告injectのたびに合意済み部屋が再開される実害が複数回発生)。
+    if actor not in SEQUENCE:
+        state["current_actor"] = actor
+        state["last_msg_id"] = msg_id
+        state["last_msg_ts"] = datetime.now(JST).isoformat()
+        write_state_atomic(room_id, state, base)
+        return state
+
     if state["current_turn_in_loop"] == 0:
         state["total_loops"] += 1
         state["loops_history"].append({"loop": state["total_loops"]})
@@ -48,14 +60,13 @@ def record_actor_speech(
     if state["loops_history"]:
         state["loops_history"][-1][f"{actor}_msg_id"] = msg_id
 
-    if actor in SEQUENCE:
-        idx = SEQUENCE.index(actor)
-        if idx == len(SEQUENCE) - 1:
-            state["current_turn_in_loop"] = 0
-            state["next_actor"] = "gpt"
-        else:
-            state["current_turn_in_loop"] = idx + 1
-            state["next_actor"] = SEQUENCE[idx + 1]
+    idx = SEQUENCE.index(actor)
+    if idx == len(SEQUENCE) - 1:
+        state["current_turn_in_loop"] = 0
+        state["next_actor"] = "gpt"
+    else:
+        state["current_turn_in_loop"] = idx + 1
+        state["next_actor"] = SEQUENCE[idx + 1]
 
     state["current_actor"] = actor
     state["last_msg_id"] = msg_id
@@ -213,7 +224,29 @@ def self_test() -> bool:
         s3 = state_schema.read_state("r1", base=tmp_base)
         assert not s3["is_consensus_established"], "Shuji発言でリセットされるべき"
 
-        print("PASS: validator_consensus self_test")
+        # P1-①: validator inject は loop/cands/合意状態に影響しない
+        state_schema.init_room("r2", base=tmp_base)
+        record_actor_speech("r2", "gpt", "n1", True, base=tmp_base)
+        record_actor_speech("r2", "gemini", "n2", True, base=tmp_base)
+        record_actor_speech("r2", "claude", "n3", True, base=tmp_base)
+        record_actor_speech("r2", "gpt", "n4", True, base=tmp_base)
+        record_actor_speech("r2", "gemini", "n5", True, base=tmp_base)
+        record_actor_speech("r2", "claude", "n6", True, base=tmp_base)
+        s4 = mark_consensus_if_established("r2", base=tmp_base)
+        assert s4["is_consensus_established"], "前提: 2巡trueで成立"
+        loops_before = s4["total_loops"]
+        record_actor_speech("r2", "validator", "v1", False, base=tmp_base,
+                            consensus_value="false")
+        s5 = state_schema.read_state("r2", base=tmp_base)
+        assert s5["total_loops"] == loops_before, "validatorでloopが進んではいけない"
+        assert "validator" not in s5["consensus_candidates_per_loop"].get(
+            str(loops_before), {}), "validatorがcandsに混入してはいけない"
+        s6 = mark_consensus_if_established("r2", base=tmp_base)
+        assert s6["is_consensus_established"], \
+            "validator inject後も合意成立が維持されるべき (旧bugでは誤リセット)"
+        assert s5["last_msg_ts"], "last_msg_tsは更新される (R67b Watchdog用)"
+
+        print("PASS: validator_consensus self_test (P1-① validator非干渉含む)")
         return True
     finally:
         shutil.rmtree(tmp_base, ignore_errors=True)
