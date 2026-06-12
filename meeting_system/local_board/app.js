@@ -25,12 +25,14 @@ const STATUS_DOT_CLASS = {
   ai_processing: 'bg-yellow-400 animate-pulse',
   paused_by_shuji: 'bg-orange-500',
   consensus_reached: 'bg-green-500',
+  max_loops_reached: 'bg-red-500',  // R66
 };
 const STATUS_TOOLTIP = {
   idle: '待機中',
   ai_processing: '議論中',
   paused_by_shuji: 'Shuji割込中',
   consensus_reached: '合意成立',
+  max_loops_reached: 'ループ上限到達・自動停止 (▶再開で続行)',  // R66
 };
 
 let activeRoomId = null;
@@ -229,6 +231,10 @@ async function refreshSidebar() {
     btn.classList.toggle('is-processing', !!room.is_processing);
     const procBadge = btn.querySelector('.processing-badge');
     if (procBadge) procBadge.classList.toggle('hidden', !room.is_processing);
+
+    // R66: max_loops到達 = 「⚠️上限」バッジ
+    const mlBadge = btn.querySelector('.maxloops-badge');
+    if (mlBadge) mlBadge.classList.toggle('hidden', room.status !== 'max_loops_reached');
   }
 
   for (const btn of Array.from(sidebar.querySelectorAll('.room-icon-btn'))) {

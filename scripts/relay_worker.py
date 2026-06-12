@@ -45,7 +45,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from meeting_system import chrome_relay  # noqa: E402
 from meeting_system.state_schema import (  # noqa: E402
-    DEFAULT_BASE, read_state,
+    DEFAULT_BASE, read_state, write_state_atomic,
 )
 
 SEQUENCE = ["gpt", "gemini", "claude"]
@@ -121,7 +121,82 @@ def _read_timeline_for_room(base: Path, room_id: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 # 収束扱いの status (これらは Shuji介入 or 新submitまで relay対象外)
-STOP_STATUSES = ("blocked", "external_wait", "consensus_reached", "paused_by_shuji")
+STOP_STATUSES = ("blocked", "external_wait", "consensus_reached", "paused_by_shuji",
+                 "max_loops_reached")  # R66
+
+
+def _mark_max_loops_status(room_id: str, base: Path) -> bool:
+    """R66: status=max_loops_reached を1回だけ書込 (冪等)。書込んだらTrue"""
+    try:
+        st = read_state(room_id, base)
+        if st.get("status") == "max_loops_reached":
+            return False
+        st["status"] = "max_loops_reached"
+        write_state_atomic(room_id, st, base)
+        return True
+    except Exception:
+        return False
+
+
+def _notify_max_loops(
+    room_id: str, base: Path, state: dict, max_loops: int,
+    server_base: str, auth: tuple[str, str] | None,
+) -> None:
+    """R66: max_loops到達の停止案内 — status書込 + validator inject + Mac通知 (1回だけ)"""
+    if not _mark_max_loops_status(room_id, base):
+        return  # 既に通知済み
+    loops = state.get("total_loops", 0)
+    cands = state.get("consensus_candidates_per_loop", {}).get(str(loops), {})
+    cands_view = (", ".join(f"{a}={v}" for a, v in cands.items()) or "記録なし")
+    now_jst = time.strftime("%Y-%m-%d %H:%M:%S")
+    body = (
+        f"⚠️ [System] ループ上限 (max_loops={max_loops}) 到達 — 自動リレーを停止しました\n"
+        f"- 部屋: {state.get('project_name') or room_id}\n"
+        f"- 到達loop: {loops}/{max_loops}\n"
+        f"- 停止時刻: {now_jst} JST\n"
+        f"- 最終巡の判定: {cands_view}\n"
+        f"- 次の操作: ▶再開 (loop数リセットで議論続行) / 新しい指示をsubmitしても再開します\n"
+        f"[Validator-Verify: R66-MAXLOOPS-NOTIFY]"
+    )
+    try:
+        csrf = _csrf(server_base, auth)
+        _http(
+            server_base, f"/api/rooms/{room_id}/inject_ai_message", "POST",
+            body={"actor": "validator", "body": body}, csrf=csrf, auth=auth,
+        )
+    except Exception as e:
+        _log(f"⚠ max_loops通知inject失敗: {e}")
+    try:
+        from meeting_system import notification_controller
+        notification_controller.notify(
+            f"ループ上限到達: {state.get('project_name') or room_id} "
+            f"({loops}/{max_loops}巡) — ▶再開待ち",
+            level="normal", base=base,
+        )
+    except Exception:
+        pass
+    _log(f"⚠ R66 max_loops通知 room={room_id} loops={loops}/{max_loops}")
+
+
+def _find_orphan_max_loops(base: Path, max_loops: int) -> list[str]:
+    """R66: 到達済みなのに status未マークのroom (worker再起動の取りこぼし救済)"""
+    result = []
+    proj_dir = base / "projects"
+    if not proj_dir.exists():
+        return result
+    for d in sorted(proj_dir.iterdir()):
+        if not (d / "state.json").exists():
+            continue
+        try:
+            st = read_state(d.name, base)
+        except Exception:
+            continue
+        if (not st.get("archived")
+                and not st.get("is_consensus_established")
+                and st.get("status") not in STOP_STATUSES
+                and st.get("total_loops", 0) >= max_loops):
+            result.append(d.name)
+    return result
 
 
 def _parse_ts(s: str | None) -> datetime | None:
@@ -462,6 +537,7 @@ async def run_room(
             cur_loops = state.get("total_loops", 0)
             if cur_loops >= max_loops:
                 _write_router_active(base, None)
+                _notify_max_loops(room_id, base, state, max_loops, server_base, auth)  # R66
                 _log(f"⚠ max_loops {max_loops} reached (current={cur_loops}) — pausing 60s, awaiting Shuji")
                 await asyncio.sleep(60)
                 continue
@@ -504,6 +580,12 @@ async def run_router(
     while True:
         try:
             if current is None:
+                # R66: worker再起動の取りこぼし救済 — 到達済み未マークroomを通知
+                for orphan in _find_orphan_max_loops(base, max_loops):
+                    _notify_max_loops(
+                        orphan, base, read_state(orphan, base), max_loops,
+                        server_base, auth,
+                    )
                 pending = _scan_pending_rooms(base, max_loops)
                 if not pending:
                     # idle: 直前に処理したroomへheartbeat (PWA lamp維持)
@@ -521,6 +603,9 @@ async def run_router(
             state = read_state(current, base)
             reason = _converged_reason(state, max_loops)
             if reason:
+                if reason.startswith("max_loops"):
+                    # R66: 上限到達は通知付きで停止
+                    _notify_max_loops(current, base, state, max_loops, server_base, auth)
                 _log(f"🏁 room={current} converged ({reason}) — detach、 次のFIFO roomへ")
                 last_served = current
                 current = None
@@ -653,6 +738,27 @@ def self_test() -> bool:
         assert _converged_reason({"status": "idle", "total_loops": 5}, 5) == "max_loops=5"
         assert _converged_reason({"status": "idle", "total_loops": 1}, 5) is None
         print("PASS: relay_worker self_test (R63 FIFO scan + converged)")
+
+        # --- R66: max_loops到達 → status書込 → resume相当で復帰 ---
+        assert "max_loops_reached" in STOP_STATUSES
+        st_new = _ss.read_state("room_new", tmp)
+        st_new["total_loops"] = 5
+        _ss.write_state_atomic("room_new", st_new, tmp)
+        # 到達roomはpending除外 + 孤児検出に載る
+        assert _scan_pending_rooms(tmp, 5) == []
+        assert _find_orphan_max_loops(tmp, 5) == ["room_new"]
+        # status書込 (1回目True / 2回目False = 冪等)
+        assert _mark_max_loops_status("room_new", tmp) is True
+        assert _ss.read_state("room_new", tmp)["status"] == "max_loops_reached"
+        assert _mark_max_loops_status("room_new", tmp) is False
+        assert _find_orphan_max_loops(tmp, 5) == []  # マーク済みは孤児ではない
+        # resume_relay相当 (status=idle + loops=0) → pending復帰
+        st_new = _ss.read_state("room_new", tmp)
+        st_new["status"] = "idle"
+        st_new["total_loops"] = 0
+        _ss.write_state_atomic("room_new", st_new, tmp)
+        assert [r for _, r in _scan_pending_rooms(tmp, 5)] == ["room_new"]
+        print("PASS: relay_worker self_test (R66 max_loops 到達→mark→resume復帰)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return True

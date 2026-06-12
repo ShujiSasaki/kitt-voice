@@ -167,7 +167,9 @@ def reset_consensus_on_shuji_input(
         state["summary_sent"] = False
         state["summary_sent_at"] = None
         changed = True
-    if state.get("status") in ("consensus_reached", "blocked", "external_wait"):
+    # R66: max_loops_reached も新submitで解除 (上限到達後の新指示で再開)
+    if state.get("status") in ("consensus_reached", "blocked", "external_wait",
+                               "max_loops_reached"):
         state["status"] = "idle"
         changed = True
     # 新議題として 巡回カウンタもリセット (R59 bug fix、 17:48 Shuji報告)

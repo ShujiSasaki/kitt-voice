@@ -149,8 +149,9 @@ def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
     status が idle以外 (external_wait/blocked/consensus_reached/paused_by_shuji)
     なら 既に stop状態 → Watchdog発火対象外
     """
-    # R61 fix #2: stop状態は 既に「Shuji介入待ち」 = Watchdog不要
-    if state.get("status") in ("external_wait", "blocked", "consensus_reached", "paused_by_shuji"):
+    # R61 fix #2: stop状態は 既に「Shuji介入待ち」 = Watchdog不要 (R66: max_loops_reached追加)
+    if state.get("status") in ("external_wait", "blocked", "consensus_reached",
+                               "paused_by_shuji", "max_loops_reached"):
         return False
     if state.get("is_consensus_established"):
         return False
@@ -414,6 +415,8 @@ def create_app(base: Path = DEFAULT_BASE):
             stall_reason = "⏸ AI判断: 人間判断待ち"
         elif st_status == "paused_by_shuji":
             stall_reason = "🛑 Shujiさんが割込中"
+        elif st_status == "max_loops_reached":
+            stall_reason = "⚠️ ループ上限到達・自動停止 (▶再開で続行可)"
         elif st_status == "ai_processing" and rw_state == "off":
             stall_reason = "⚠️ AI処理中だが relay_worker停止"
         elif rw_state == "off" and st_status == "idle":
@@ -523,8 +526,9 @@ def create_app(base: Path = DEFAULT_BASE):
         prev_loops = state.get("total_loops", 0)
         # Stall 関連の status を idle に戻し、 next_actor進める
         # R63.1: paused_by_shuji も解除対象 (割込→submit→再開 が始まらないbug修正)
+        # R66: max_loops_reached も解除対象 (上限到達→▶再開 で確実に復帰)
         if prev_status in ("blocked", "external_wait", "consensus_reached",
-                           "paused_by_shuji"):
+                           "paused_by_shuji", "max_loops_reached"):
             state["status"] = "idle"
         if state.get("is_consensus_established"):
             state["is_consensus_established"] = False
