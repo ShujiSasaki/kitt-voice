@@ -250,6 +250,8 @@ async function refreshSidebar() {
   // UX改善: グローバル状態行 (ヘッダ) — 「今システムが何をしているか」一目表示
   processingRoomId = data.global?.processing_room_id || null;  // UI-P0: typing表示用
   updateTypingIndicator();
+  lastOverview = data;       // UI-P1: 部屋一覧パネル用
+  renderRoomList();          // 開いていれば最新化
   const grs = document.getElementById('global-relay-status');
   if (grs) {
     const proc = data.global?.processing_room_id;
@@ -790,6 +792,82 @@ function showSendError(message) {
   bar.querySelector('.send-error-text').textContent = `⚠ 送信失敗: ${message}`;
 }
 
+// ===== UI-P1: LINE風 部屋一覧 (☰ → 全画面リスト: プレビュー+相対時刻+状態+未読) =====
+let lastOverview = null;
+
+function renderRoomList() {
+  const panel = document.getElementById('room-list-panel');
+  if (!lastOverview || panel.classList.contains('hidden')) return;
+  const wrap = document.getElementById('room-list-items');
+  const tmpl = document.getElementById('tmpl-room-row');
+  wrap.innerHTML = '';
+  for (const room of lastOverview.rooms) {
+    const frag = tmpl.content.cloneNode(true);
+    const row = frag.querySelector('.room-row');
+    row.dataset.roomId = room.room_id;
+    const icon = frag.querySelector('.room-row-icon');
+    icon.textContent = room.icon || '💬';
+    icon.style.backgroundColor = room.color || '#4F46E5';
+    frag.querySelector('.room-row-title').textContent = room.title || room.room_id;
+    const st = frag.querySelector('.room-row-status');
+    if (room.is_processing) {
+      st.textContent = 'リレー中'; st.classList.add('bg-amber-400', 'text-black');
+    } else if (room.queue_position) {
+      st.textContent = `待機${room.queue_position}`; st.classList.add('bg-sky-600', 'text-white');
+    } else if (room.status === 'max_loops_reached') {
+      st.textContent = '⚠️上限'; st.classList.add('bg-red-500', 'text-white');
+    } else if (room.is_consensus_established) {
+      st.textContent = '合意'; st.classList.add('bg-green-600', 'text-white');
+    } else {
+      st.remove();
+    }
+    const d = room.last_msg_ts ? new Date(room.last_msg_ts) : null;
+    frag.querySelector('.room-row-time').textContent =
+      (d && !isNaN(d.getTime())) ? relativeTime(d) : '';
+    frag.querySelector('.room-row-preview').textContent =
+      room.last_msg_preview || (room.topic_title || '');
+    const ub = frag.querySelector('.room-row-unread');
+    if (room.unread_count) {
+      ub.textContent = room.unread_count > 99 ? '99+' : room.unread_count;
+      ub.classList.remove('hidden');
+    }
+    row.addEventListener('click', async () => {
+      document.getElementById('room-list-panel').classList.add('hidden');
+      await activateRoom(room.room_id);
+    });
+    wrap.appendChild(frag);
+  }
+}
+
+document.getElementById('room-list-btn')?.addEventListener('click', () => {
+  document.getElementById('room-list-panel').classList.remove('hidden');
+  renderRoomList();
+});
+document.getElementById('room-list-close')?.addEventListener('click', () => {
+  document.getElementById('room-list-panel').classList.add('hidden');
+});
+
+// ===== UI-P1: テーマ切替 (auto=システム追従 / light / dark) =====
+function applyTheme(mode) {
+  if (mode === 'light' || mode === 'dark') {
+    document.documentElement.dataset.theme = mode;
+  } else {
+    delete document.documentElement.dataset.theme;
+  }
+  const btn = document.getElementById('theme-btn');
+  if (btn) {
+    btn.textContent = mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '🌓';
+    btn.title = `テーマ: ${mode}`;
+  }
+}
+applyTheme(localStorage.getItem('grl_theme') || 'auto');
+document.getElementById('theme-btn')?.addEventListener('click', () => {
+  const cur = localStorage.getItem('grl_theme') || 'auto';
+  const next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
+  try { localStorage.setItem('grl_theme', next); } catch (e) {}
+  applyTheme(next);
+});
+
 // ===== UI-P1: 部屋内検索 + actorフィルタ (クライアント側、 0円) =====
 let searchQuery = '';
 let actorFilter = '';
@@ -1093,8 +1171,28 @@ function openImageModal(url) {
       }
     });
     document.body.appendChild(modal);
+    // UI-P2: ピンチズーム (iOS gestureイベント) + ダブルタップでズーム切替
+    const img = modal.querySelector('#img-modal-img');
+    let zoom = 1;
+    const setZoom = (z) => {
+      zoom = Math.min(4, Math.max(1, z));
+      img.style.transform = `scale(${zoom})`;
+    };
+    img.style.transition = 'transform .12s';
+    img.addEventListener('dblclick', () => setZoom(zoom > 1 ? 1 : 2.5));
+    let lastTap = 0;
+    img.addEventListener('touchend', (e) => {  // iOSのダブルタップ検出
+      const now = Date.now();
+      if (now - lastTap < 300 && e.touches.length === 0) setZoom(zoom > 1 ? 1 : 2.5);
+      lastTap = now;
+    });
+    let gestureBase = 1;
+    img.addEventListener('gesturestart', (e) => { e.preventDefault(); gestureBase = zoom; });
+    img.addEventListener('gesturechange', (e) => { e.preventDefault(); setZoom(gestureBase * e.scale); });
   }
-  document.getElementById('img-modal-img').src = url;
+  const imgEl = document.getElementById('img-modal-img');
+  imgEl.style.transform = 'scale(1)';
+  imgEl.src = url;
 }
 
 document.addEventListener('change', (e) => {

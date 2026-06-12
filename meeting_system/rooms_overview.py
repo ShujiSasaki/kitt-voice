@@ -88,6 +88,7 @@ def _room_summary(room_id: str, base: Path) -> dict:
         "unread_count": state.get("unread_count", 0),
         "last_msg_id": state.get("last_msg_id"),
         "last_msg_ts": state.get("last_msg_ts"),
+        "last_msg_preview": state.get("last_msg_preview"),
         "topic_title": state.get("topic_title"),
         "queue_priority": state.get("queue_priority", DEFAULT_PRIORITY),
     }

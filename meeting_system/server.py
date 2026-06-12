@@ -480,6 +480,7 @@ def create_app(base: Path = DEFAULT_BASE):
         )
         state["last_shuji_input_ts"] = datetime.now(JST).isoformat()
         state["unread_count"] = 0  # Phase D: Shuji発言で 既読扱い
+        state["last_msg_preview"] = f"あなた: {body[:50]}"  # UI-P1: LINE風一覧プレビュー
         validator_consensus.reset_consensus_on_shuji_input(room_id, base)
         write_state_atomic(room_id, state, base)
         # R58 Must Fix A: shuji が tab確認で 全AI既読
@@ -837,6 +838,9 @@ def create_app(base: Path = DEFAULT_BASE):
         try:
             cur_state = read_state(room_id, base)
             cur_state["unread_count"] = int(cur_state.get("unread_count", 0)) + 1
+            # UI-P1: LINE風一覧プレビュー (要約優先)
+            preview_src = (pwa_summary or body or "").replace("\n", " ").strip()
+            cur_state["last_msg_preview"] = f"{actor}: {preview_src[:50]}"
             write_state_atomic(room_id, cur_state, base)
         except Exception:
             pass

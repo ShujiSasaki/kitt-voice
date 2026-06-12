@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" sizes="192x192" href="/apple-touch-icon-192.png">
 <link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon-512.png">
 <meta name="theme-color" content="#00B900">
+<meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F4F4F5" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="3者会議">
@@ -16,14 +18,14 @@
 <script>
 tailwind.config = {
   theme: { extend: { colors: {
-    'dm-bg':           '#181818',
-    'dm-header':       '#111111',
-    'dm-bubble-ai':    '#2A2A2A',
+    'dm-bg':           'var(--c-bg)',
+    'dm-header':       'var(--c-header)',
+    'dm-bubble-ai':    'var(--c-bubble-ai)',
     'dm-bubble-shuji': '#6DE67B',
-    'dm-input':        '#242424',
-    'dm-text':         '#F5F5F5',
-    'dm-text-dim':     '#8A8A8A',
-    'dm-border':       '#2A2A2A',
+    'dm-input':        'var(--c-input)',
+    'dm-text':         'var(--c-text)',
+    'dm-text-dim':     'var(--c-text-dim)',
+    'dm-border':       'var(--c-border)',
     'actor-shuji':     '#00B900',
     'actor-gpt':       '#10A37F',
     'actor-gemini':    '#8E75D9',
@@ -34,7 +36,7 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<link rel="stylesheet" href="/style.css?v=r71">
+<link rel="stylesheet" href="/style.css?v=r72">
 </head>
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
@@ -46,6 +48,7 @@ tailwind.config = {
 
     <header class="sticky top-0 z-20 bg-dm-header border-b border-dm-border">
       <div class="flex items-center gap-2 px-3 py-3 min-w-0">
+        <button id="room-list-btn" class="text-dm-text-dim hover:text-dm-text text-lg flex-shrink-0" aria-label="会議室一覧" title="会議室一覧">☰</button>
         <h1 class="text-base font-semibold text-dm-text truncate min-w-0 flex-1" id="active-room-title">会議</h1>
         <span id="relay-lamp" class="w-2.5 h-2.5 rounded-full bg-dm-text-dim flex-shrink-0" title="relay_worker: off" aria-label="relay状態"></span>
         <div class="ml-auto flex items-center gap-2 flex-shrink-0">
@@ -54,6 +57,7 @@ tailwind.config = {
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
+          <button id="theme-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="テーマ切替" title="テーマ: auto">🌓</button>
           <button id="search-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="検索" title="検索とフィルタ">🔍</button>
           <button id="jump-summary-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="最新の合意まとめへ" title="最新の合意まとめへジャンプ">📋</button>
           <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く">⚙</button>
@@ -140,6 +144,31 @@ tailwind.config = {
   </div>
 </div>
 
+<div id="room-list-panel" class="hidden fixed inset-0 z-40 bg-dm-bg flex flex-col">
+  <div class="flex items-center gap-2 px-4 py-3 border-b border-dm-border bg-dm-header"
+       style="padding-top: max(env(safe-area-inset-top, 0px), 12px);">
+    <h2 class="text-base font-semibold text-dm-text flex-1">会議室</h2>
+    <button id="room-list-close" class="text-dm-text-dim text-xl px-2" aria-label="閉じる">✕</button>
+  </div>
+  <div id="room-list-items" class="flex-1 overflow-y-auto"></div>
+</div>
+
+<template id="tmpl-room-row">
+  <button class="room-row w-full flex items-center gap-3 px-4 py-3 border-b border-dm-border text-left active:bg-white/5">
+    <span class="room-row-icon w-11 h-11 rounded-full flex items-center justify-center text-lg flex-shrink-0 text-white font-bold shadow"></span>
+    <span class="flex-1 min-w-0">
+      <span class="flex items-center gap-1.5 min-w-0">
+        <span class="room-row-title text-sm font-semibold text-dm-text truncate"></span>
+        <span class="room-row-status text-[9px] px-1 py-0.5 rounded font-bold flex-shrink-0"></span>
+        <span class="room-row-time ml-auto text-[10px] text-dm-text-dim flex-shrink-0"></span>
+      </span>
+      <span class="room-row-preview block text-xs text-dm-text-dim truncate mt-0.5"></span>
+    </span>
+    <span class="room-row-unread hidden bg-red-500 text-white text-[10px] font-bold rounded-full
+                 min-w-[18px] h-[18px] px-1 flex items-center justify-center flex-shrink-0"></span>
+  </button>
+</template>
+
 <template id="tmpl-room-icon">
   <button class="room-icon-btn relative group" data-room-id="">
     <div class="room-icon-shape w-8 h-8 rounded-lg text-white text-sm font-bold flex items-center
@@ -211,6 +240,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r71"></script>
+<script src="/app.js?v=r72"></script>
 </body>
 </html>

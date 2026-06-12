@@ -5,11 +5,42 @@
  *   - LINE風(R50)スタイルは撤回
  */
 
+/* ===== UI-P1: テーマ変数 (auto=システム追従 / data-theme=手動上書き) ===== */
+:root {
+  --c-bg: #181818;
+  --c-header: #111111;
+  --c-bubble-ai: #2A2A2A;
+  --c-input: #242424;
+  --c-text: #F5F5F5;
+  --c-text-dim: #8A8A8A;
+  --c-border: #2A2A2A;
+}
+:root[data-theme="light"] {
+  --c-bg: #FFFFFF;
+  --c-header: #F4F4F5;
+  --c-bubble-ai: #F0F0F2;
+  --c-input: #EFEFF1;
+  --c-text: #111827;
+  --c-text-dim: #6B7280;
+  --c-border: #E5E7EB;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --c-bg: #FFFFFF;
+    --c-header: #F4F4F5;
+    --c-bubble-ai: #F0F0F2;
+    --c-input: #EFEFF1;
+    --c-text: #111827;
+    --c-text-dim: #6B7280;
+    --c-border: #E5E7EB;
+  }
+}
+
 html, body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
                "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
-  background: #181818;
-  color: #F5F5F5;
+  background: var(--c-bg);
+  color: var(--c-text);
 }
 
 /* ===== UI-P0: iOS PWAセーフエリア (ノッチ/ホームバー対応、 viewport-fit=cover前提) ===== */
@@ -47,8 +78,8 @@ footer {
 
 /* AI bubble (左) */
 .msg:not([data-actor="shuji"]) .msg-bubble {
-  background-color: #2A2A2A;
-  color: #F5F5F5;
+  background-color: var(--c-bubble-ai);
+  color: var(--c-text);
   border-bottom-left-radius: 8px;
 }
 
@@ -78,7 +109,7 @@ footer {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 48px;
-  background: linear-gradient(transparent, rgba(42, 42, 42, 0.95));
+  background: linear-gradient(transparent, var(--c-bubble-ai));
   pointer-events: none;
 }
 .msg[data-actor="shuji"] .msg-body.collapsed::after {
@@ -164,17 +195,17 @@ footer {
 .msg[data-card="summary"] .msg-bubble {
   background-color: rgba(16, 163, 127, 0.13) !important;
   border-left: 4px solid #10A37F;
-  color: #F5F5F5;
+  color: var(--c-text);
 }
 .msg[data-card="warn"] .msg-bubble {
   background-color: rgba(245, 158, 11, 0.13) !important;
   border-left: 4px solid #F59E0B;
-  color: #F5F5F5;
+  color: var(--c-text);
 }
 .msg[data-card="report"] .msg-bubble {
   background-color: rgba(59, 130, 246, 0.13) !important;
   border-left: 4px solid #3B82F6;
-  color: #F5F5F5;
+  color: var(--c-text);
 }
 
 /* msg-bodyのコードブロック (bubble内、 半透明黒背景) */
