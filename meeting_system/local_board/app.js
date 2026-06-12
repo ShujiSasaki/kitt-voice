@@ -435,6 +435,7 @@ async function refreshTimeline() {
   if (appended) {
     if (nearBottom) {
       tl.scrollTop = tl.scrollHeight;
+      markRead();  // UX2: 最下部で閲覧中 = 既読更新
     } else {
       // R59: 上スクロール読書中は自動スクロールしない代わりに新着バッジ表示 (GPT R21提案)
       ensureNewMsgBadge(tl).classList.remove('hidden');
@@ -459,6 +460,7 @@ function ensureNewMsgBadge(tl) {
   tl.addEventListener('scroll', () => {
     if (tl.scrollHeight - tl.scrollTop - tl.clientHeight < 120) {
       btn.classList.add('hidden');
+      markRead();  // UX2: 最下部到達 = 既読更新
     }
   });
   document.body.appendChild(btn);
@@ -595,6 +597,24 @@ function renderMessage(msg, prevMsg = null) {
   return frag;
 }
 
+// ===== UX2: 既読管理 (SNS標準: 部屋を開くと未読の先頭へジャンプ) =====
+function markRead() {
+  if (!activeRoomId) return;
+  const last = lastMsgIdByRoom[activeRoomId];
+  if (last) try { localStorage.setItem('grl_read_' + activeRoomId, last); } catch (e) {}
+}
+
+function insertUnreadDivider(beforeNode) {
+  document.getElementById('unread-divider')?.remove();
+  const d = document.createElement('div');
+  d.id = 'unread-divider';
+  d.className = 'flex items-center gap-2 my-2 text-[11px] text-red-400 select-none';
+  d.innerHTML =
+    '<div class="flex-1 h-px bg-red-400/40"></div>ここから未読' +
+    '<div class="flex-1 h-px bg-red-400/40"></div>';
+  beforeNode.parentNode.insertBefore(d, beforeNode);
+}
+
 // ===== room activate =====
 async function activateRoom(roomId) {
   activeRoomId = roomId;
@@ -607,6 +627,24 @@ async function activateRoom(roomId) {
   lastRenderedMsgByRoom[roomId] = null;
   await refreshRoomState();
   await refreshTimeline();
+
+  // UX2: 未読の先頭へ自動スクロール (「ここから未読」divider付き、 LINE/Discord標準)
+  const tl = document.getElementById('timeline');
+  let lastRead = null;
+  try { lastRead = localStorage.getItem('grl_read_' + roomId); } catch (e) {}
+  let target = null;
+  if (lastRead) {
+    const nodes = Array.from(tl.querySelectorAll('.msg'));
+    const idx = nodes.findIndex(n => n.dataset.msgId === lastRead);
+    if (idx >= 0 && idx < nodes.length - 1) target = nodes[idx + 1];
+  }
+  if (target) {
+    insertUnreadDivider(target);
+    target.scrollIntoView({block: 'start'});
+  } else {
+    tl.scrollTop = tl.scrollHeight;
+  }
+  markRead();
 }
 
 // ===== UX改善: 📋最新の合意まとめへジャンプ =====
@@ -718,8 +756,10 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
   if (!text) return;
   try {
     const j = await submitWithRetry(text);
-    if (j.ok) inp.value = '';
-    else alert(j.error || '送信失敗');
+    if (j.ok) {
+      inp.value = '';
+      inp.style.height = 'auto';  // UX2: 送信後に入力欄の高さをリセット
+    } else alert(j.error || '送信失敗');
   } catch (e) {
     alert(`送信エラー: ${e.message}`);
   }
@@ -738,8 +778,26 @@ document.getElementById('notify-level').addEventListener('change', async (e) => 
   });
 });
 
-document.getElementById('shuji-input').addEventListener('keydown', (e) => {
+// UX2: 入力欄オートリサイズ (入力内容に合わせて高さ可変、 最大=画面の35%)
+const _composer = document.getElementById('shuji-input');
+_composer.addEventListener('input', () => {
+  _composer.style.height = 'auto';
+  _composer.style.height =
+    Math.min(_composer.scrollHeight, Math.floor(window.innerHeight * 0.35)) + 'px';
+});
+
+// UX2: Enter送信はデスクトップのみ (Shift+Enter=改行)。
+// タッチ端末は Enter=改行 (LINE等のSNS標準)。日本語IME変換中は送信しない。
+const _isTouch = window.matchMedia('(pointer: coarse)').matches;
+_composer.addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('submit-btn').click();
+    return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && !_isTouch) {
+    e.preventDefault();
     document.getElementById('submit-btn').click();
   }
 });

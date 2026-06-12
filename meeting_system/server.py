@@ -567,6 +567,14 @@ def create_app(base: Path = DEFAULT_BASE):
         csrf = req.headers.get("X-CSRF-Token", "")
         if not _verify_csrf(csrf):
             raise HTTPException(status_code=403, detail="csrf_invalid")
+        # UX2: 部屋を開いたら未読バッジをクリア (SNS標準挙動)
+        try:
+            st = read_state(room_id, base)
+            if st.get("unread_count"):
+                st["unread_count"] = 0
+                write_state_atomic(room_id, st, base)
+        except Exception:
+            pass
         rooms_overview.refresh(base, active_room_id=room_id)
         return {"ok": True, "active_room_id": room_id}
 
