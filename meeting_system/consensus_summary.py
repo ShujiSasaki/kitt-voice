@@ -142,6 +142,36 @@ def build_summary_body(
     if not conclusion:
         conclusion = "(要約の自動取得に失敗 — 各発言の証跡を参照してください)"
 
+    # 事務Claudeへの依頼ブロック抽出 (2026-06-12 Shuji要望: 依頼文がまとめに出ない)
+    # マーカー行から次のセクション見出し or 空行2連までを全文掲載 (最大1200字)
+    clerk_request = ""
+    request_markers = ("【事務Claudeへの依頼文】", "事務Claudeへの依頼:", "事務Claudeへの依頼：",
+                       "■ 事務Claudeへの依頼", "事務Claudeへの最終確定発注書")
+    for b in bodies:
+        idx = -1
+        for marker in request_markers:
+            idx = b.find(marker)
+            if idx >= 0:
+                break
+        if idx < 0:
+            continue
+        block_lines = []
+        blank_streak = 0
+        for ln in b[idx:].splitlines()[1:]:
+            s = ln.strip()
+            if s.startswith(("2. 前走者", "3. consensus", "4. ", "5. ", "■ ")):
+                break
+            if not s:
+                blank_streak += 1
+                if blank_streak >= 3:
+                    break
+            else:
+                blank_streak = 0
+            block_lines.append(ln)
+        candidate = "\n".join(block_lines).strip()[:1200]
+        if len(candidate) > len(clerk_request):
+            clerk_request = candidate
+
     remaining = _extract_lines(bodies, REMAINING_KEYWORDS, limit=3)
     next_actions = _extract_lines(bodies, NEXT_KEYWORDS, limit=3)
     judgment_lines = _extract_lines(bodies, JUDGMENT_KEYWORDS, limit=2)
@@ -162,6 +192,8 @@ def build_summary_body(
         "■ 合意した結論",
         conclusion,
     ]
+    if clerk_request:
+        lines += ["", "■ 事務Claudeへの依頼 (全文)", clerk_request]
     if next_actions:
         lines += ["", "■ 次にやること", *[f"- {ln}" for ln in next_actions]]
     if remaining:
@@ -272,7 +304,10 @@ def self_test() -> bool:
              "本文\n実装待ちはAです\nconsensus_candidate: true\n"
              "固定フォーマット: 結論 / 決まったこと / 残っていること / 次にやること\n"
              "■ 残っていること\n<pwa_summary>実装待ちのZ</pwa_summary>"),
-            ("m_m", "gemini", "Gemini要約です", "本文\n判断不要です"),
+            ("m_m", "gemini", "Gemini要約です",
+             "本文\n判断不要です\n【事務Claudeへの依頼文】\n"
+             "テーブルXを作成してYを格納してください。\n完了後に部屋へ再投入。\n\n"
+             "2. 前走者発言への監査・批判\nこの行は依頼に含めない"),
             ("m_c", "claude", "Claude要約です", "本文\n次にやること: 事務Claudeが実装する"),
         ]:
             queue_io.append_timeline({
@@ -304,6 +339,11 @@ def self_test() -> bool:
         assert "<pwa_summary>実装待ちのZ" not in last["body"], "pwa_summaryタグ行が混入"
         body_lines = last["body"].splitlines()
         assert "- 残っていること" not in body_lines, "見出しそのものが混入"
+        # 事務Claudeへの依頼ブロック全文掲載 (セクション境界で停止)
+        assert "■ 事務Claudeへの依頼 (全文)" in last["body"]
+        assert "テーブルXを作成してYを格納してください。" in last["body"]
+        assert "完了後に部屋へ再投入。" in last["body"]
+        assert "この行は依頼に含めない" not in last["body"]
         # v2: プロンプト復唱・中略の遮断
         assert "あなた (本ターン)" not in last["body"]
         assert _is_noise_summary("あなた (本ターン) のタスク 以下5セクションで...")
