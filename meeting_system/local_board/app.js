@@ -242,7 +242,12 @@ async function refreshSidebar() {
   }
 
   if (!activeRoomId && data.rooms.length) {
-    await activateRoom(data.rooms[0].room_id);
+    // P1-②: 前回の閲覧部屋を復元 (無ければ先頭room)
+    let stored = null;
+    try { stored = localStorage.getItem('grl_active_room'); } catch (e) {}
+    const target = data.rooms.some(r => r.room_id === stored)
+      ? stored : data.rooms[0].room_id;
+    await activateRoom(target);
   }
 }
 
@@ -565,6 +570,9 @@ function renderMessage(msg, prevMsg = null) {
 // ===== room activate =====
 async function activateRoom(roomId) {
   activeRoomId = roomId;
+  // P1-② (2026-06-12): 閲覧中roomを永続化 — 次回起動時に同じ部屋を開く
+  // (旧: 起動毎に先頭roomへ自動activate → 意図しない部屋へのsubmit誤送信リスク)
+  try { localStorage.setItem('grl_active_room', roomId); } catch (e) {}
   await authFetch(`${API}/rooms/${roomId}/activate`, {method: 'POST'});
   document.getElementById('timeline').innerHTML = '';
   lastMsgIdByRoom[roomId] = '';
