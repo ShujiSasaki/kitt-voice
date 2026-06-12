@@ -159,13 +159,21 @@ def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
     # R67b: 部屋自身の最終発言時刻で判定。
     # 旧実装はグローバル timeline.jsonl の mtime を使っており、
     # 「別部屋の活動が止まっただけ」 で無関係な部屋へ警告injectする誤発火源だった。
-    last_ts = state.get("last_msg_ts")
-    if not last_ts:
+    # 2026-06-12 fix: Shujiの新議題送信直後はAI応答前で last_msg_ts が古いままのため
+    # 「送信4秒後に180秒stall誤判定→next_actorを進めて正規injectを409拒否」事故が発生。
+    # 最後の活動 = AI最終発言とShuji最終送信の新しい方で測る
+    candidates = []
+    for key in ("last_msg_ts", "last_shuji_input_ts"):
+        v = state.get(key)
+        if not v:
+            continue
+        try:
+            candidates.append(datetime.fromisoformat(v))
+        except (ValueError, TypeError):
+            pass
+    if not candidates:
         return False
-    try:
-        last_dt = datetime.fromisoformat(last_ts)
-    except (ValueError, TypeError):
-        return False
+    last_dt = max(candidates)
     age = (datetime.now(JST) - last_dt).total_seconds()
     if age <= WATCHDOG_STALL_SEC:
         return False
@@ -557,6 +565,9 @@ def create_app(base: Path = DEFAULT_BASE):
         state["loops_history"] = []
         # next_actor は gpt にreset (新議題は順序最初から)
         state["next_actor"] = "gpt"
+        # 2026-06-12: ▶再開もShujiの活動 — watchdogのstall時計をリセットし
+        # 再開直後の180秒誤発動を防ぐ
+        state["last_shuji_input_ts"] = datetime.now(JST).isoformat()
         write_state_atomic(room_id, state, base)
         return {
             "ok": True,
