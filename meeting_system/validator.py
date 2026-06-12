@@ -124,19 +124,41 @@ def extract_consensus_candidate(text: str) -> bool:
     return v == "true"
 
 
+# 見出し省略形式fallback (2026-06-12 実害: GPTが新規会話で
+# 「consensus_candidate判定\n\ntrue」 とコロン無しで書き、毎回falseに化けて
+# 内容合意済みでも正式成立せず max_loops まで空回りした)
+SECTION_JUDGE_RE = re.compile(r"consensus_candidate\s*判定", re.IGNORECASE)
+VALUE_LINE_RE = re.compile(
+    r"^\s*[-*・]?\s*(true|false|blocked|external_wait)\b", re.IGNORECASE)
+
+
 def extract_consensus_value(text: str) -> str:
     """R59 Q3: 3値返却 true / false / blocked / external_wait"""
     m = OVERALL_RE.search(text)
     if m:
         return m.group(1).lower()
     matches = CONSENSUS_RE.findall(text)
-    if not matches:
+    if matches:
+        # true があれば true、 次に blocked、 next external_wait、 最後 false
+        norm = [v.lower() for v in matches]
+        for priority in ("true", "blocked", "external_wait"):
+            if priority in norm:
+                return priority
         return "false"
-    # true があれば true、 次に blocked、 next external_wait、 最後 false
-    norm = [v.lower() for v in matches]
-    for priority in ("true", "blocked", "external_wait"):
-        if priority in norm:
-            return priority
+    # fallback: 「consensus_candidate判定」見出し直後3行以内の単独値を採用
+    sm = SECTION_JUDGE_RE.search(text)
+    if sm:
+        checked = 0
+        for ln in text[sm.end():].splitlines():
+            s = ln.strip()
+            if not s:
+                continue
+            vm = VALUE_LINE_RE.match(s)
+            if vm:
+                return vm.group(1).lower()
+            checked += 1
+            if checked >= 3:
+                break
     return "false"
 
 
@@ -246,6 +268,22 @@ Must Fixなし。
         passed += 1; print("PASS: relay order violation detected")
     else:
         failed += 1; print("FAIL: relay violation NOT detected")
+
+    # 見出し省略形式fallback (2026-06-12 GPT実害対応)
+    cases = [
+        ("...本文...\nconsensus_candidate判定\n\ntrue\n\n次のセクション", "true"),
+        ("consensus_candidate判定\n\n説明が先\nfalse", "false"),
+        ("consensus_candidate判定\n\nexternal_wait (理由)", "external_wait"),
+        ("consensus_candidate: true が優先", "true"),
+        ("判定見出しが無い本文だけ", "false"),
+        ("consensus_candidate判定\n\n説明1\n説明2\n説明3\n説明4\ntrue", "false"),  # 3行超は不採用
+    ]
+    for text, want in cases:
+        got = extract_consensus_value(text)
+        if got == want:
+            passed += 1; print(f"PASS: 見出し省略fallback ({want})")
+        else:
+            failed += 1; print(f"FAIL: 見出し省略fallback want={want} got={got}")
 
     print(f"=== validator self_test: {passed}/{passed + failed} ===")
     return failed == 0
