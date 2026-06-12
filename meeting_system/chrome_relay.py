@@ -132,8 +132,14 @@ async def reset_conversation(cdp_port: int, actor: str) -> bool:
     page = await find_tab(ctx, actor)
     await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     await asyncio.sleep(3.0)
-    await page.locator(SELECTORS[actor]["input"]).first.wait_for(
-        state="visible", timeout=20_000)
+    # 検証は advisory (2026-06-12実測: locatorが「resolved to visible」でも
+    # wait_forがtimeoutするplaywright癖があり、gotoは成功しているのに失敗扱いに
+    # なってカウンタが残り毎ターン再試行する劣化ループが発生した)
+    try:
+        await page.locator(SELECTORS[actor]["input"]).first.wait_for(
+            state="visible", timeout=10_000)
+    except Exception:
+        logger.warning("%s reset_conversation: composer可視検証はflake — goto成功とみなす", actor)
     return True
 
 
