@@ -98,11 +98,16 @@ def extract_clerk_request(bodies: list[str]) -> str:
 def _recent_actor_bodies(base: Path, room_id: str,
                          lookback: int = LOOKBACK_MSGS,
                          loop: int | None = None) -> list[str]:
-    """loop指定時はその巡の発言のみ (収束巡に限定し、旧ラウンドの依頼の再発射を防ぐ)"""
+    """現ラウンド (最後のShuji送信より後) の発言のみ走査。
+
+    2026-06-13 fix: loop番号はラウンド毎に1から振り直されるため、loop一致だけ
+    では過去ラウンドの同loop発言を拾い、処理済み依頼が再発射されていた。
+    「最後のshuji発言より後」を境界とし、その中でloop一致を適用する。
+    """
     path = base / "data" / "timeline.jsonl"
     if not path.exists():
         return []
-    msgs = []
+    room_msgs = []
     for line in path.read_text(encoding=ENC).splitlines():
         if not line.strip():
             continue
@@ -110,12 +115,18 @@ def _recent_actor_bodies(base: Path, room_id: str,
             m = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if m.get("room_id") == room_id and m.get("actor") in (
-                "gpt", "gemini", "claude"):
-            if loop is not None and m.get("loop") != loop:
-                continue
-            msgs.append(m.get("body") or "")
-    return msgs[-lookback:]
+        if m.get("room_id") == room_id:
+            room_msgs.append(m)
+    last_shuji = max((i for i, m in enumerate(room_msgs)
+                      if m.get("actor") == "shuji"), default=-1)
+    bodies = []
+    for m in room_msgs[last_shuji + 1:]:
+        if m.get("actor") not in ("gpt", "gemini", "claude"):
+            continue
+        if loop is not None and m.get("loop") != loop:
+            continue
+        bodies.append(m.get("body") or "")
+    return bodies[-lookback:]
 
 
 def pending_dir(base: Path = DEFAULT_BASE) -> Path:
@@ -240,7 +251,19 @@ def self_test() -> bool:
         p.rename(done / p.name)
         r5 = dispatch_for_room("r1", base=tmp)
         assert not r5["dispatched"] and r5["reason"] == "duplicate", r5
-        print("PASS: clerk_dispatch self_test (抽出/書出/重複防止/fallback/done)")
+        # 6. 現ラウンド境界: 新しいshuji発言より前の旧依頼は拾わない
+        with open(tl, "a", encoding=ENC) as fp:
+            for rec in [
+                {"room_id": "r3", "actor": "gpt",
+                 "body": "■ 事務Claudeへの依頼\n旧ラウンドの依頼です\n2行目"},
+                {"room_id": "r3", "actor": "shuji", "body": "新しい議題"},
+                {"room_id": "r3", "actor": "gpt", "body": "マーカーのない新発言"},
+            ]:
+                fp.write("\n" + json.dumps(rec, ensure_ascii=False))
+        r6 = dispatch_for_room("r3", base=tmp)
+        assert not r6["dispatched"] and r6["reason"] == "no_request_found", \
+            f"旧ラウンド依頼の再発射: {r6}"
+        print("PASS: clerk_dispatch self_test (抽出/書出/重複防止/fallback/done/ラウンド境界)")
         return True
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
