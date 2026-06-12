@@ -39,18 +39,19 @@ def _overview_path(base: Path) -> Path:
 ROUTER_STATE_STALE_SEC = 30.0
 
 
-def _router_active_room(base: Path) -> str | None:
+def _router_state(base: Path) -> tuple[str | None, list[str]]:
+    """(処理中room, FIFO待機room一覧)。stale/未生成は (None, [])"""
     import time as _time
     p = base / "data" / "router_state.json"
     if not p.exists():
-        return None
+        return None, []
     try:
         d = json.loads(p.read_text(encoding=ENC))
     except Exception:
-        return None
+        return None, []
     if _time.time() - float(d.get("updated", 0)) > ROUTER_STATE_STALE_SEC:
-        return None
-    return d.get("active_room")
+        return None, []
+    return d.get("active_room"), list(d.get("queue") or [])
 
 
 def _list_rooms(base: Path) -> list[str]:
@@ -98,12 +99,17 @@ def generate(base: Path = DEFAULT_BASE,
     # R62: archived部屋は sidebar非表示 (Shuji要望「テストの部屋が邪魔」 2026-06-10)
     rooms = [r for r in rooms if not r.get("archived")]
     # R65: worker処理中room (router_state.json由来、 ai_processing statusはfallback)
-    router_room = _router_active_room(base)
+    router_room, router_queue = _router_state(base)
     processing = router_room
     consensus_unread = 0
     shuji_unread_total = 0
     for r in rooms:
         r["is_processing"] = (r["room_id"] == router_room)
+        # UX改善: FIFO待機順 (1始まり)。待機していなければ None
+        r["queue_position"] = (
+            router_queue.index(r["room_id"]) + 1
+            if r["room_id"] in router_queue else None
+        )
         if processing is None and r["status"] == "ai_processing":
             processing = r["room_id"]
         shuji_unread_total += r.get("unread_count", 0)
@@ -116,6 +122,7 @@ def generate(base: Path = DEFAULT_BASE,
         "global": {
             "active_room_id": active_room_id or (rooms[0]["room_id"] if rooms else None),
             "processing_room_id": processing,
+            "router_queue": router_queue,
             "shuji_unread_total": shuji_unread_total,
             "consensus_unread_count": consensus_unread,
             "cdp_port_range": CDP_PORT_RANGE,
@@ -188,7 +195,19 @@ def self_test() -> bool:
         data4 = generate(tmp_base)
         assert all(r["is_processing"] is False for r in data4["rooms"]), "stale判定失敗"
 
-        print("PASS: rooms_overview self_test (R65 is_processing含む)")
+        # UX改善: FIFO待機列 → queue_position
+        rs.write_text(json.dumps({
+            "active_room": "btc_auto_trade",
+            "queue": ["delivery_offer_ai"],
+            "updated": _t.time(),
+        }), encoding=ENC)
+        data5 = generate(tmp_base)
+        pos = {r["room_id"]: r["queue_position"] for r in data5["rooms"]}
+        assert pos["delivery_offer_ai"] == 1, f"queue_position誤り: {pos}"
+        assert pos["btc_auto_trade"] is None
+        assert data5["global"]["router_queue"] == ["delivery_offer_ai"]
+
+        print("PASS: rooms_overview self_test (R65 is_processing + queue_position含む)")
         return True
     finally:
         shutil.rmtree(tmp_base, ignore_errors=True)

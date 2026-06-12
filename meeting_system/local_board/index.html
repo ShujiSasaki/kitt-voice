@@ -34,7 +34,7 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<link rel="stylesheet" href="/style.css?v=r67">
+<link rel="stylesheet" href="/style.css?v=r68">
 </head>
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
@@ -54,10 +54,12 @@ tailwind.config = {
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
+          <button id="jump-summary-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="最新の合意まとめへ" title="最新の合意まとめへジャンプ">📋</button>
           <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く">⚙</button>
         </div>
       </div>
       <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
+      <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate" id="global-relay-status"></div>
       <details id="header-details" class="px-4 pb-2">
         <summary class="text-xs text-dm-text-dim cursor-pointer select-none hover:text-dm-text">▼ 状態詳細</summary>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-dm-text-dim">
@@ -129,6 +131,8 @@ tailwind.config = {
                  text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">リレー中</span>
     <span class="maxloops-badge hidden absolute -bottom-1.5 -left-1.5 z-10 bg-red-500 text-white
                  text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">⚠️上限</span>
+    <span class="queued-badge hidden absolute -top-1.5 -left-1.5 z-10 bg-sky-600 text-white
+                 text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">待機</span>
     <span class="status-dot absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-dm-text-dim
                  ring-1 ring-dm-header" title=""></span>
     <span class="tooltip absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-dm-input text-dm-text
@@ -182,6 +186,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r67"></script>
+<script src="/app.js?v=r68"></script>
 </body>
 </html>

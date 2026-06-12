@@ -235,6 +235,31 @@ async function refreshSidebar() {
     // R66: max_loops到達 = 「⚠️上限」バッジ
     const mlBadge = btn.querySelector('.maxloops-badge');
     if (mlBadge) mlBadge.classList.toggle('hidden', room.status !== 'max_loops_reached');
+
+    // UX改善: FIFO待機列 = 「待機#N」バッジ (処理中バッジと同位置、 排他)
+    const qBadge = btn.querySelector('.queued-badge');
+    if (qBadge) {
+      const qp = room.queue_position;
+      qBadge.classList.toggle('hidden', !qp || !!room.is_processing);
+      if (qp) qBadge.textContent = `待機${qp}`;
+    }
+  }
+
+  // UX改善: グローバル状態行 (ヘッダ) — 「今システムが何をしているか」一目表示
+  const grs = document.getElementById('global-relay-status');
+  if (grs) {
+    const proc = data.global?.processing_room_id;
+    const q = data.global?.router_queue || [];
+    if (proc) {
+      const pr = data.rooms.find(r => r.room_id === proc);
+      const label = pr ? `${pr.icon || ''}${pr.title}` : proc;
+      grs.textContent = `🟢 リレー処理中: ${label}` +
+        (q.length ? ` ・待ち${q.length}部屋` : '');
+    } else if (q.length) {
+      grs.textContent = `🕐 待機列 ${q.length}部屋 — まもなく開始`;
+    } else {
+      grs.textContent = '💤 全部屋待機中 (submitで自動開始)';
+    }
   }
 
   for (const btn of Array.from(sidebar.querySelectorAll('.room-icon-btn'))) {
@@ -257,6 +282,9 @@ async function refreshRoomState() {
   const s = await fetchJSON(`${API}/rooms/${activeRoomId}/state`);
   document.getElementById('active-room-title').textContent =
     s.project_name || s.room_id;
+  // UX改善: 送信先の部屋を入力欄に常時表示 (部屋誤送信防止)
+  const inputEl = document.getElementById('shuji-input');
+  if (inputEl) inputEl.placeholder = `${s.project_name || s.room_id} へ送信...`;
 
   // R56: ヘッダ簡潔サマリ
   const statusJa = STATUS_TOOLTIP[s.status] || s.status || '—';
@@ -580,6 +608,18 @@ async function activateRoom(roomId) {
   await refreshRoomState();
   await refreshTimeline();
 }
+
+// ===== UX改善: 📋最新の合意まとめへジャンプ =====
+document.getElementById('jump-summary-btn')?.addEventListener('click', () => {
+  const bodies = Array.from(document.querySelectorAll('#timeline .msg-body'));
+  const target = bodies.reverse().find(n => n.textContent.trim().startsWith('📋'));
+  if (target) {
+    target.closest('.msg')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+  } else {
+    const tl = document.getElementById('timeline');
+    if (tl) tl.scrollTop = tl.scrollHeight;  // まとめ無し → 最下部へ
+  }
+});
 
 // ===== 監査スレッド (dark theme対応) =====
 async function loadThread(parentMsgId, container) {

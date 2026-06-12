@@ -516,16 +516,23 @@ async def _drive_one_turn(
 _worker_start_ts: dict[str, float] = {}
 
 
-def _write_router_active(base: Path, room_id: str | None) -> None:
+def _write_router_active(
+    base: Path, room_id: str | None, queue: list[str] | None = None,
+) -> None:
     """R65: worker処理中roomを書出し → rooms_overview が is_processing に変換。
 
     room_id=None は idle (処理中なし)。updated が30秒超過で stale扱い (server側判定)。
+    UX改善 (2026-06-12): queue=FIFO待機room一覧 → PWA「待機#N」バッジの実データ。
     """
     try:
         p = base / "data" / "router_state.json"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            json.dumps({"active_room": room_id, "updated": time.time()}),
+            json.dumps({
+                "active_room": room_id,
+                "queue": list(queue or []),
+                "updated": time.time(),
+            }),
             encoding="utf-8",
         )
     except Exception:
@@ -650,7 +657,10 @@ async def run_router(
                 _log(f"🔀 attach room={current} (FIFO oldest) queue={queue_view}")
 
             _heartbeat(base, current)
-            _write_router_active(base, current)  # R65: 処理中room書出し
+            # R65: 処理中room + FIFO待機列 書出し (待機バッジ用に毎iteration更新)
+            waiting = [r for _, r in _scan_pending_rooms(base, max_loops)
+                       if r != current]
+            _write_router_active(base, current, waiting)
             state = read_state(current, base)
             reason = _converged_reason(state, max_loops)
             if reason:
