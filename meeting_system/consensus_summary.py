@@ -54,12 +54,32 @@ def _read_timeline_for_room(base: Path, room_id: str) -> list[dict]:
     return msgs
 
 
+# P1-③ (2026-06-12 包括指示): 抽出ノイズ除去 — 見出し行/タグ/フォーマット定義行を除外
+NOISE_SUBSTRINGS = (
+    "<pwa_summary", "</pwa_summary", "フォーマット", "ヘッダー",
+    "consensus_candidate", "Verify token", "[Room:", "[Validator-Verify",
+    "セクションで応答", "末尾token",
+)
+SECTION_HEADINGS = (
+    "結論", "決まったこと", "残っていること", "次にやること",
+    "Shujiさんの判断要否", "Shujiさんの判断が必要か", "次アクション", "【次アクション】",
+)
+
+
 def _extract_lines(bodies: list[str], keywords: tuple, limit: int = 5) -> list[str]:
     out: list[str] = []
     for b in bodies:
         for ln in b.splitlines():
             s = ln.strip().lstrip("-・*>").strip()
             if not s or len(s) > 140:
+                continue
+            # 見出しそのもの・メタ行はノイズ
+            if s in SECTION_HEADINGS or s.strip("【】■ ") in SECTION_HEADINGS:
+                continue
+            if any(n in s for n in NOISE_SUBSTRINGS):
+                continue
+            # キーワードの羅列だけの行 (例: 「結論 / 決まったこと / ...」) もノイズ
+            if s.count("/") >= 3 and len(s) < 80:
                 continue
             if any(k in s for k in keywords) and s not in out:
                 out.append(s)
@@ -215,7 +235,10 @@ def self_test() -> bool:
         ]
         _ss.write_state_atomic(room, st, tmp)
         for mid, actor, summ, body in [
-            ("m_g", "gpt", "GPT要約です", "本文\n実装待ちはAです\nconsensus_candidate: true"),
+            ("m_g", "gpt", "GPT要約です",
+             "本文\n実装待ちはAです\nconsensus_candidate: true\n"
+             "固定フォーマット: 結論 / 決まったこと / 残っていること / 次にやること\n"
+             "■ 残っていること\n<pwa_summary>実装待ちのZ</pwa_summary>"),
             ("m_m", "gemini", "Gemini要約です", "本文\n判断不要です"),
             ("m_c", "claude", "Claude要約です", "本文\n次にやること: 事務Claudeが実装する"),
         ]:
@@ -236,6 +259,11 @@ def self_test() -> bool:
         assert "GPT要約です" in last["body"]
         assert "実装待ちはAです" in last["body"]  # 残っていること抽出
         assert "事務Claudeが実装する" in last["body"]  # 次にやること抽出
+        # P1-③: ノイズ除外 — 見出し行/タグ/フォーマット定義行は出力されない
+        assert "固定フォーマット" not in last["body"], "フォーマット定義行が混入"
+        assert "<pwa_summary>実装待ちのZ" not in last["body"], "pwa_summaryタグ行が混入"
+        body_lines = last["body"].splitlines()
+        assert "- 残っていること" not in body_lines, "見出しそのものが混入"
         # 議事録ファイル
         assert Path(r["minutes_path"]).exists()
         # フラグ反転
