@@ -356,26 +356,47 @@ async function refreshRoomState() {
   ensureResumeBar(s);
 }
 
-// R61 D + E: 停止状態時に「再開」 floating bar表示
+// R61 D + E → UI刷新 (2026-06-12): 停止時は入力欄直上の固定スリムバナー
+// (旧: コンテンツに被るフローティングピル+絵文字 — 主流アプリ非準拠のため廃止)
+const RESUME_BANNER_INFO = {
+  consensus_reached: {dot: '#22C55E', text: '合意成立 — この会議は一区切りです'},
+  external_wait:     {dot: '#F59E0B', text: '外部作業待ちで停止中'},
+  blocked:           {dot: '#F97316', text: '判断待ちで停止中'},
+  paused_by_shuji:   {dot: '#F97316', text: '割込で停止中'},
+  max_loops_reached: {dot: '#EF4444', text: 'ループ上限に到達して停止中'},
+};
+
 function ensureResumeBar(s) {
   let bar = document.getElementById('resume-bar');
-  const stall = s.stall_reason;
-  const stallStatuses = new Set(['external_wait', 'blocked', 'consensus_reached', 'paused_by_shuji']);
-  const showBar = !!stall && (stallStatuses.has(s.status) || s.is_consensus_established);
+  const stallStatuses = new Set([
+    'external_wait', 'blocked', 'consensus_reached', 'paused_by_shuji',
+    'max_loops_reached',  // R66漏れ修正: 上限停止でもバナー表示
+  ]);
+  const showBar = stallStatuses.has(s.status) || s.is_consensus_established;
   if (!showBar) {
     if (bar) bar.remove();
     return;
   }
+  const key = s.is_consensus_established ? 'consensus_reached' : s.status;
+  const info = RESUME_BANNER_INFO[key] || {dot: '#9CA3AF', text: '停止中'};
   if (!bar) {
     bar = document.createElement('div');
     bar.id = 'resume-bar';
     bar.className =
-      'fixed bottom-32 left-1/2 -translate-x-1/2 z-40 ' +
-      'bg-dm-bubble-shuji text-black text-sm font-bold ' +
-      'px-4 py-2 rounded-full shadow-lg flex items-center gap-2 cursor-pointer ' +
-      'hover:opacity-90 active:scale-95 transition';
-    bar.addEventListener('click', async () => {
+      'flex items-center gap-2.5 px-3 py-2 bg-dm-header border-t border-dm-border text-sm';
+    const dot = document.createElement('span');
+    dot.className = 'resume-dot w-2 h-2 rounded-full flex-shrink-0';
+    const txt = document.createElement('span');
+    txt.className = 'resume-text flex-1 min-w-0 text-dm-text truncate';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className =
+      'resume-btn bg-dm-bubble-shuji text-black text-sm font-bold px-4 py-1.5 ' +
+      'rounded-lg active:scale-95 transition flex-shrink-0';
+    btn.textContent = '再開';
+    btn.addEventListener('click', async () => {
       if (!activeRoomId) return;
+      btn.disabled = true;
       try {
         const r = await authFetch(`${API}/rooms/${activeRoomId}/resume_relay`, {
           method: 'POST',
@@ -384,7 +405,7 @@ function ensureResumeBar(s) {
         });
         const j = await r.json();
         if (j.ok) {
-          showToast(`再開しました (prev: ${j.prev_status})`);
+          showToast('会議を再開しました');
           bar.remove();
           refreshRoomState();
         } else {
@@ -392,12 +413,16 @@ function ensureResumeBar(s) {
         }
       } catch (e) {
         showToast(`再開error: ${e.message}`);
+      } finally {
+        btn.disabled = false;
       }
     });
-    document.body.appendChild(bar);
+    bar.append(dot, txt, btn);
+    const footer = document.querySelector('footer');
+    footer.parentNode.insertBefore(bar, footer);
   }
-  bar.innerHTML = '<span>' + (stall || '') + '</span>' +
-                  '<span class="ml-1 px-2 py-0.5 rounded bg-black/15">▶ 再開</span>';
+  bar.querySelector('.resume-dot').style.backgroundColor = info.dot;
+  bar.querySelector('.resume-text').textContent = info.text;
 }
 
 // ===== R56: 日付セパレータ insert =====
