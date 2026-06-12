@@ -43,7 +43,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from meeting_system import chrome_relay, clerk_dispatch  # noqa: E402
+from meeting_system import chrome_relay, clerk_dispatch, queue_io  # noqa: E402
 from meeting_system.state_schema import (  # noqa: E402
     DEFAULT_BASE, read_state, write_state_atomic,
 )
@@ -588,7 +588,47 @@ async def _drive_one_turn(
         f"next={j.get('next_actor')} "
         f"established={j.get('is_consensus_established')}"
     )
+    # 画像自動転送 (2026-06-13 Shuji指示): タブ内の新出生成画像を部屋へ添付
+    if next_actor in ("gpt", "gemini"):
+        try:
+            att_dir = base / "data" / "attachments" / room_id
+            att_dir.mkdir(parents=True, exist_ok=True)
+            imgs = await chrome_relay.capture_new_images(
+                cdp_port, next_actor, att_dir)
+            if imgs:
+                _inject_image_attachments(room_id, next_actor, imgs, base)
+                _log(f"🖼 {next_actor} 生成画像{len(imgs)}枚を自動添付")
+        except Exception as e:
+            _log(f"⚠ 画像自動転送失敗 (無視): {e}")
     return j
+
+
+def _inject_image_attachments(
+    room_id: str, actor: str, files: list, base: Path,
+) -> None:
+    """回収した画像を添付付きvalidator投稿としてtimelineへ直接追記"""
+    atts = [{
+        "url": f"/api/rooms/{room_id}/attachments/{p.name}",
+        "filename": p.name,
+        "content_type": "image/png",
+        "size_bytes": p.stat().st_size,
+    } for p in files]
+    body = (f"🖼 [自動転送] {actor.upper()}がタブ内で生成した画像 "
+            f"{len(files)}枚を添付しました")
+    queue_io.append_timeline({
+        "room_id": room_id,
+        "msg_id": f"imgauto_{room_id}_{actor}_{int(time.time())}",
+        "actor": "validator",
+        "body": body, "raw": body,
+        "tags": {"system": "image_bridge_auto"},
+        "validator": {"pass": True, "items": ["image_bridge_auto"]},
+        "summary": f"{actor.upper()}の生成画像{len(files)}枚を自動添付",
+        "attachments": atts,
+    }, base=base)
+    st = read_state(room_id, base)
+    st["unread_count"] = int(st.get("unread_count", 0)) + 1
+    st["last_msg_preview"] = f"validator: 🖼 {actor.upper()}の画像{len(files)}枚を添付"
+    write_state_atomic(room_id, st, base)
 
 
 _worker_start_ts: dict[str, float] = {}
@@ -711,6 +751,14 @@ async def run_router(
     """R63: 自動roomルーター — FIFO最古優先で room へアタッチ、 収束まで切替禁止"""
     _log(f"start ROUTER mode (R63 auto room switching) base={base} cdp={cdp_port} "
          f"poll={poll}s server={server_base} max_loops={max_loops}")
+    # 画像自動転送: 起動時に既存画像を既知化 (過去画像の再添付防止)
+    for _a in ("gpt", "gemini"):
+        try:
+            await chrome_relay.capture_new_images(
+                cdp_port or 9222, _a, None, prime_only=True)
+            _log(f"🖼 {_a} 既存画像をprime (再添付防止)")
+        except Exception as e:
+            _log(f"⚠ {_a} 画像prime失敗 (無視): {e}")
     current: str | None = None
     last_served: str | None = None
     while True:

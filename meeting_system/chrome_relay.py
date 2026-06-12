@@ -418,6 +418,70 @@ async def relay_turn(
             ) from e2
 
 
+# ===== 画像自動転送 (2026-06-13 Shuji指示「自動で画像がルームに表示されるようにして」) =====
+# リレーはテキストのみ転送のため、AIがタブ内で生成した画像は部屋に届かなかった。
+# src URLとピクセルhashの二重管理で新出画像のみをノードスクショ回収する。
+# (Geminiは毎ターンreloadでblob: srcが変わるため、src不一致でもピクセルhashで再添付を防ぐ)
+_seen_image_srcs: dict[str, set] = {}
+_seen_image_pixhash: dict[str, set] = {}
+
+IMG_MIN_DIM = 200          # これ未満はアイコン類として無視
+IMG_SCAN_LAST_N = 6        # 走査対象 = 直近の大型画像N個
+IMG_MAX_PER_TURN = 4
+
+
+async def capture_new_images(
+    cdp_port: int, actor: str, out_dir, prime_only: bool = False,
+) -> list:
+    """タブ内の新出大型画像をPNG保存して Path リストを返す。
+
+    prime_only=True は既存画像を既知化するだけ (worker起動時の再添付防止)。
+    """
+    import hashlib
+    from datetime import datetime as _dt
+    from pathlib import Path as _P
+
+    ctx = await attach_chrome(f"http://127.0.0.1:{cdp_port}")
+    page = await find_tab(ctx, actor)
+    metas = await page.evaluate(
+        """(minDim) => [...document.querySelectorAll('img')]
+            .map((im, i) => ({i: i, src: im.currentSrc || im.src || '',
+                              w: im.width, h: im.height}))
+            .filter(m => m.w >= minDim && m.h >= minDim && m.src)""",
+        IMG_MIN_DIM)
+    seen_src = _seen_image_srcs.setdefault(actor, set())
+    seen_pix = _seen_image_pixhash.setdefault(actor, set())
+    saved: list = []
+    loc = page.locator("img")
+    targets = metas[-IMG_SCAN_LAST_N:]
+    for m in targets:
+        if m["src"] in seen_src:
+            continue
+        if len(saved) >= IMG_MAX_PER_TURN:
+            break
+        try:
+            el = loc.nth(m["i"])
+            await el.scroll_into_view_if_needed(timeout=5000)
+            await asyncio.sleep(0.3)
+            data = await el.screenshot(timeout=10000)
+        except Exception:
+            continue
+        seen_src.add(m["src"])
+        if not data or len(data) < 5000:
+            continue
+        ph = hashlib.md5(data).hexdigest()
+        if ph in seen_pix:
+            continue  # reload等でsrcが変わっただけの既知画像
+        seen_pix.add(ph)
+        if prime_only or out_dir is None:
+            continue
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S_%f")
+        p = _P(out_dir) / f"{ts}_{actor}_auto.png"
+        p.write_bytes(data)
+        saved.append(p)
+    return saved
+
+
 def self_test() -> bool:
     sample = "A" * 35000
     chunks = _split_for_rate_limit(sample, "gemini")
