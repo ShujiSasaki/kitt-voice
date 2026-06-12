@@ -280,6 +280,27 @@ def _converged_reason(state: dict, max_loops: int) -> str | None:
     return None
 
 
+# stale-dup guard (2026-06-12): 巨大化した会話でタイムアウト→リロード後、
+# 画面に残った過去応答を再取得して重複injectする事故の遮断
+# (実害: 🔧部屋にGPT同一1006文字応答が3連続inject)
+_recent_resp_hashes: dict[str, list[str]] = {}
+
+
+def _resp_hash(resp_text: str) -> str:
+    import hashlib
+    return hashlib.sha1((resp_text or "").strip().encode("utf-8", "replace")).hexdigest()
+
+
+def _is_stale_duplicate(actor: str, resp_text: str) -> bool:
+    return _resp_hash(resp_text) in _recent_resp_hashes.get(actor, [])
+
+
+def _remember_resp(actor: str, resp_text: str) -> None:
+    lst = _recent_resp_hashes.setdefault(actor, [])
+    lst.append(_resp_hash(resp_text))
+    del lst[:-5]  # 直近5件のみ保持
+
+
 def _validate_room_token(resp_text: str, room_id: str) -> str:
     """R67 routing_validation: 応答末尾の部屋トークン検証。
 
@@ -452,6 +473,25 @@ async def _drive_one_turn(
 
     _log(f"← {next_actor} {len(resp_text)} chars")
 
+    # stale-dup guard: 過去にinject済みの応答と同一 = 古い応答の再取得 → inject禁止
+    if _is_stale_duplicate(next_actor, resp_text):
+        _log(f"⛔ stale duplicate検出 [{next_actor}] — 過去応答と同一。再送1回")
+        retry_prompt = (
+            prompt
+            + "\n\n⚠️ [Clerk] 直前に抽出された応答はあなたの過去の応答と同一でした"
+            + " (画面の古い応答を再取得した可能性)。本プロンプトに改めて回答してください。"
+        )
+        try:
+            resp_text = await chrome_relay.relay_turn(cdp_port, next_actor, retry_prompt)
+        except Exception as e:
+            _log(f"⚠ stale-dup再送失敗: {e}")
+            _consecutive_failures[room_id] = _consecutive_failures.get(room_id, 0) + 1
+            return {"error": "stale_duplicate_retry_failed", "actor": next_actor}
+        if _is_stale_duplicate(next_actor, resp_text):
+            _consecutive_failures[room_id] = _consecutive_failures.get(room_id, 0) + 1
+            _log(f"⛔ stale duplicate継続 [{next_actor}] — injectせず再ポーリング")
+            return {"error": "stale_duplicate", "actor": next_actor}
+
     # R67 routing_validation: 部屋トークン検証 — 別部屋応答の混入を遮断
     check = _validate_room_token(resp_text, room_id)
     if check != "ok":
@@ -504,6 +544,7 @@ async def _drive_one_turn(
     if status != 200:
         return {"error": f"inject_failed:{status}", "detail": j}
 
+    _remember_resp(next_actor, resp_text)  # stale-dup guard: inject成功分を記録
     _log(
         f"✓ turn complete room={room_id} actor={j.get('actor')} loop={j.get('loop')} "
         f"cons={j.get('consensus_candidate')} "
@@ -752,6 +793,18 @@ def self_test() -> bool:
     # 複数tokenは最後を採用 (引用内の他部屋tokenに耐性)
     assert _validate_room_token("引用[Room: other]を含む\n[Room: room_x]", "room_x") == "ok"
     print("PASS: relay_worker self_test (R67 routing_validation)")
+
+    # --- stale-dup guard ---
+    assert not _is_stale_duplicate("gpt", "応答A")
+    _remember_resp("gpt", "応答A")
+    assert _is_stale_duplicate("gpt", "応答A")           # 同一 → stale
+    assert _is_stale_duplicate("gpt", "  応答A  ")        # 空白差は同一視
+    assert not _is_stale_duplicate("gpt", "応答B")        # 新規はOK
+    assert not _is_stale_duplicate("gemini", "応答A")     # actor別管理
+    for i in range(6):
+        _remember_resp("gpt", f"resp{i}")
+    assert not _is_stale_duplicate("gpt", "応答A")        # 5件超で古いhashは失効
+    print("PASS: relay_worker self_test (stale-dup guard)")
 
     # --- R63: router unit tests ---
     # _parse_ts 両形式
