@@ -393,6 +393,36 @@ function ensureResumeBar(s) {
     dot.className = 'resume-dot w-2 h-2 rounded-full flex-shrink-0';
     const txt = document.createElement('span');
     txt.className = 'resume-text flex-1 min-w-0 text-dm-text truncate';
+    // 依頼ディスパッチ (2026-06-12): 合意/外部待ちの依頼を事務Claudeキューへ
+    const clerkBtn = document.createElement('button');
+    clerkBtn.type = 'button';
+    clerkBtn.className =
+      'clerk-btn text-sm font-bold px-3 py-1.5 rounded-lg active:scale-95 ' +
+      'transition flex-shrink-0 border border-dm-border text-dm-text';
+    clerkBtn.textContent = '事務へ依頼';
+    clerkBtn.addEventListener('click', async () => {
+      if (!activeRoomId) return;
+      clerkBtn.disabled = true;
+      try {
+        const r = await authFetch(`${API}/rooms/${activeRoomId}/clerk_dispatch`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({}),
+        });
+        const j = await r.json();
+        if (j.dispatched) {
+          showToast('事務Claudeへ依頼を送りました (巡回受領待ち)');
+        } else if (j.reason === 'duplicate') {
+          showToast('この依頼は送信済みです');
+        } else {
+          showToast('依頼文が見つかりませんでした');
+        }
+      } catch (e) {
+        showToast(`依頼error: ${e.message}`);
+      } finally {
+        clerkBtn.disabled = false;
+      }
+    });
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
@@ -422,13 +452,17 @@ function ensureResumeBar(s) {
         btn.disabled = false;
       }
     });
-    bar.append(dot, txt, btn);
+    bar.append(dot, txt, clerkBtn, btn);
     const footer = document.querySelector('footer');
     footer.parentNode.insertBefore(bar, footer);
   }
   bar.querySelector('.resume-dot').style.backgroundColor = info.dot;
   bar.querySelector('.resume-text').textContent = info.text;
   bar.querySelector('.resume-btn').textContent = info.btn || '再開';
+  // 依頼ボタンは合意成立/外部待ちのみ表示 (依頼文が存在しうる状態)
+  const cBtn = bar.querySelector('.clerk-btn');
+  if (cBtn) cBtn.style.display =
+    (key === 'consensus_reached' || key === 'external_wait') ? '' : 'none';
 }
 
 // ===== R56: 日付セパレータ insert =====

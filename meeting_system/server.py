@@ -50,6 +50,7 @@ from .state_schema import (
 from . import queue_io, rooms_overview, notification_controller, sigint_handler
 from . import validator_consensus, validator, minutes, projects
 from . import consensus_summary
+from . import clerk_dispatch
 
 STATIC = Path(__file__).parent / "local_board"
 
@@ -474,6 +475,11 @@ def create_app(base: Path = DEFAULT_BASE):
             return JSONResponse(
                 {"error": "ai_busy_use_interrupt"}, status_code=409,
             )
+        # 2026-06-12 bug fix: resetを先に実行→fresh stateを読み直してから上書き。
+        # 旧順序 (read→reset→stale stateでwrite) はresetを即座に潰し、
+        # 合意成立後のShuji新議題でrelayが永遠に始まらなかった
+        validator_consensus.reset_consensus_on_shuji_input(room_id, base)
+        state = read_state(room_id, base)
         nxt = state.get("next_actor") or "gpt"
         msg_id = queue_io.atomic_append(
             f"shuji_to_{nxt}_{room_id}", body, sender="shuji", base=base,
@@ -481,7 +487,6 @@ def create_app(base: Path = DEFAULT_BASE):
         state["last_shuji_input_ts"] = datetime.now(JST).isoformat()
         state["unread_count"] = 0  # Phase D: Shuji発言で 既読扱い
         state["last_msg_preview"] = f"あなた: {body[:50]}"  # UI-P1: LINE風一覧プレビュー
-        validator_consensus.reset_consensus_on_shuji_input(room_id, base)
         write_state_atomic(room_id, state, base)
         # R58 Must Fix A: shuji が tab確認で 全AI既読
         try:
@@ -578,6 +583,19 @@ def create_app(base: Path = DEFAULT_BASE):
             pass
         rooms_overview.refresh(base, active_room_id=room_id)
         return {"ok": True, "active_room_id": room_id}
+
+    # 依頼ディスパッチ (2026-06-12 Shuji指示): PWA「事務Claudeへ依頼」ボタン
+    # 直近発言から依頼ブロックを抽出してローカルキューへ (外部送信なし・0円)
+    @app.post("/api/rooms/{room_id}/clerk_dispatch")
+    async def post_clerk_dispatch(
+        room_id: str, req: Request, user=Depends(verify_basic),
+    ):
+        csrf = req.headers.get("X-CSRF-Token", "")
+        if not _verify_csrf(csrf):
+            raise HTTPException(status_code=403, detail="csrf_invalid")
+        result = clerk_dispatch.dispatch_for_room(
+            room_id, base, source="button", fallback_full_text=True)
+        return result
 
     @app.get("/api/thread/{parent_msg_id}")
     async def get_thread(parent_msg_id: str, user=Depends(verify_basic)):

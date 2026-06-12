@@ -43,7 +43,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from meeting_system import chrome_relay  # noqa: E402
+from meeting_system import chrome_relay, clerk_dispatch  # noqa: E402
 from meeting_system.state_schema import (  # noqa: E402
     DEFAULT_BASE, read_state, write_state_atomic,
 )
@@ -745,6 +745,19 @@ async def run_router(
                 if reason.startswith("max_loops"):
                     # R66: 上限到達は通知付きで停止
                     _notify_max_loops(current, base, state, max_loops, server_base, auth)
+                elif reason in ("consensus_established", "status=external_wait",
+                                "status=consensus_reached"):
+                    # 依頼自動ディスパッチ (2026-06-12 Shuji指示): 収束時に
+                    # 「事務Claudeへの依頼」を抽出してキュー + Mac通知
+                    try:
+                        conv_loop = (state.get("consensus_established_loop")
+                                     or state.get("total_loops") or None)
+                        d = clerk_dispatch.dispatch_for_room(
+                            current, base, source="auto", loop=conv_loop)
+                        if d.get("dispatched"):
+                            _log(f"📨 clerk依頼 自動キュー [{current}] → {d['path']}")
+                    except Exception as e:
+                        _log(f"⚠ clerk_dispatch失敗 [{current}]: {e}")
                 _log(f"🏁 room={current} converged ({reason}) — detach、 次のFIFO roomへ")
                 last_served = current
                 current = None
