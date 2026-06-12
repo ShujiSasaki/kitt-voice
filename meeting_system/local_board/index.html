@@ -36,7 +36,7 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<link rel="stylesheet" href="/style.css?v=r72">
+<link rel="stylesheet" href="/style.css?v=r73">
 </head>
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
@@ -48,7 +48,7 @@ tailwind.config = {
 
     <header class="sticky top-0 z-20 bg-dm-header border-b border-dm-border">
       <div class="flex items-center gap-2 px-3 py-3 min-w-0">
-        <button id="room-list-btn" class="text-dm-text-dim hover:text-dm-text text-lg flex-shrink-0" aria-label="会議室一覧" title="会議室一覧">☰</button>
+        <button id="room-list-btn" class="icon-btn text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="会議室一覧" title="会議室一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
         <h1 class="text-base font-semibold text-dm-text truncate min-w-0 flex-1" id="active-room-title">会議</h1>
         <span id="relay-lamp" class="w-2.5 h-2.5 rounded-full bg-dm-text-dim flex-shrink-0" title="relay_worker: off" aria-label="relay状態"></span>
         <div class="ml-auto flex items-center gap-2 flex-shrink-0">
@@ -57,14 +57,17 @@ tailwind.config = {
             <option value="normal" selected>NORMAL</option>
             <option value="strict">STRICT</option>
           </select>
-          <button id="theme-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="テーマ切替" title="テーマ: auto">🌓</button>
-          <button id="search-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="検索" title="検索とフィルタ">🔍</button>
-          <button id="jump-summary-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="最新の合意まとめへ" title="最新の合意まとめへジャンプ">📋</button>
-          <button id="header-settings-btn" class="text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く">⚙</button>
+          <button id="theme-btn" class="icon-btn text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="テーマ切替" title="テーマ: auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></button>
+          <button id="search-btn" class="icon-btn text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="検索" title="検索とフィルタ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg></button>
+          <button id="jump-summary-btn" class="icon-btn text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="最新の合意まとめへ" title="最新の合意まとめへジャンプ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></button>
+          <button id="header-settings-btn" class="icon-btn text-dm-text-dim hover:text-dm-text flex-shrink-0" aria-label="設定" title="詳細を畳む/開く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/></svg></button>
         </div>
       </div>
       <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
-      <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate" id="global-relay-status"></div>
+      <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate flex items-center gap-1.5" id="global-relay-status">
+        <span id="grs-dot" class="inline-block w-2 h-2 rounded-full bg-dm-text-dim flex-shrink-0"></span>
+        <span id="grs-text" class="truncate"></span>
+      </div>
       <div id="search-bar" class="hidden px-3 pb-2 flex items-center gap-1.5 flex-wrap">
         <input id="search-input" type="search" placeholder="この部屋を検索..."
                class="flex-1 min-w-[140px] text-sm bg-dm-input border border-dm-border text-dm-text
@@ -75,7 +78,7 @@ tailwind.config = {
           <button data-filter="gpt" class="filter-chip">GPT</button>
           <button data-filter="gemini" class="filter-chip">Gemini</button>
           <button data-filter="claude" class="filter-chip">Claude</button>
-          <button data-filter="validator" class="filter-chip">⚙</button>
+          <button data-filter="validator" class="filter-chip">Sys</button>
         </div>
       </div>
       <details id="header-details" class="px-4 pb-2">
@@ -116,10 +119,10 @@ tailwind.config = {
           <button id="composer-add-btn" class="composer-icon-btn" title="添付" aria-label="添付" aria-expanded="false">＋</button>
           <div id="composer-add-popup" class="composer-popup hidden" role="menu" aria-labelledby="composer-add-btn">
             <button id="composer-camera-btn" class="composer-popup-item" role="menuitem" aria-label="撮影">
-              <span class="composer-popup-icon">📷</span><span>撮影</span>
+              <span class="composer-popup-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span><span>撮影</span>
             </button>
             <button id="composer-image-btn" class="composer-popup-item" role="menuitem" aria-label="画像を選択">
-              <span class="composer-popup-icon">🖼️</span><span>画像を選択</span>
+              <span class="composer-popup-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span><span>画像を選択</span>
             </button>
           </div>
         </div>
@@ -132,12 +135,12 @@ tailwind.config = {
                 class="bg-dm-bubble-shuji text-black font-bold w-10 h-10 rounded-full shadow
                        hover:opacity-90 disabled:bg-dm-border disabled:text-dm-text-dim disabled:cursor-not-allowed
                        flex items-center justify-center flex-shrink-0"
-                title="送信" aria-label="送信">▶</button>
+                title="送信" aria-label="送信"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
       </div>
       <div class="flex items-center px-2 pb-2 min-w-0 composer-extras">
         <button id="interrupt-btn"
                 class="ml-auto bg-actor-validator text-white text-[11px] px-2 py-1 rounded-full shadow flex-shrink-0"
-                title="AI処理を強制中断" aria-label="割込">⏹ 割込</button>
+                title="AI処理を強制中断" aria-label="割込"><svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11" class="inline-block mr-0.5 -mt-0.5"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>割込</button>
       </div>
     </footer>
 
@@ -180,7 +183,7 @@ tailwind.config = {
     <span class="processing-badge hidden absolute -top-1.5 -left-1.5 z-10 bg-amber-400 text-black
                  text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">リレー中</span>
     <span class="maxloops-badge hidden absolute -bottom-1.5 -left-1.5 z-10 bg-red-500 text-white
-                 text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">⚠️上限</span>
+                 text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">上限</span>
     <span class="queued-badge hidden absolute -top-1.5 -left-1.5 z-10 bg-sky-600 text-white
                  text-[8px] font-bold px-0.5 rounded shadow whitespace-nowrap">待機</span>
     <span class="status-dot absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-dm-text-dim
@@ -240,6 +243,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r72"></script>
+<script src="/app.js?v=r73"></script>
 </body>
 </html>

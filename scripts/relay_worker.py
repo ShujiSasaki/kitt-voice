@@ -280,6 +280,30 @@ def _converged_reason(state: dict, max_loops: int) -> str | None:
     return None
 
 
+# タブ安定運用 (2026-06-12): 会話肥大の自動防止 — 一定ターン数 or 連続スロー応答で
+# gpt/gemini を新規会話へ自動リフレッシュ (claudeはcode session専用のため対象外)
+CONV_RESET_TURNS = 30
+SLOW_TURN_SEC = 120.0
+CONV_RESET_SLOW_STREAK = 2
+_turns_since_reset: dict[str, int] = {}
+_slow_streak: dict[str, int] = {}
+
+
+def _needs_conversation_reset(actor: str) -> str | None:
+    if actor not in ("gpt", "gemini"):
+        return None
+    if _turns_since_reset.get(actor, 0) >= CONV_RESET_TURNS:
+        return f"turns>={CONV_RESET_TURNS}"
+    if _slow_streak.get(actor, 0) >= CONV_RESET_SLOW_STREAK:
+        return f"slow_streak>={CONV_RESET_SLOW_STREAK} (応答{int(SLOW_TURN_SEC)}秒超が連続)"
+    return None
+
+
+def _record_turn_duration(actor: str, dur_sec: float) -> None:
+    _turns_since_reset[actor] = _turns_since_reset.get(actor, 0) + 1
+    _slow_streak[actor] = (_slow_streak.get(actor, 0) + 1) if dur_sec > SLOW_TURN_SEC else 0
+
+
 # stale-dup guard (2026-06-12): 巨大化した会話でタイムアウト→リロード後、
 # 画面に残った過去応答を再取得して重複injectする事故の遮断
 # (実害: 🔧部屋にGPT同一1006文字応答が3連続inject)
@@ -436,7 +460,19 @@ async def _drive_one_turn(
         # 古い発言 → 進行 (重複防止は server側 R58.1 #10 の 409 guardが二重防御)
 
     prompt = _format_prompt(state, msgs, next_actor)
+    # タブ安定運用: 会話肥大なら送信前に新規会話へリフレッシュ
+    reset_reason = _needs_conversation_reset(next_actor)
+    if reset_reason:
+        _log(f"♻ {next_actor} 会話リフレッシュ ({reset_reason})")
+        try:
+            if await chrome_relay.reset_conversation(cdp_port, next_actor):
+                _turns_since_reset[next_actor] = 0
+                _slow_streak[next_actor] = 0
+                _log(f"♻ {next_actor} 新規会話へ移行完了")
+        except Exception as e:
+            _log(f"⚠ 会話リフレッシュ失敗 (そのまま続行): {e}")
     _log(f"→ {next_actor} [room={room_id}] via CDP {cdp_port} ({len(prompt)} chars)")
+    _turn_t0 = time.time()
     try:
         resp_text = await chrome_relay.relay_turn(cdp_port, next_actor, prompt)
     except Exception as e:
@@ -470,8 +506,9 @@ async def _drive_one_turn(
         return {"error": str(e), "actor": next_actor}
     # 成功 → カウンタreset
     _consecutive_failures[room_id] = 0
+    _record_turn_duration(next_actor, time.time() - _turn_t0)  # タブ安定運用
 
-    _log(f"← {next_actor} {len(resp_text)} chars")
+    _log(f"← {next_actor} {len(resp_text)} chars ({int(time.time() - _turn_t0)}s)")
 
     # stale-dup guard: 過去にinject済みの応答と同一 = 古い応答の再取得 → inject禁止
     if _is_stale_duplicate(next_actor, resp_text):
@@ -793,6 +830,23 @@ def self_test() -> bool:
     # 複数tokenは最後を採用 (引用内の他部屋tokenに耐性)
     assert _validate_room_token("引用[Room: other]を含む\n[Room: room_x]", "room_x") == "ok"
     print("PASS: relay_worker self_test (R67 routing_validation)")
+
+    # --- タブ安定運用: 会話リフレッシュ判定 ---
+    _turns_since_reset.clear(); _slow_streak.clear()
+    assert _needs_conversation_reset("claude") is None  # code session保護
+    assert _needs_conversation_reset("gpt") is None
+    for _ in range(CONV_RESET_TURNS):
+        _record_turn_duration("gpt", 10.0)
+    assert _needs_conversation_reset("gpt") is not None  # ターン数到達
+    _turns_since_reset.clear(); _slow_streak.clear()
+    _record_turn_duration("gemini", 130.0)
+    assert _needs_conversation_reset("gemini") is None   # スロー1回ではまだ
+    _record_turn_duration("gemini", 130.0)
+    assert _needs_conversation_reset("gemini") is not None  # 連続2回で発火
+    _record_turn_duration("gemini", 10.0)
+    assert _slow_streak["gemini"] == 0  # 速い応答でstreakリセット
+    _turns_since_reset.clear(); _slow_streak.clear()
+    print("PASS: relay_worker self_test (タブ安定運用: 会話リフレッシュ判定)")
 
     # --- stale-dup guard ---
     assert not _is_stale_duplicate("gpt", "応答A")

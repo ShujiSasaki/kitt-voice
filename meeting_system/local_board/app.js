@@ -252,19 +252,26 @@ async function refreshSidebar() {
   updateTypingIndicator();
   lastOverview = data;       // UI-P1: 部屋一覧パネル用
   renderRoomList();          // 開いていれば最新化
-  const grs = document.getElementById('global-relay-status');
-  if (grs) {
+  const grsDot = document.getElementById('grs-dot');
+  const grsText = document.getElementById('grs-text');
+  if (grsDot && grsText) {
     const proc = data.global?.processing_room_id;
     const q = data.global?.router_queue || [];
     if (proc) {
       const pr = data.rooms.find(r => r.room_id === proc);
-      const label = pr ? `${pr.icon || ''}${pr.title}` : proc;
-      grs.textContent = `🟢 リレー処理中: ${label}` +
+      const label = pr ? pr.title : proc;
+      grsDot.style.backgroundColor = '#22C55E';
+      grsDot.classList.add('animate-pulse');
+      grsText.textContent = `リレー処理中: ${label}` +
         (q.length ? ` ・待ち${q.length}部屋` : '');
     } else if (q.length) {
-      grs.textContent = `🕐 待機列 ${q.length}部屋 — まもなく開始`;
+      grsDot.style.backgroundColor = '#0EA5E9';
+      grsDot.classList.remove('animate-pulse');
+      grsText.textContent = `待機列 ${q.length}部屋 — まもなく開始`;
     } else {
-      grs.textContent = '💤 全部屋待機中 (submitで自動開始)';
+      grsDot.style.backgroundColor = '#6B7280';
+      grsDot.classList.remove('animate-pulse');
+      grsText.textContent = '全部屋待機中 (submitで自動開始)';
     }
   }
 
@@ -481,7 +488,7 @@ const ACTOR_AVATAR = {
   gpt:       {label: 'GP', color: '#10A37F'},
   gemini:    {label: 'GE', color: '#8E75D9'},
   claude:    {label: 'CL', color: '#D97706'},
-  validator: {label: '⚙',  color: '#DC2626'},
+  validator: {label: 'SY', color: '#DC2626'},
 };
 
 // ===== UI-P0: 相対時刻 ("たった今" / "N分前" / 今日=HH:MM / 昨日 / M/D) =====
@@ -815,7 +822,7 @@ function renderRoomList() {
     } else if (room.queue_position) {
       st.textContent = `待機${room.queue_position}`; st.classList.add('bg-sky-600', 'text-white');
     } else if (room.status === 'max_loops_reached') {
-      st.textContent = '⚠️上限'; st.classList.add('bg-red-500', 'text-white');
+      st.textContent = '上限'; st.classList.add('bg-red-500', 'text-white');
     } else if (room.is_consensus_established) {
       st.textContent = '合意'; st.classList.add('bg-green-600', 'text-white');
     } else {
@@ -856,8 +863,8 @@ function applyTheme(mode) {
   }
   const btn = document.getElementById('theme-btn');
   if (btn) {
-    btn.textContent = mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '🌓';
-    btn.title = `テーマ: ${mode}`;
+    btn.title = `テーマ: ${mode === 'auto' ? 'auto (システム追従)' : mode}`;
+    btn.dataset.mode = mode;  // 手動mode中はアクセント色 (CSS)
   }
 }
 applyTheme(localStorage.getItem('grl_theme') || 'auto');

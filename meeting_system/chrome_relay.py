@@ -88,6 +88,14 @@ async def attach_chrome(cdp_endpoint: str):
     return browser.contexts[0]
 
 
+# タブ安定運用 (2026-06-12): 新規会話URL。
+# claude は claude.ai/code 専用session (発言Claude) のため対象外 — 新規会話化するとsession喪失
+NEW_CHAT_URLS = {
+    "gpt": "https://chatgpt.com/",
+    "gemini": "https://gemini.google.com/app",
+}
+
+
 async def find_tab(ctx, actor: str):
     matcher = TAB_MATCHERS[actor]
     for page in ctx.pages:
@@ -97,9 +105,36 @@ async def find_tab(ctx, actor: str):
             continue
         if any(s in url for s in matcher["url_contains"]):
             return page
+    # タブ自動復旧 (2026-06-12): gpt/gemini はタブが閉じられても新規作成して継続
+    if actor in NEW_CHAT_URLS:
+        logger.warning("%s タブ無し — 新規タブを自動作成して復旧", actor)
+        page = await ctx.new_page()
+        await page.goto(NEW_CHAT_URLS[actor], wait_until="domcontentloaded",
+                        timeout=30_000)
+        await asyncio.sleep(2.0)
+        return page
     raise RuntimeError(
         f"{actor} タブが見つからない (URL照合失敗、 ログイン状態確認)"
     )
+
+
+async def reset_conversation(cdp_port: int, actor: str) -> bool:
+    """会話肥大の自動対策: gpt/gemini を新規会話へ navigate。
+
+    プロンプトは毎ターン自己完結 (R58.2: 議題+直近発言を同梱) のため文脈損失なし。
+    2026-06-12 実害: 2日分・全部屋を1会話に蓄積したChatGPTが生成4分超+
+    古い応答の再取得 (重複inject) に陥った — 新規会話化で2-3秒応答に回復。
+    """
+    url = NEW_CHAT_URLS.get(actor)
+    if not url:
+        return False
+    ctx = await attach_chrome(f"http://127.0.0.1:{cdp_port}")
+    page = await find_tab(ctx, actor)
+    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    await asyncio.sleep(3.0)
+    await page.locator(SELECTORS[actor]["input"]).first.wait_for(
+        state="visible", timeout=20_000)
+    return True
 
 
 def _split_for_rate_limit(

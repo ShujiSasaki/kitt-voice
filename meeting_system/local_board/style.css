@@ -131,6 +131,12 @@ footer {
 /* ===== UI-P1: 検索/フィルタで非マッチを隠す ===== */
 .msg.filtered-out, .date-separator.filtered-out { display: none; }
 
+/* ===== SVGアイコンボタン (絵文字廃止 2026-06-12) ===== */
+.icon-btn svg { width: 20px; height: 20px; display: block; }
+#theme-btn[data-mode="light"] svg, #theme-btn[data-mode="dark"] svg {
+  color: #6DE67B;  /* 手動テーマ中はアクセント */
+}
+
 .filter-chip {
   padding: 2px 8px;
   border-radius: 9999px;
