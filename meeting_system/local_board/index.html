@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; manifest-src 'self';">
 <title>ぐるぐる3者会議</title>
 <link rel="manifest" href="/manifest.json">
@@ -34,7 +34,7 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<link rel="stylesheet" href="/style.css?v=r69">
+<link rel="stylesheet" href="/style.css?v=r70">
 </head>
 <body class="bg-dm-bg text-dm-text min-h-screen font-sans antialiased">
 <div class="flex h-screen">
@@ -82,6 +82,13 @@ tailwind.config = {
         左サイドバーから会議を選択してください
       </div>
     </main>
+
+    <div id="typing-indicator" class="hidden px-4 py-1.5 text-xs text-dm-text-dim flex items-center gap-2 bg-dm-bg">
+      <span class="typing-avatar w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center
+                   text-[8px] font-bold text-white"></span>
+      <span class="typing-text"></span>
+      <span class="typing-dots"><i></i><i></i><i></i></span>
+    </div>
 
     <footer class="sticky bottom-0 bg-dm-header border-t border-dm-border z-10">
       <input type="file" id="file-input-camera" accept="image/*" capture="environment" class="hidden">
@@ -144,6 +151,9 @@ tailwind.config = {
 <template id="tmpl-msg">
   <article class="msg flex flex-col gap-0.5 max-w-full" data-actor="" data-msg-id="">
     <div class="msg-sender-label text-[11px] text-dm-text-dim opacity-60 px-1"></div>
+    <div class="msg-row flex items-end gap-1.5 max-w-full">
+    <span class="msg-avatar w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center
+                 text-[10px] font-bold text-white select-none shadow"></span>
     <div class="msg-bubble rounded-3xl px-4 py-3 shadow-sm max-w-[75%]">
       <div class="msg-body text-sm leading-relaxed break-words"></div>
       <details class="msg-evidence mt-2 border-t border-white/10 pt-1.5">
@@ -169,6 +179,7 @@ tailwind.config = {
       </button>
       <div class="thread-container hidden mt-2 border-l-2 border-white/20 pl-2 space-y-2"></div>
     </div>
+    </div>
     <div class="msg-meta-bottom flex items-center gap-2 mt-0.5 px-1 text-[10px] text-dm-text-dim">
       <span class="msg-ts"></span>
       <span class="msg-validator px-1.5 py-0.5 rounded text-[9px]"></span>
@@ -186,6 +197,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r69"></script>
+<script src="/app.js?v=r70"></script>
 </body>
 </html>

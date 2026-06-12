@@ -12,6 +12,23 @@ html, body {
   color: #F5F5F5;
 }
 
+/* ===== UI-P0: iOS PWAセーフエリア (ノッチ/ホームバー対応、 viewport-fit=cover前提) ===== */
+header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+footer {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#sidebar {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+/* iOSキーボード表示時に入力欄が隠れない (visual viewport基準の下部固定) */
+@supports (-webkit-touch-callout: none) {
+  html, body { height: 100%; overscroll-behavior-y: none; }
+}
+
 /* ===== DM bubble 共通 ===== */
 .msg {
   align-self: flex-start;
@@ -48,6 +65,71 @@ html, body {
 }
 .msg[data-same-author="true"] {
   margin-top: -2px;
+}
+
+/* ===== UI-P0: タイピングインジケータ ===== */
+.typing-dots i {
+  display: inline-block;
+  width: 4px; height: 4px;
+  margin: 0 1px;
+  border-radius: 50%;
+  background: #9CA3AF;
+  animation: typing-bounce 1.2s infinite;
+}
+.typing-dots i:nth-child(2) { animation-delay: .2s; }
+.typing-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: .4; }
+  30%           { transform: translateY(-3px); opacity: 1; }
+}
+
+/* ===== UI-P0: 送信中スピナー ===== */
+#submit-btn.sending { color: transparent; position: relative; }
+#submit-btn.sending::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: btn-spin .7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* ===== UI-P0: アバター (LINE/ChatGPT風) ===== */
+.msg[data-actor="shuji"] .msg-avatar {
+  display: none;  /* 自分の発言にはアバター不要 (LINE流) */
+}
+.msg[data-actor="shuji"] .msg-row {
+  justify-content: flex-end;
+}
+.msg[data-same-author="true"] .msg-avatar {
+  visibility: hidden;  /* 連続発言は2件目以降アバター非表示 (位置は維持) */
+}
+
+/* ===== UI-P0: システムカード (📋まとめ/⚠️警告/⏺完了報告) ===== */
+.msg[data-card] .msg-row { width: 100%; }
+.msg[data-card] .msg-bubble {
+  max-width: 100%;
+  flex: 1;
+  border-radius: 12px;
+}
+.msg[data-card="summary"] .msg-bubble {
+  background-color: rgba(16, 163, 127, 0.13) !important;
+  border-left: 4px solid #10A37F;
+  color: #F5F5F5;
+}
+.msg[data-card="warn"] .msg-bubble {
+  background-color: rgba(245, 158, 11, 0.13) !important;
+  border-left: 4px solid #F59E0B;
+  color: #F5F5F5;
+}
+.msg[data-card="report"] .msg-bubble {
+  background-color: rgba(59, 130, 246, 0.13) !important;
+  border-left: 4px solid #3B82F6;
+  color: #F5F5F5;
 }
 
 /* msg-bodyのコードブロック (bubble内、 半透明黒背景) */

@@ -36,6 +36,8 @@ const STATUS_TOOLTIP = {
 };
 
 let activeRoomId = null;
+let processingRoomId = null;   // UI-P0: worker処理中room (typing表示用)
+let currentNextActor = null;   // UI-P0: 閲覧中roomの次actor
 let lastMsgIdByRoom = {};
 let previousConsensusByRoom = {};
 let lastRenderedMsgByRoom = {};   // R56: 連続発言判定 + 日付セパレータ用
@@ -246,6 +248,8 @@ async function refreshSidebar() {
   }
 
   // UX改善: グローバル状態行 (ヘッダ) — 「今システムが何をしているか」一目表示
+  processingRoomId = data.global?.processing_room_id || null;  // UI-P0: typing表示用
+  updateTypingIndicator();
   const grs = document.getElementById('global-relay-status');
   if (grs) {
     const proc = data.global?.processing_room_id;
@@ -285,6 +289,9 @@ async function refreshRoomState() {
   // UX改善: 送信先の部屋を入力欄に常時表示 (部屋誤送信防止)
   const inputEl = document.getElementById('shuji-input');
   if (inputEl) inputEl.placeholder = `${s.project_name || s.room_id} へ送信...`;
+  // UI-P0: typing indicator (「○○が入力中…」、R65 is_processing流用)
+  currentNextActor = s.next_actor || null;
+  updateTypingIndicator();
 
   // R56: ヘッダ簡潔サマリ
   const statusJa = STATUS_TOOLTIP[s.status] || s.status || '—';
@@ -467,6 +474,46 @@ function ensureNewMsgBadge(tl) {
   return btn;
 }
 
+// ===== UI-P0: アバター (actor色 + 略号) =====
+const ACTOR_AVATAR = {
+  gpt:       {label: 'GP', color: '#10A37F'},
+  gemini:    {label: 'GE', color: '#8E75D9'},
+  claude:    {label: 'CL', color: '#D97706'},
+  validator: {label: '⚙',  color: '#DC2626'},
+};
+
+// ===== UI-P0: 相対時刻 ("たった今" / "N分前" / 今日=HH:MM / 昨日 / M/D) =====
+function parseMsgTs(msg) {
+  const raw = msg.ts_iso || msg.ts || '';
+  if (!raw) return null;
+  let d = new Date(raw);
+  if (isNaN(d.getTime())) {
+    d = new Date(String(raw).replace(' JST', '').replace(' ', 'T'));
+  }
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function relativeTime(d) {
+  if (!d) return '';
+  const diffSec = (Date.now() - d.getTime()) / 1000;
+  const hm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (diffSec < 60) return 'たった今';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分前`;
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return hm;
+  const yest = new Date(now.getTime() - 86400000);
+  if (d.toDateString() === yest.toDateString()) return `昨日 ${hm}`;
+  return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+}
+
+// 表示中の相対時刻を60秒ごとに更新
+setInterval(() => {
+  document.querySelectorAll('.msg-ts[data-epoch]').forEach(el => {
+    const t = Number(el.dataset.epoch);
+    if (t) el.textContent = relativeTime(new Date(t));
+  });
+}, 60_000);
+
 // ===== R56: renderMessage (新tmpl-msg準拠) =====
 function renderMessage(msg, prevMsg = null) {
   const tmpl = document.getElementById('tmpl-msg');
@@ -474,6 +521,20 @@ function renderMessage(msg, prevMsg = null) {
   const article = frag.querySelector('.msg');
   article.dataset.actor = msg.actor || 'unknown';
   article.dataset.msgId = msg.msg_id;
+
+  // UI-P0: アバター (Shuji自身は非表示=LINE流)
+  const avatar = frag.querySelector('.msg-avatar');
+  const av = ACTOR_AVATAR[msg.actor];
+  if (av) {
+    avatar.textContent = av.label;
+    avatar.style.backgroundColor = av.color;
+  }
+
+  // UI-P0: システムカード判定 (📋まとめ/⚠️警告/⏺完了報告)
+  const headText = (msg.body || msg.summary || '').trimStart();
+  if (headText.startsWith('📋')) article.dataset.card = 'summary';
+  else if (headText.startsWith('⚠') || headText.startsWith('⛔')) article.dataset.card = 'warn';
+  else if (headText.startsWith('⏺')) article.dataset.card = 'report';
 
   // 連続発言判定 (5分以内 + 同actor)
   const sameAuthor = prevMsg && prevMsg.actor === msg.actor && (() => {
@@ -549,18 +610,16 @@ function renderMessage(msg, prevMsg = null) {
     JSON.stringify(msg.tags || {}, null, 2);
 
   // meta-bottom (時刻 + Validator + 巡数 + 既読)
-  let tsShort = msg.ts_short || '';
-  if (!tsShort && msg.ts_iso) {
-    const d = new Date(msg.ts_iso);
-    if (!isNaN(d.getTime())) {
-      const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const hh12 = h % 12 || 12;
-      tsShort = `${hh12}:${m} ${ampm}`;
-    }
+  // UI-P0: 相対時刻表示 (data-epochで60秒毎に自動更新)
+  const tsEl = frag.querySelector('.msg-ts');
+  const tsDate = parseMsgTs(msg);
+  if (tsDate) {
+    tsEl.textContent = relativeTime(tsDate);
+    tsEl.dataset.epoch = String(tsDate.getTime());
+    tsEl.title = msg.ts || tsDate.toLocaleString();  // hover/長押しで絶対時刻
+  } else {
+    tsEl.textContent = msg.ts || '';
   }
-  if (!tsShort) tsShort = msg.ts || '';
-  frag.querySelector('.msg-ts').textContent = tsShort;
 
   const v = msg.validator || {pass: true};
   const validatorEl = frag.querySelector('.msg-validator');
@@ -645,6 +704,51 @@ async function activateRoom(roomId) {
     tl.scrollTop = tl.scrollHeight;
   }
   markRead();
+}
+
+// ===== UI-P0: タイピングインジケータ (LINE/ChatGPT風) =====
+function updateTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (!el) return;
+  const actor = currentNextActor;
+  const show = !!(processingRoomId && processingRoomId === activeRoomId
+                  && actor && ACTOR_AVATAR[actor]);
+  el.classList.toggle('hidden', !show);
+  if (show) {
+    const av = ACTOR_AVATAR[actor];
+    const avEl = el.querySelector('.typing-avatar');
+    avEl.textContent = av.label;
+    avEl.style.backgroundColor = av.color;
+    el.querySelector('.typing-text').textContent =
+      `${ACTOR_LABEL[actor] || actor}が入力中`;
+  }
+}
+
+// ===== UI-P0: 送信失敗バー (alert廃止、 再試行ボタン付き) =====
+function showSendError(message) {
+  let bar = document.getElementById('send-error-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'send-error-bar';
+    bar.className = 'flex items-center gap-2 px-3 py-1.5 text-xs bg-red-900/60 text-red-200';
+    const txt = document.createElement('span');
+    txt.className = 'send-error-text flex-1 truncate';
+    const retry = document.createElement('button');
+    retry.textContent = '再試行';
+    retry.className = 'px-2 py-0.5 rounded-full bg-red-500 text-white font-bold';
+    retry.addEventListener('click', () => {
+      bar.remove();
+      document.getElementById('submit-btn').click();
+    });
+    const close = document.createElement('button');
+    close.textContent = '✕';
+    close.className = 'px-1 opacity-70';
+    close.addEventListener('click', () => bar.remove());
+    bar.append(txt, retry, close);
+    const footer = document.querySelector('footer');
+    footer.parentNode.insertBefore(bar, footer);
+  }
+  bar.querySelector('.send-error-text').textContent = `⚠ 送信失敗: ${message}`;
 }
 
 // ===== UX改善: 📋最新の合意まとめへジャンプ =====
@@ -752,16 +856,26 @@ document.addEventListener('click', async (e) => {
 document.getElementById('submit-btn').addEventListener('click', async () => {
   if (!activeRoomId) return;
   const inp = document.getElementById('shuji-input');
+  const sbtn = document.getElementById('submit-btn');
   const text = inp.value.trim();
-  if (!text) return;
+  if (!text || sbtn.disabled) return;
+  // UI-P0: 送信中スピナー + 二重送信防止
+  sbtn.disabled = true;
+  sbtn.classList.add('sending');
   try {
     const j = await submitWithRetry(text);
     if (j.ok) {
       inp.value = '';
       inp.style.height = 'auto';  // UX2: 送信後に入力欄の高さをリセット
-    } else alert(j.error || '送信失敗');
+      document.getElementById('send-error-bar')?.remove();
+    } else {
+      showSendError(j.error || '不明なエラー');  // 入力内容は保持
+    }
   } catch (e) {
-    alert(`送信エラー: ${e.message}`);
+    showSendError(e.message);
+  } finally {
+    sbtn.disabled = false;
+    sbtn.classList.remove('sending');
   }
 });
 
