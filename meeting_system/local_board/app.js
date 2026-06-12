@@ -341,15 +341,20 @@ async function refreshRoomState() {
         ? ` (heartbeat ${s.relay_worker_heartbeat_age_sec}s)` : '');
   }
 
-  // R58 Must Fix C: PWA送信ボタン物理ロック
-  // ai_processing or relay_worker動作中で disable、 hung検出で auto unlock
+  // R58 Must Fix C → 修正 (2026-06-12 Shuji指摘「再開を押さないと発言できない」):
+  // 停止状態 (合意成立/外部待ち/判断待ち/割込/上限) では常に送信可能。
+  // 新しいsubmitは新議題として自動で会議を開始するので、再開ボタンは不要。
+  // ロックするのは「この部屋でAIが現に処理中」の時だけ。
   const submitBtn = document.getElementById('submit-btn');
   const workerRunning = s.relay_worker_state === 'running';
   const aiProcessing = s.status === 'ai_processing';
-  const shouldLock = aiProcessing || workerRunning;
+  const stopStates = new Set(['consensus_reached', 'external_wait', 'blocked',
+                              'paused_by_shuji', 'max_loops_reached']);
+  const stopped = stopStates.has(s.status) || s.is_consensus_established;
+  const shouldLock = !stopped && (aiProcessing || workerRunning);
   submitBtn.disabled = shouldLock;
   submitBtn.title = shouldLock
-    ? (workerRunning ? '自動relay動作中 (送信は完了後)' : 'AI処理中')
+    ? (aiProcessing ? 'AI処理中' : '自動relay動作中 (送信は完了後)')
     : '送信';
 
   // R61 D + E: 再開ボタン + stall_reason表示
@@ -359,11 +364,11 @@ async function refreshRoomState() {
 // R61 D + E → UI刷新 (2026-06-12): 停止時は入力欄直上の固定スリムバナー
 // (旧: コンテンツに被るフローティングピル+絵文字 — 主流アプリ非準拠のため廃止)
 const RESUME_BANNER_INFO = {
-  consensus_reached: {dot: '#22C55E', text: '合意成立 — この会議は一区切りです'},
-  external_wait:     {dot: '#F59E0B', text: '外部作業待ちで停止中'},
-  blocked:           {dot: '#F97316', text: '判断待ちで停止中'},
-  paused_by_shuji:   {dot: '#F97316', text: '割込で停止中'},
-  max_loops_reached: {dot: '#EF4444', text: 'ループ上限に到達して停止中'},
+  consensus_reached: {dot: '#22C55E', text: '合意成立 — 新しい議題はそのまま送信できます', btn: '続きを再開'},
+  external_wait:     {dot: '#F59E0B', text: '外部作業待ち — 新しい送信でも再開します', btn: '再開'},
+  blocked:           {dot: '#F97316', text: '判断待ちで停止中 — 回答をそのまま送信できます', btn: '再開'},
+  paused_by_shuji:   {dot: '#F97316', text: '割込で停止中 — メッセージをそのまま送信できます', btn: '再開'},
+  max_loops_reached: {dot: '#EF4444', text: 'ループ上限で停止 — 新しい指示の送信でも再開します', btn: '続きを再開'},
 };
 
 function ensureResumeBar(s) {
@@ -423,6 +428,7 @@ function ensureResumeBar(s) {
   }
   bar.querySelector('.resume-dot').style.backgroundColor = info.dot;
   bar.querySelector('.resume-text').textContent = info.text;
+  bar.querySelector('.resume-btn').textContent = info.btn || '再開';
 }
 
 // ===== R56: 日付セパレータ insert =====
