@@ -199,12 +199,27 @@ PWA_SUMMARY_RE = _re_q2.compile(
 )
 
 
+# placeholder検知 (2026-06-12 実害: GPTがプロンプトの指示文
+# 「<pwa_summary>200文字程度の口語要約</pwa_summary>」 をそのまま書き写し、
+# 1個目のタグが偽要約になってPWA吹き出しが「200文字程度の口語要約」表示になった)
+PWA_PLACEHOLDER_MARKERS = ("200文字程度の口語要約", "口語要約を書く", "PWA表示用")
+
+
+def _is_pwa_placeholder(s: str) -> bool:
+    s = (s or "").strip()
+    return (len(s) < 12) or any(m in s and len(s) < 40 for m in PWA_PLACEHOLDER_MARKERS)
+
+
 def extract_pwa_summary(text: str, fallback_max: int = 200) -> str:
-    """R59 Q2: <pwa_summary>...</pwa_summary> 抽出 (なければ body先頭200字 fallback)"""
-    m = PWA_SUMMARY_RE.search(text or "")
-    if m:
-        s = m.group(1).strip()
-        if s:
+    """R59 Q2: <pwa_summary>...</pwa_summary> 抽出 (なければ body先頭200字 fallback)
+
+    複数タグがある場合は placeholder でない最後のものを採用
+    (GPTがテンプレ写し+実要約の2連タグを書くケースに対応)。
+    """
+    matches = PWA_SUMMARY_RE.findall(text or "")
+    for raw in reversed(matches):
+        s = (raw or "").strip()
+        if s and not _is_pwa_placeholder(s):
             return s[:fallback_max]
     fallback = (text or "").strip().splitlines()
     head = " ".join(ln.strip() for ln in fallback[:3] if ln.strip())
@@ -268,6 +283,25 @@ Must Fixなし。
         passed += 1; print("PASS: relay order violation detected")
     else:
         failed += 1; print("FAIL: relay violation NOT detected")
+
+    # pwa_summary placeholder遮断 (2026-06-12 GPT実害対応)
+    pwa_cases = [
+        ("<pwa_summary>200文字程度の口語要約</pwa_summary>\n"
+         "<pwa_summary>実際の要約はこちらです。経路はExnessで確定しました。</pwa_summary>",
+         "実際の要約はこちらです。経路はExnessで確定しました。"),
+        ("<pwa_summary>ちゃんとした要約が1つだけのケースです。内容に問題ありません。</pwa_summary>",
+         "ちゃんとした要約が1つだけのケースです。内容に問題ありません。"),
+    ]
+    for text, want in pwa_cases:
+        got = extract_pwa_summary(text)
+        if got == want:
+            passed += 1; print("PASS: pwa placeholder遮断")
+        else:
+            failed += 1; print(f"FAIL: pwa placeholder遮断 got={got[:40]}")
+    if extract_pwa_summary("<pwa_summary>200文字程度の口語要約</pwa_summary>\n本文の冒頭です。続きの文。") .startswith("本文の冒頭"):
+        passed += 1; print("PASS: placeholderのみ → fallback")
+    else:
+        failed += 1; print("FAIL: placeholderのみ → fallback")
 
     # 見出し省略形式fallback (2026-06-12 GPT実害対応)
     cases = [

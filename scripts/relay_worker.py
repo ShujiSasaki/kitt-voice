@@ -395,7 +395,7 @@ def _format_prompt(
     lines.append("   - false: 議論継続必要")
     lines.append("   - blocked: 人間の判断待ち (自動relay停止)")
     lines.append("   - external_wait: 外部ログ/操作待ち (自動relay停止)")
-    lines.append("4. <pwa_summary>200文字程度の口語要約</pwa_summary> (R59 Q2: PWA表示用)")
+    lines.append("4. あなたの発言の要点を約200文字の口語で <pwa_summary>〜</pwa_summary> タグに入れて書く (この指示文をタグ内にコピーしない)")
     lines.append("5. 末尾に必ず Verify token 含む")
     lines.append(f"6. 最終行に必ず [Room: {room_id}] の1行を含める (R67 部屋ルーティング検証用 — 欠落/不一致は再送要求されます)")
     lines.append("")
