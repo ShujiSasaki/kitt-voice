@@ -29,6 +29,7 @@ SELECTORS = {
             'div.ProseMirror[contenteditable="true"]'
         ),
         "send": (
+            'button[data-testid="composer-send-button"], '
             'button[data-testid="send-button"], '
             'button[aria-label*="Send"], '
             'button[aria-label*="送信"]'
@@ -155,16 +156,28 @@ async def send_prompt(page, actor: str, text: str) -> None:
                 pass
         # 送信btn appear待ち (text入力後だから現れるはず)
         send_loc = page.locator(sel["send"]).first
-        await send_loc.wait_for(state="visible", timeout=10_000)
-        # btn disabled (空入力) チェック避け
+        sent = False
         try:
-            disabled = await send_loc.get_attribute("disabled")
+            await send_loc.wait_for(state="visible", timeout=10_000)
+            # btn disabled (空入力) チェック避け
+            try:
+                disabled = await send_loc.get_attribute("disabled")
+            except Exception:
+                disabled = None
+            if disabled is not None:
+                # disabled なら 別 click trigger試行
+                await page.keyboard.press("End")
+            await send_loc.click()
+            sent = True
         except Exception:
-            disabled = None
-        if disabled is not None:
-            # disabled なら 別 click trigger試行
-            await page.keyboard.press("End")
-        await send_loc.click()
+            pass
+        if not sent:
+            # 2026-06-12: ChatGPT UI更新で send button selector不一致が発生
+            # (GPT全ターン送信不能の実害)。composer上の Enter は送信として機能する
+            # (実機検証済み) → keyboard送信fallback
+            logger.warning("%s: send button不可視 — Enter送信fallback", actor)
+            await input_loc.click()
+            await page.keyboard.press("Enter")
         await asyncio.sleep(RATE_LIMIT_INTERVAL_SEC)
 
 
