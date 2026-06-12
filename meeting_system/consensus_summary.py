@@ -86,63 +86,92 @@ def _extract_lines(bodies: list[str], keywords: tuple, limit: int = 5) -> list[s
     return out[:limit]
 
 
-def build_summary_body(state: dict, loop_msgs: dict[str, dict]) -> str:
-    """loop_msgs: {actor: timeline record} (直近true巡の3者発言)"""
-    topic = state.get("current_topic") or state.get("topic_title") or state.get("room_id", "")
+# 品質改善 (Shujiフィードバック 2026-06-12): プロンプト復唱・中略の混入遮断
+PROMPT_ECHO_MARKERS = (
+    "あなた (本ターン)", "あなた(本ターン)", "以下5セクション", "[Clerk(自動)",
+    "current_turn_in_loop", "次の指示に従って", "5セクションで応答",
+)
+
+
+def _clean_text(s: str) -> str:
+    """中略マーク / [Room:]トークン / Verify token行 / プロンプト復唱行を除去"""
+    import re
+    if not s:
+        return ""
+    s = s.replace("…(中略)…", " ").replace("(中略)", " ").replace("中略", " ")
+    s = re.sub(r"\[Room:\s*[A-Za-z0-9_\-]+\s*\]", "", s)
+    kept = []
+    for ln in s.splitlines():
+        if any(m in ln for m in PROMPT_ECHO_MARKERS):
+            continue
+        if "Verify token" in ln or "[Validator-Verify" in ln:
+            continue
+        kept.append(ln)
+    return "\n".join(kept).strip()
+
+
+def _is_noise_summary(s: str) -> bool:
+    return (not s) or any(m in s for m in PROMPT_ECHO_MARKERS)
+
+
+def build_summary_body(
+    state: dict, loop_msgs: dict[str, dict], topic_text: str = "",
+) -> str:
+    """loop_msgs: {actor: timeline record} (直近true巡の3者発言)
+
+    フォーマット v2 (Shujiフィードバック 2026-06-12):
+    「議題 → 合意した結論 → 次にやること → 判断要否」の簡潔構成。
+    3者別の要約並記・空セクションの埋め草は廃止。
+    """
     loop_n = state.get("consensus_established_loop") or state.get("total_loops", 0)
     est_at = (state.get("consensus_established_at") or "")[:16].replace("T", " ")
-    bodies = [(loop_msgs.get(a) or {}).get("body") or "" for a in SEQUENCE]
+    bodies = [_clean_text((loop_msgs.get(a) or {}).get("body") or "") for a in SEQUENCE]
 
-    # 結論 = 最終発言者 (claude優先) の pwa_summary
+    # 議題 = Shujiさんの実際の質問文 (古いcurrent_topicは使わない)
+    topic = (topic_text or "").replace("\n", " ").strip()
+    if not topic:
+        topic = state.get("current_topic") or state.get("topic_title") or ""
+
+    # 結論 = claude→gpt→gemini の順で、ノイズでない最終巡の要約を採用
     conclusion = ""
-    for a in reversed(SEQUENCE):
-        s = (loop_msgs.get(a) or {}).get("summary")
-        if s:
+    for a in ("claude", "gpt", "gemini"):
+        s = _clean_text((loop_msgs.get(a) or {}).get("summary") or "")
+        if s and not _is_noise_summary(s):
             conclusion = s
             break
     if not conclusion:
-        conclusion = f"{topic} — 3者合意成立"
+        conclusion = "(要約の自動取得に失敗 — 各発言の証跡を参照してください)"
 
-    decided = []
-    label = {"gpt": "GPT", "gemini": "Gemini", "claude": "発言Claude"}
-    for a in SEQUENCE:
-        s = (loop_msgs.get(a) or {}).get("summary")
-        if s:
-            decided.append(f"- {label[a]}: {s}")
-    if not decided:
-        decided = ["- (各AIの要約なし — 証跡▼を参照)"]
-
-    remaining = _extract_lines(bodies, REMAINING_KEYWORDS)
-    next_actions = _extract_lines(bodies, NEXT_KEYWORDS)
-    judgment_lines = _extract_lines(bodies, JUDGMENT_KEYWORDS, limit=3)
+    remaining = _extract_lines(bodies, REMAINING_KEYWORDS, limit=3)
+    next_actions = _extract_lines(bodies, NEXT_KEYWORDS, limit=3)
+    judgment_lines = _extract_lines(bodies, JUDGMENT_KEYWORDS, limit=2)
     all_text = "\n".join(bodies)
-    if "判断不要" in all_text and not judgment_lines:
-        judgment = "今の判断不要"
-    elif judgment_lines:
+    if judgment_lines:
         judgment = "\n".join(f"- {ln}" for ln in judgment_lines)
+    elif "判断不要" in all_text:
+        judgment = "今の判断は不要です"
     else:
-        judgment = "今の判断不要 (自動判定: 判断要求の記載なし)"
+        judgment = "今の判断は不要です (判断要求の記載なし)"
 
     lines = [
-        f"📋 [合意まとめ] {topic}",
-        f"(3者true×{loop_n}巡で合意成立 {est_at})",
+        "📋 合意まとめ",
         "",
-        "■ 結論",
+        "■ 議題",
+        topic[:120] or "(議題不明)",
+        "",
+        "■ 合意した結論",
         conclusion,
+    ]
+    if next_actions:
+        lines += ["", "■ 次にやること", *[f"- {ln}" for ln in next_actions]]
+    if remaining:
+        lines += ["", "■ 残っていること", *[f"- {ln}" for ln in remaining]]
+    lines += [
         "",
-        "■ 決まったこと",
-        *decided,
-        "",
-        "■ 残っていること",
-        *([f"- {ln}" for ln in remaining] or ["- なし (自動抽出: 該当なし)"]),
-        "",
-        "■ 次にやること",
-        *([f"- {ln}" for ln in next_actions] or ["- 特になし"]),
-        "",
-        "■ Shujiさんの判断要否",
+        "■ Shujiさんの判断",
         judgment,
         "",
-        "[Validator-Verify: R64-CONSENSUS-SUMMARY]",
+        f"(3者true×{loop_n}巡 {est_at})",
     ]
     return "\n".join(lines)
 
@@ -180,9 +209,13 @@ def generate_and_inject(
             if last:
                 loop_msgs[a] = last
 
-    body = build_summary_body(state, loop_msgs)
+    # 議題 = Shujiさんの直近の質問文 (まとめの「何のまとめか」を明確に)
+    last_shuji = next((m for m in reversed(msgs) if m.get("actor") == "shuji"), None)
+    topic_text = ((last_shuji or {}).get("body") or "").replace("\n", " ").strip()
+
+    body = build_summary_body(state, loop_msgs, topic_text=topic_text)
     msg_id = f"summary_{room_id}_{int(time.time())}"
-    topic = state.get("current_topic") or state.get("topic_title") or room_id
+    topic = topic_text[:40] or state.get("current_topic") or room_id
     record = {
         "room_id": room_id,
         "msg_id": msg_id,
@@ -248,15 +281,22 @@ def self_test() -> bool:
                 "validator": {"pass": True, "items": ["t"]},
             }, base=tmp)
 
+        # v2: 議題 = Shujiさんの直近質問文
+        queue_io.append_timeline({
+            "room_id": room, "msg_id": "m_shuji", "actor": "shuji",
+            "body": "Xの機能を追加できますか？", "loop": 2,
+            "validator": {"pass": True, "items": ["shuji_direct"]},
+        }, base=tmp)
+
         r = generate_and_inject(room, base=tmp)
         assert r and r["msg_id"].startswith("summary_r1_"), f"inject失敗: {r}"
         # timeline に validator record が追加されたか
         msgs = _read_timeline_for_room(tmp, room)
         last = msgs[-1]
         assert last["actor"] == "validator"
-        assert "📋 [合意まとめ] テスト議題X" in last["body"]
-        assert "■ 結論" in last["body"] and "Claude要約です" in last["body"]
-        assert "GPT要約です" in last["body"]
+        assert last["body"].startswith("📋 合意まとめ")
+        assert "■ 議題" in last["body"] and "Xの機能を追加できますか" in last["body"]
+        assert "■ 合意した結論" in last["body"] and "Claude要約です" in last["body"]
         assert "実装待ちはAです" in last["body"]  # 残っていること抽出
         assert "事務Claudeが実装する" in last["body"]  # 次にやること抽出
         # P1-③: ノイズ除外 — 見出し行/タグ/フォーマット定義行は出力されない
@@ -264,6 +304,12 @@ def self_test() -> bool:
         assert "<pwa_summary>実装待ちのZ" not in last["body"], "pwa_summaryタグ行が混入"
         body_lines = last["body"].splitlines()
         assert "- 残っていること" not in body_lines, "見出しそのものが混入"
+        # v2: プロンプト復唱・中略の遮断
+        assert "あなた (本ターン)" not in last["body"]
+        assert _is_noise_summary("あなた (本ターン) のタスク 以下5セクションで...")
+        assert not _is_noise_summary("通常の要約文です")
+        assert "中略" not in _clean_text("前半…(中略)…後半")
+        assert "[Room:" not in _clean_text("本文 [Room: btc_auto_trade] 続き")
         # 議事録ファイル
         assert Path(r["minutes_path"]).exists()
         # フラグ反転
