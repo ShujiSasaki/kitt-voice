@@ -155,32 +155,40 @@ def _check_relay_stall(room_id: str, state: dict, base: Path) -> bool:
         return False
     if state.get("is_consensus_established"):
         return False
-    tl = _timeline_path(base)
-    if not tl.exists():
+    # R67b: 部屋自身の最終発言時刻で判定。
+    # 旧実装はグローバル timeline.jsonl の mtime を使っており、
+    # 「別部屋の活動が止まっただけ」 で無関係な部屋へ警告injectする誤発火源だった。
+    last_ts = state.get("last_msg_ts")
+    if not last_ts:
         return False
-    tl_age = time.time() - tl.stat().st_mtime
-    if tl_age <= WATCHDOG_STALL_SEC:
+    try:
+        last_dt = datetime.fromisoformat(last_ts)
+    except (ValueError, TypeError):
         return False
-    # R61: worker起動直後の猶予 (heartbeat mtime が tl mtimeより新しい → worker新規起動)
+    age = (datetime.now(JST) - last_dt).total_seconds()
+    if age <= WATCHDOG_STALL_SEC:
+        return False
+    # R67b: R65 router_state.json で「workerが今この部屋を処理中」の場合のみ stall扱い。
+    # worker が別部屋処理中 or idle なら この部屋は単なる待機 → 発火しない。
+    rs_path = base / "data" / "router_state.json"
+    if rs_path.exists():
+        try:
+            rs = json.loads(rs_path.read_text(encoding="utf-8"))
+            rs_fresh = (time.time() - float(rs.get("updated", 0))) <= 30.0
+            if rs_fresh and rs.get("active_room") != room_id:
+                return False
+        except Exception:
+            pass
+    # R61: worker起動直後の猶予 (start_ts基準)
     hb = base / "data" / "projects" / room_id / "relay_heartbeat.json"
     if hb.exists():
-        hb_mtime = hb.stat().st_mtime
-        tl_mtime = tl.stat().st_mtime
-        if hb_mtime > tl_mtime:
-            # worker起動後 timeline未更新 = worker uptime を見る
-            worker_uptime = time.time() - hb_mtime
-            # heartbeat 自体は毎iteration update なので、
-            # 「heartbeat初回からの経過」 をproxyに first-loop json探す
-            try:
-                hb_data = json.loads(hb.read_text(encoding="utf-8"))
-                start_ts = hb_data.get("start_ts")
-                if start_ts:
-                    worker_uptime = time.time() - start_ts
-            except Exception:
-                pass
-            if worker_uptime < WATCHDOG_STALL_SEC:
+        try:
+            hb_data = json.loads(hb.read_text(encoding="utf-8"))
+            start_ts = hb_data.get("start_ts")
+            if start_ts and (time.time() - float(start_ts)) < WATCHDOG_STALL_SEC:
                 return False
-    age = tl_age
+        except Exception:
+            pass
     # 同一stallへの多重発火防止 (5分クールダウン)
     last_fired = _watchdog_fired_at.get(room_id, 0.0)
     if time.time() - last_fired < 300.0:

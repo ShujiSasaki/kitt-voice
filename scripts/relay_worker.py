@@ -280,17 +280,38 @@ def _converged_reason(state: dict, max_loops: int) -> str | None:
     return None
 
 
+def _validate_room_token(resp_text: str, room_id: str) -> str:
+    """R67 routing_validation: 応答末尾の部屋トークン検証。
+
+    返値: 'ok' / 'missing' / 'wrong:<検出された別room>'
+    """
+    import re
+    found = re.findall(r"\[Room:\s*([A-Za-z0-9_\-]+)\s*\]", resp_text or "")
+    if not found:
+        return "missing"
+    if found[-1] == room_id:
+        return "ok"
+    return f"wrong:{found[-1]}"
+
+
 def _format_prompt(
     state: dict, msgs: list[dict], next_actor: str,
     recent_n: int = DEFAULT_RECENT_MSGS,
 ) -> str:
     topic = state.get("current_topic") or state.get("topic_title") or "(議題未設定)"
     total_loops = state.get("total_loops", 0)
+    room_id = state.get("room_id", "")
     lines = [
         f"[Clerk(自動) → {next_actor}: {topic}]",
+        f"room_id: {room_id}",
         f"current_loop: {total_loops}",
         f"current_turn_in_loop: {state.get('current_turn_in_loop', 0)}",
         f"next_actor: {next_actor}",
+        "",
+        f"⚠️ 部屋分離 (R67): これは部屋『{room_id}』のターンです。",
+        "- この会話windowは複数の部屋で共用されています。直前に別の部屋の議題へ回答していても、その内容を再送しないこと。",
+        "- 本プロンプトに含まれる議題と直近発言のみに基づいて回答すること。",
+        "- あなたの過去の回答がここに見えなくても「同一ターンの再配信」と解釈しないこと (別部屋のターンだった可能性が高い)。",
         "",
     ]
     # R58.2: 最初のShuji発言 (議題本文) を必ず含める
@@ -331,6 +352,7 @@ def _format_prompt(
     lines.append("   - external_wait: 外部ログ/操作待ち (自動relay停止)")
     lines.append("4. <pwa_summary>200文字程度の口語要約</pwa_summary> (R59 Q2: PWA表示用)")
     lines.append("5. 末尾に必ず Verify token 含む")
+    lines.append(f"6. 最終行に必ず [Room: {room_id}] の1行を含める (R67 部屋ルーティング検証用 — 欠落/不一致は再送要求されます)")
     lines.append("")
     lines.append("(合意成立基準: 3者全員 consensus_candidate=true で 2巡目以降)")
     if total_loops >= 2:
@@ -429,6 +451,35 @@ async def _drive_one_turn(
     _consecutive_failures[room_id] = 0
 
     _log(f"← {next_actor} {len(resp_text)} chars")
+
+    # R67 routing_validation: 部屋トークン検証 — 別部屋応答の混入を遮断
+    check = _validate_room_token(resp_text, room_id)
+    if check != "ok":
+        _log(f"⚠ R67 routing_validation={check} [room={room_id}] — 再送1回")
+        retry_prompt = (
+            prompt
+            + f"\n\n⚠️ [Clerk] 直前の応答は部屋トークン検証に失敗しました ({check})。"
+            + f"これは部屋『{room_id}』のターンです。本プロンプトの議題にのみ回答し、"
+            + f"最終行に [Room: {room_id}] を必ず含めて回答し直してください。"
+        )
+        try:
+            resp_text2 = await chrome_relay.relay_turn(cdp_port, next_actor, retry_prompt)
+            if _validate_room_token(resp_text2, room_id) in ("ok",):
+                resp_text = resp_text2
+                check = "ok"
+            elif not _validate_room_token(resp_text2, room_id).startswith("wrong"):
+                # missing×2 → 別部屋トークンでは無いので注記付きで継続 (会議停止より継続優先)
+                resp_text = resp_text2
+                check = "missing"
+        except Exception as e:
+            _log(f"⚠ R67 再送失敗: {e}")
+        if check.startswith("wrong"):
+            # 別部屋トークン = 混入確定 → 絶対に inject しない
+            _consecutive_failures[room_id] = _consecutive_failures.get(room_id, 0) + 1
+            _log(f"⛔ R67 別部屋応答を遮断 ({check}) — inject せず再ポーリング")
+            return {"error": f"routing_validation_failed:{check}", "actor": next_actor}
+        if check == "missing":
+            _log(f"⚠ R67 token欠落のまま採用 (wrongではないため継続優先) [room={room_id}]")
 
     # R63 inject堅牢化: 200確認 + 失敗時1回リトライ (応答消失防止 — 発言Claude R57報告由来)
     status, j = 0, {}
@@ -668,7 +719,8 @@ def main() -> int:
 
 def self_test() -> bool:
     """構造のみ検証 (CDP接続なしでテスト)"""
-    sample_state = {"total_loops": 1, "current_turn_in_loop": 1, "current_topic": "Test"}
+    sample_state = {"total_loops": 1, "current_turn_in_loop": 1, "current_topic": "Test",
+                    "room_id": "room_x"}
     sample_msgs = [
         {"actor": "shuji", "body": "テスト発言"},
         {"actor": "gpt", "body": "GPT R1\nconsensus_candidate: true"},
@@ -680,6 +732,16 @@ def self_test() -> bool:
     assert "GPT R1" in prompt
     assert "consensus_candidate" in prompt
     print("PASS: relay_worker self_test (prompt structure)")
+
+    # --- R67: routing_validation ---
+    assert "部屋分離 (R67)" in prompt and "『room_x』" in prompt
+    assert "[Room: room_x]" in prompt  # token指示行
+    assert _validate_room_token("回答です\n[Room: room_x]", "room_x") == "ok"
+    assert _validate_room_token("回答です (tokenなし)", "room_x") == "missing"
+    assert _validate_room_token("回答\n[Room: btc_auto_trade]", "room_x") == "wrong:btc_auto_trade"
+    # 複数tokenは最後を採用 (引用内の他部屋tokenに耐性)
+    assert _validate_room_token("引用[Room: other]を含む\n[Room: room_x]", "room_x") == "ok"
+    print("PASS: relay_worker self_test (R67 routing_validation)")
 
     # --- R63: router unit tests ---
     # _parse_ts 両形式
