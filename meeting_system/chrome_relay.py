@@ -352,6 +352,36 @@ async def wait_and_extract(
     raise TimeoutError(f"{actor} 応答が {max_wait_sec}s 以内に安定せず (鮮度検知: baseline={'有' if baseline_hash else '無'})")
 
 
+_INPUT_SELECTORS = {
+    "gemini": ('rich-textarea div[contenteditable="true"], '
+               'div.ql-editor[contenteditable="true"]'),
+    "gpt": ('#prompt-textarea, div[contenteditable="true"], '
+            'textarea[data-id]'),
+}
+
+
+async def _resilient_reload(ctx, actor: str, page):
+    """SPA向け堅牢reload: commit待ち (即発火) → 入力欄の可視性で準備完了を判定。
+
+    背景 (2026-06-13): Gemini SPAは domcontentloaded/load を発火しないため
+    wait_until="domcontentloaded" の reloadが常に20-30秒timeout→毎ターン失敗。
+    commitは navigation確定で即発火し、その後textareaの出現を別途待てば
+    「使える状態」を正しく判定できる。reload自体が落ちても入力欄があれば続行。
+    """
+    try:
+        await page.reload(wait_until="commit", timeout=15_000)
+    except Exception:
+        pass  # commitすら拾えなくても、入力欄が残っていれば続行
+    page = await find_tab(ctx, actor)
+    sel = _INPUT_SELECTORS.get(actor, _INPUT_SELECTORS["gemini"])
+    try:
+        await page.locator(sel).first.wait_for(state="visible", timeout=20_000)
+    except Exception:
+        pass  # 可視確認できなくても送信を試みる (send_prompt側で再判定)
+    await asyncio.sleep(1.5)
+    return page
+
+
 async def relay_turn(
     cdp_port: int, actor: str, prompt_text: str,
     enable_reload_retry: bool = True,
@@ -365,13 +395,11 @@ async def relay_turn(
     page = await find_tab(ctx, actor)
     # R62 fix #9: Geminiは送信前reload (複数session同期によるDOM stale対策、
     # Shuji報告「またgeminiで止まってる」 2026-06-10 23:14)
+    # 2026-06-13 fix: Gemini SPAは domcontentloaded/load を発火しないため
+    # wait_until="domcontentloaded" のreloadが常にtimeout→毎ターン失敗していた。
+    # commit待ち (即発火) + 入力欄の可視性ポーリングで「使える状態か」を判定する。
     if actor == "gemini":
-        try:
-            await page.reload(wait_until="domcontentloaded", timeout=15_000)
-            await asyncio.sleep(3.0)
-            page = await find_tab(ctx, actor)
-        except Exception:
-            pass
+        page = await _resilient_reload(ctx, actor, page)
     # R62 fix #7: 送信前の旧応答を baseline として記録 (鮮度検知)
     baseline = await get_last_response_text(page, actor)
     try:
@@ -403,11 +431,8 @@ async def relay_turn(
                     break
                 except Exception:
                     continue
-            # tab reload
-            await page.reload(wait_until="domcontentloaded", timeout=20_000)
-            await asyncio.sleep(4.0)
-            # find_tab再取得 (reloadでpageオブジェクト同じだがlocator再構築のため)
-            page = await find_tab(ctx, actor)
+            # tab reload (2026-06-13: SPAのload非発火対策で commit待ち+可視ポーリング)
+            page = await _resilient_reload(ctx, actor, page)
             # R62 fix #7: retry時も baseline再取得 (reload後の最新旧応答)
             baseline2 = await get_last_response_text(page, actor)
             await send_prompt(page, actor, prompt_text)
