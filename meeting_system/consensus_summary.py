@@ -114,6 +114,28 @@ def _is_noise_summary(s: str) -> bool:
     return (not s) or any(m in s for m in PROMPT_ECHO_MARKERS)
 
 
+_PWA_FULL_RE = None
+_PWA_PLACEHOLDERS = ("200文字程度の口語要約", "口語要約を書く", "PWA表示用")
+_PWA_MAX = 800  # まとめ「結論」の上限 (吹き出しの200字制限とは別、全文を載せる)
+
+
+def _extract_pwa_full(body: str) -> str:
+    """本文から <pwa_summary> 全文を抽出 (placeholderは除外、最大800字)。
+
+    summaryフィールドは200字に切られるが、bodyのタグには全文が入っている。
+    まとめの「合意した結論」はこちらを使うことで途中切れを防ぐ。
+    """
+    import re
+    global _PWA_FULL_RE
+    if _PWA_FULL_RE is None:
+        _PWA_FULL_RE = re.compile(r"<pwa_summary>(.*?)</pwa_summary>", re.DOTALL)
+    for raw in reversed(_PWA_FULL_RE.findall(body or "")):
+        s = (raw or "").strip()
+        if s and not any(p in s for p in _PWA_PLACEHOLDERS):
+            return s[:_PWA_MAX]
+    return ""
+
+
 def build_summary_body(
     state: dict, loop_msgs: dict[str, dict], topic_text: str = "",
 ) -> str:
@@ -133,9 +155,13 @@ def build_summary_body(
         topic = state.get("current_topic") or state.get("topic_title") or ""
 
     # 結論 = claude→gpt→gemini の順で、ノイズでない最終巡の要約を採用
+    # 2026-06-13 fix (Shuji報告「合意まとめが途中で切れる」): summaryフィールドは
+    # PWA吹き出し用に200字で切られているため、本文の<pwa_summary>全文を優先採用する
     conclusion = ""
     for a in ("claude", "gpt", "gemini"):
-        s = _clean_text((loop_msgs.get(a) or {}).get("summary") or "")
+        full = _extract_pwa_full((loop_msgs.get(a) or {}).get("body") or "")
+        s = _clean_text(full) if full else _clean_text(
+            (loop_msgs.get(a) or {}).get("summary") or "")
         if s and not _is_noise_summary(s):
             conclusion = s
             break
