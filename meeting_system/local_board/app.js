@@ -771,6 +771,12 @@ async function activateRoom(roomId) {
   // P1-② (2026-06-12): 閲覧中roomを永続化 — 次回起動時に同じ部屋を開く
   // (旧: 起動毎に先頭roomへ自動activate → 意図しない部屋へのsubmit誤送信リスク)
   try { localStorage.setItem('grl_active_room', roomId); } catch (e) {}
+  // 2026-06-16 fix: 未読ジャンプ用の既読位置を refreshTimeline の前に確保する。
+  // refreshTimeline は空タイムラインを「最下部」と誤判定して markRead で全既読化
+  // するため、後で読むと常に最新=既読になり未読先頭ジャンプが効かなかった。
+  let lastRead = null;
+  try { lastRead = localStorage.getItem('grl_read_' + roomId); } catch (e) {}
+
   await authFetch(`${API}/rooms/${roomId}/activate`, {method: 'POST'});
   document.getElementById('timeline').innerHTML = '';
   lastMsgIdByRoom[roomId] = '';
@@ -780,8 +786,6 @@ async function activateRoom(roomId) {
 
   // UX2: 未読の先頭へ自動スクロール (「ここから未読」divider付き、 LINE/Discord標準)
   const tl = document.getElementById('timeline');
-  let lastRead = null;
-  try { lastRead = localStorage.getItem('grl_read_' + roomId); } catch (e) {}
   let target = null;
   if (lastRead) {
     const nodes = Array.from(tl.querySelectorAll('.msg'));
@@ -790,7 +794,14 @@ async function activateRoom(roomId) {
   }
   if (target) {
     insertUnreadDivider(target);
-    target.scrollIntoView({block: 'start'});
+    // iOS Safari: レイアウト確定後にコンテナ相対でスクロール (scrollIntoViewは
+    // 画像読込で位置がずれる/ページ全体が飛ぶことがあるため自前計算)
+    const jump = () => {
+      const r = target.getBoundingClientRect();
+      const c = tl.getBoundingClientRect();
+      tl.scrollTop += (r.top - c.top) - 8;
+    };
+    requestAnimationFrame(() => requestAnimationFrame(jump));
   } else {
     tl.scrollTop = tl.scrollHeight;
   }
