@@ -785,23 +785,27 @@ def create_app(base: Path = DEFAULT_BASE):
             consensus_candidate=consensus_candidate, base=base,
             consensus_value=consensus_value,  # R59 Q3
         )
-        # R59 Q3 / R61 B: blocked/external_wait → 同loop内に2者以上いる時のみ全体停止
-        # 1者だけなら 議論継続 (他2者で判定可能なケース、 Shujiさん指示 2026-06-10)
-        if consensus_value in ("blocked", "external_wait"):
-            try:
-                _st = read_state(room_id, base)
+        # 2026-06-17 Shuji指示: blocked/external_wait でも『その巡の3者全員が
+        # 喋ってから』停止する (旧: 同loop内2者以上で即停止 → 3人目が発言できなかった)。
+        # → 停止判定を巡の完了時(直近injectが巡の最後=current_turn_in_loop==0)に移す。
+        #   巡完了時に 2者以上がwaitなら停止 (現actorの票種に依らず判定)。
+        try:
+            _st = read_state(room_id, base)
+            # update_consensus は最後のactor(claude)後に current_turn_in_loop=0 にする
+            loop_complete = _st.get("current_turn_in_loop", 0) == 0
+            if loop_complete and _st.get("status") not in ("blocked", "external_wait"):
                 cur_loop_key = str(_st.get("total_loops", 0))
                 cur_cands = _st.get("consensus_candidates_per_loop", {}).get(cur_loop_key, {})
-                same_loop_waiters = sum(
-                    1 for v in cur_cands.values()
-                    if v in ("blocked", "external_wait")
-                )
-                if same_loop_waiters >= 2:
-                    _st["status"] = consensus_value
+                waits = [v for v in cur_cands.values()
+                         if v in ("blocked", "external_wait")]
+                if len(waits) >= 2:
+                    # 多数値で停止種別決定 (同数なら blocked優先=より強い停止)
+                    _st["status"] = ("blocked"
+                                     if waits.count("blocked") >= waits.count("external_wait")
+                                     else "external_wait")
                     write_state_atomic(room_id, _st, base)
-                # else: 1者だけなら status維持 (worker進行継続)
-            except Exception:
-                pass
+        except Exception:
+            pass
         loop_for_record = loop_override if loop_override is not None else new_state.get("total_loops")
 
         record = {
