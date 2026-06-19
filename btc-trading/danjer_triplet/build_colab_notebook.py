@@ -41,7 +41,7 @@ cells.append(code(
 "BASE='Qwen/Qwen2.5-1.5B-Instruct'",
 "bnb=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=torch.float16)",
 "tok=AutoTokenizer.from_pretrained(BASE)",
-"model=AutoModelForCausalLM.from_pretrained(BASE, quantization_config=bnb, device_map='auto')",
+"model=AutoModelForCausalLM.from_pretrained(BASE, quantization_config=bnb, device_map='auto', torch_dtype=torch.float16)",
 "print('loaded', BASE)"))
 
 cells.append(md("## 4. データ整形 (messages → chat template)"))
@@ -54,8 +54,9 @@ cells.append(code(
 
 cells.append(md("## 5. LoRA 設定 + 学習 (1エポック PoC)"))
 cells.append(code(
-"from peft import LoraConfig",
+"from peft import LoraConfig, prepare_model_for_kbit_training",
 "from trl import SFTTrainer, SFTConfig",
+"model=prepare_model_for_kbit_training(model)  # QLoRA標準: 4bitモデルを学習可能化",
 "peft_cfg=LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias='none', task_type='CAUSAL_LM',",
 "    target_modules=['q_proj','k_proj','v_proj','o_proj'])",
 "args=SFTConfig(output_dir='danjer_lora', num_train_epochs=1, per_device_train_batch_size=2,",
