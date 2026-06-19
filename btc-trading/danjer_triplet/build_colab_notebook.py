@@ -21,7 +21,8 @@ cells.append(md(
 
 cells.append(md("## 1. ライブラリ導入"))
 cells.append(code(
-"!pip -q install -U transformers==4.* peft trl datasets accelerate bitsandbytes",
+"!pip -q install -U transformers==4.* peft trl datasets accelerate",
+"import os; os.environ['ACCELERATE_MIXED_PRECISION']='no'  # 混合精度を完全無効(GradScaler起因のエラー回避)",
 "import torch, json",
 "print('cuda:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"))
 
@@ -35,13 +36,13 @@ cells.append(code(
 "eval_rows=[json.loads(l) for l in open('danjer_lora_poc_eval.jsonl',encoding='utf-8')]",
 "print('train:',len(train_rows),'eval:',len(eval_rows))"))
 
-cells.append(md("## 3. ベースモデル読込 (Qwen2.5-1.5B-Instruct, 4bit)"))
+cells.append(md("## 3. ベースモデル読込 (Qwen2.5-0.5B-Instruct, fp32)",
+"※量子化なし・fp32で素直に学習(環境依存の混合精度バグを完全回避)。本番SFTでは大型モデルを使う。"))
 cells.append(code(
-"from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig",
-"BASE='Qwen/Qwen2.5-1.5B-Instruct'",
-"bnb=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=torch.float16)",
+"from transformers import AutoModelForCausalLM, AutoTokenizer",
+"BASE='Qwen/Qwen2.5-0.5B-Instruct'",
 "tok=AutoTokenizer.from_pretrained(BASE)",
-"model=AutoModelForCausalLM.from_pretrained(BASE, quantization_config=bnb, device_map='auto', torch_dtype=torch.float16)",
+"model=AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float32).to('cuda')",
 "print('loaded', BASE)"))
 
 cells.append(md("## 4. データ整形 (messages → chat template)"))
@@ -54,14 +55,13 @@ cells.append(code(
 
 cells.append(md("## 5. LoRA 設定 + 学習 (1エポック PoC)"))
 cells.append(code(
-"from peft import LoraConfig, prepare_model_for_kbit_training",
+"from peft import LoraConfig",
 "from trl import SFTTrainer, SFTConfig",
-"model=prepare_model_for_kbit_training(model)  # QLoRA標準: 4bitモデルを学習可能化",
 "peft_cfg=LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias='none', task_type='CAUSAL_LM',",
 "    target_modules=['q_proj','k_proj','v_proj','o_proj'])",
 "args=SFTConfig(output_dir='danjer_lora', num_train_epochs=1, per_device_train_batch_size=2,",
 "    gradient_accumulation_steps=8, learning_rate=2e-4, logging_steps=10, report_to='none',",
-"    fp16=False, bf16=False, optim='paged_adamw_8bit')  # 混合精度スケーラを使わずGradScaler起因のBFloat16エラーを回避",
+"    fp16=False, bf16=False)  # fp32学習・混合精度なし",
 "trainer=SFTTrainer(model=model, train_dataset=ds, args=args, peft_config=peft_cfg)",
 "trainer.train()",
 "trainer.save_model('danjer_lora_adapter')",
