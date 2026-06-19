@@ -22,6 +22,7 @@ cells.append(md(
 cells.append(md("## 1. ライブラリ導入"))
 cells.append(code(
 "!pip -q install -U transformers==4.* peft trl datasets accelerate",
+"!pip -q uninstall -y torchao  # Colab同梱の旧torchaoがpeftと非互換→除去(本PoCは未使用)",
 "import os; os.environ['ACCELERATE_MIXED_PRECISION']='no'  # 混合精度を完全無効(GradScaler起因のエラー回避)",
 "import torch, json",
 "print('cuda:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"))
