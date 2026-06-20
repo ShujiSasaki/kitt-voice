@@ -16,6 +16,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+from . import chrome_lock
 from .state_schema import (
     DEFAULT_BASE, JST, ENC, NEWLINE,
     read_state, room_state_path,
@@ -127,6 +128,7 @@ def generate(base: Path = DEFAULT_BASE,
             "shuji_unread_total": shuji_unread_total,
             "consensus_unread_count": consensus_unread,
             "cdp_port_range": CDP_PORT_RANGE,
+            "chrome_lock": chrome_lock.status(base),
         },
     }
 

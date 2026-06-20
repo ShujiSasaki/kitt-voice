@@ -43,7 +43,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from meeting_system import chrome_relay, clerk_dispatch, queue_io  # noqa: E402
+from meeting_system import chrome_lock, chrome_relay, clerk_dispatch, queue_io  # noqa: E402
 from meeting_system.state_schema import (  # noqa: E402
     DEFAULT_BASE, read_state, write_state_atomic,
 )
@@ -54,7 +54,10 @@ DEFAULT_SERVER_BASE = "https://100.70.20.113:8765"
 # R58.2: max_loop limit (runaway防止 — 2026-06-10 36-loop runaway事件)
 DEFAULT_MAX_LOOPS = 5
 # R58.2: prompt縮小 (timeline最新N件のみ抜粋、 19000+ chars → ~3000 chars想定)
-DEFAULT_RECENT_MSGS = 9  # 直近3 loops分 (= 1 loop 3 msgs × 3)
+DEFAULT_RECENT_MSGS = 11  # 2026-06-15: 8モデルベンチ評価で中立生データ11件のみ提示 (古い評価付き4件を窓外に。旧9)
+# 2026-06-17: 検収パッケージ等の全文提示用。[[FULL]] マーカー付き発言のみ緩い上限。
+FULL_CONTENT_MARKER = "[[FULL]]"
+FULL_CONTENT_MAX = 9000
 # R60 ③: 連続無応答失敗 → external_wait自動停止 (Claude R5提案)
 MAX_CONSECUTIVE_FAILURES = 3
 _consecutive_failures: dict[str, int] = {}
@@ -377,9 +380,11 @@ def _format_prompt(
     for m in recent:
         actor = m.get("actor", "?")
         body = (m.get("body") or "").strip()
-        # R58.2: 長文は切り詰め
-        if len(body) > 600:
-            body = body[:600] + "\n…(中略)…"
+        # R58.2: 長文は切り詰め。ただし検収パッケージ等 全文提示が必要な発言は
+        # マーカー [[FULL]] を含めば緩い上限まで通す (GPT/Geminiが実データを検収できる)。
+        limit = FULL_CONTENT_MAX if FULL_CONTENT_MARKER in body else 600
+        if len(body) > limit:
+            body = body[:limit] + "\n…(中略)…"
         lines.append(f"### {actor} (loop={m.get('loop','-')})")
         for ln in body.splitlines():
             lines.append(f"> {ln}")
@@ -681,6 +686,50 @@ def _heartbeat(base: Path, room_id: str) -> None:
         pass
 
 
+# ── Claude in Chrome 同時1件ロック (保守ルーム 3者合意 2026-06-21) ──
+# 共有Chrome(CDP)を駆動できるのは常に1プロセスのみ。複数プロジェクト/手動操作
+# の同時併用でエラー率が上がる事故を防ぐ。1ターン駆動の間だけ保持し、長いターンは
+# heartbeatでTTLを延ばす。プロセスがハング/落ちればheartbeat停止→TTLで自動解放。
+import contextlib as _contextlib  # noqa: E402
+import os as _os  # noqa: E402
+
+LOCK_HOLDER = f"relay_worker:{_os.getpid()}"
+
+
+async def _lock_heartbeat_loop(base: Path, interval: float = 60.0) -> None:
+    """ターン実行中、ロックの heartbeat を定期更新 (TTL延長)。"""
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            chrome_lock.heartbeat(LOCK_HOLDER, base)
+    except asyncio.CancelledError:
+        pass
+
+
+async def _drive_one_turn_locked(
+    room_id: str, base: Path, port: int, server_base: str,
+    auth: tuple[str, str] | None, poll: float, who: str,
+) -> dict:
+    """同時1件ロックを取得してから _drive_one_turn を実行。
+
+    他プロセスが保持中なら driveせず {"skip": "chrome_lock_busy"} を返す
+    (呼び元は poll 待って再試行 = 受付順の直列化)。
+    """
+    if not chrome_lock.acquire(LOCK_HOLDER, base, note=f"room={room_id}"):
+        ls = chrome_lock.status(base)
+        return {"skip": True,
+                "reason": f"chrome_lock_busy(holder={ls.get('holder')}, "
+                          f"残TTL{ls.get('ttl_remaining')}s)"}
+    hb = asyncio.create_task(_lock_heartbeat_loop(base))
+    try:
+        return await _drive_one_turn(room_id, base, port, server_base, auth)
+    finally:
+        hb.cancel()
+        with _contextlib.suppress(asyncio.CancelledError):
+            await hb
+        chrome_lock.release(LOCK_HOLDER, base)
+
+
 async def run_room(
     room_id: str, base: Path, cdp_port: int | None,
     poll: float, server_base: str, auth: tuple[str, str] | None,
@@ -719,7 +768,8 @@ async def run_room(
                 continue
             _write_router_active(base, room_id)  # R65: 処理中
             port = cdp_port or state.get("chrome_cdp_port") or 9222
-            result = await _drive_one_turn(room_id, base, port, server_base, auth)
+            result = await _drive_one_turn_locked(
+                room_id, base, port, server_base, auth, poll, "run_room")
             if result.get("done"):
                 _log(f"done: {result.get('reason')}")
                 await asyncio.sleep(30)
@@ -814,7 +864,8 @@ async def run_router(
                 continue
 
             port = cdp_port or state.get("chrome_cdp_port") or 9222
-            result = await _drive_one_turn(current, base, port, server_base, auth)
+            result = await _drive_one_turn_locked(
+                current, base, port, server_base, auth, poll, "run_router")
             if result.get("error"):
                 await asyncio.sleep(max(poll, 5.0))
             elif result.get("skip"):

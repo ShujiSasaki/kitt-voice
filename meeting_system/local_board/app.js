@@ -257,7 +257,17 @@ async function refreshSidebar() {
   if (grsDot && grsText) {
     const proc = data.global?.processing_room_id;
     const q = data.global?.router_queue || [];
-    if (proc) {
+    const lock = data.global?.chrome_lock;
+    // 同時1件ロック: 手動操作(relay_worker以外)がChromeを握っている間は行列待ち。
+    const manualLock = lock && lock.held &&
+      !String(lock.holder || '').startsWith('relay_worker');
+    if (manualLock) {
+      grsDot.style.backgroundColor = '#F59E0B';
+      grsDot.classList.remove('animate-pulse');
+      const rem = Math.round((lock.ttl_remaining || 0) / 60);
+      grsText.textContent = `🔒 Claude in Chrome 手動使用中 — 待ち` +
+        (q.length ? `${q.length}部屋` : '') + (rem ? ` (最大${rem}分で自動解放)` : '');
+    } else if (proc) {
       const pr = data.rooms.find(r => r.room_id === proc);
       const label = pr ? pr.title : proc;
       grsDot.style.backgroundColor = '#22C55E';
@@ -393,36 +403,6 @@ function ensureResumeBar(s) {
     dot.className = 'resume-dot w-2 h-2 rounded-full flex-shrink-0';
     const txt = document.createElement('span');
     txt.className = 'resume-text flex-1 min-w-0 text-dm-text truncate';
-    // 依頼ディスパッチ (2026-06-12): 合意/外部待ちの依頼を事務Claudeキューへ
-    const clerkBtn = document.createElement('button');
-    clerkBtn.type = 'button';
-    clerkBtn.className =
-      'clerk-btn text-sm font-bold px-3 py-1.5 rounded-lg active:scale-95 ' +
-      'transition flex-shrink-0 border border-dm-border text-dm-text';
-    clerkBtn.textContent = '事務へ依頼';
-    clerkBtn.addEventListener('click', async () => {
-      if (!activeRoomId) return;
-      clerkBtn.disabled = true;
-      try {
-        const r = await authFetch(`${API}/rooms/${activeRoomId}/clerk_dispatch`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({}),
-        });
-        const j = await r.json();
-        if (j.dispatched) {
-          showToast('事務Claudeへ依頼を送りました (巡回受領待ち)');
-        } else if (j.reason === 'duplicate') {
-          showToast('この依頼は送信済みです');
-        } else {
-          showToast('依頼文が見つかりませんでした');
-        }
-      } catch (e) {
-        showToast(`依頼error: ${e.message}`);
-      } finally {
-        clerkBtn.disabled = false;
-      }
-    });
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
@@ -452,17 +432,13 @@ function ensureResumeBar(s) {
         btn.disabled = false;
       }
     });
-    bar.append(dot, txt, clerkBtn, btn);
+    bar.append(dot, txt, btn);
     const footer = document.querySelector('footer');
     footer.parentNode.insertBefore(bar, footer);
   }
   bar.querySelector('.resume-dot').style.backgroundColor = info.dot;
   bar.querySelector('.resume-text').textContent = info.text;
   bar.querySelector('.resume-btn').textContent = info.btn || '再開';
-  // 依頼ボタンは合意成立/外部待ちのみ表示 (依頼文が存在しうる状態)
-  const cBtn = bar.querySelector('.clerk-btn');
-  if (cBtn) cBtn.style.display =
-    (key === 'consensus_reached' || key === 'external_wait') ? '' : 'none';
 }
 
 // ===== R56: 日付セパレータ insert =====
