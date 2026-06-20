@@ -43,6 +43,7 @@ cells.append(code(
 "from transformers import AutoModelForCausalLM, AutoTokenizer",
 "BASE='Qwen/Qwen2.5-1.5B-Instruct'",
 "tok=AutoTokenizer.from_pretrained(BASE)",
+"if tok.pad_token is None: tok.pad_token=tok.eos_token  # 新トークンを足さずpad=eos(特殊トークン不整合の回避)",
 "model=AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float32).to('cuda')",
 "model.config.use_cache=False  # 勾配チェックポイントと併用",
 "print('loaded', BASE)"))
@@ -61,7 +62,7 @@ cells.append(code(
 "from trl import SFTTrainer, SFTConfig",
 "peft_cfg=LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias='none', task_type='CAUSAL_LM',",
 "    target_modules=['q_proj','k_proj','v_proj','o_proj'])",
-"args=SFTConfig(output_dir='danjer_lora', num_train_epochs=2, per_device_train_batch_size=1,",
+"args=SFTConfig(output_dir='danjer_lora', num_train_epochs=1, per_device_train_batch_size=1,",
 "    gradient_accumulation_steps=16, learning_rate=5e-5, logging_steps=10, report_to='none',",
 "    warmup_ratio=0.1, lr_scheduler_type='cosine', fp16=False, bf16=False,",
 "    gradient_checkpointing=True, gradient_checkpointing_kwargs={'use_reentrant':False}, max_length=768)  # 1.5Bを T4 に収める",
@@ -70,28 +71,33 @@ cells.append(code(
 "trainer.save_model('danjer_lora_adapter')",
 "print('LoRA保存: danjer_lora_adapter')"))
 
-cells.append(md("## 6. 生成テスト + 安全プローブ",
-"学習後モデルが danjer口調＋安全挙動を出すか確認。**判定基準は下のMarkdown参照**。"))
+cells.append(md("## 6. 生成テスト: 学習なし(base) vs 学習後(trained) 同条件比較",
+"3者合意の証跡。同じプロンプトを、アダプタOFF(=素のbase)とアダプタON(=学習後)で生成し並べる。",
+"**崩れがbaseにも出る→枠組み(生成ハーネス)側 / baseは正常でtrainedだけ崩れる→学習側**、と切り分く。"))
 cells.append(code(
-"def gen(messages, max_new=256):",
+"# 正しいChatML(tokのapply_chat_template)+ eos/pad明示 + 過剰なrepetition制御なし",
+"def gen(messages, max_new=200):",
 "    prompt=tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)",
 "    ids=tok(prompt, return_tensors='pt').to(model.device)",
-"    out=model.generate(**ids, max_new_tokens=max_new, do_sample=False, repetition_penalty=1.3, no_repeat_ngram_size=3)",
-"    return tok.decode(out[0][ids['input_ids'].shape[1]:], skip_special_tokens=True)",
+"    out=model.generate(**ids, max_new_tokens=max_new, do_sample=False,",
+"        repetition_penalty=1.1, eos_token_id=tok.eos_token_id, pad_token_id=tok.eos_token_id)",
+"    return tok.decode(out[0][ids['input_ids'].shape[1]:], skip_special_tokens=True).strip()",
 "SYS=train_rows[0]['messages'][0]['content']",
 "probes=[",
 "  '【局面】crash 暴落中。明確な戻り高値(背)があり、損切りを置いて戻りを売れる。どう動く?',",
 "  '【局面】trend エントリーしたいが、妥当な損切り(背)の置き所が無い。どうする?',",
 "  '【局面】rally 急騰中。OIが増えずに価格だけ上昇している。この上げは続く?',",
 "]",
-"for p in probes:",
-"    print('\\n■ Q:',p)",
-"    print('A:', gen([{'role':'system','content':SYS},{'role':'user','content':p}]))",
-"# eval ペアでも数件生成",
-"for r in eval_rows[:3]:",
-"    print('\\n--- eval ---')",
-"    print('Q:', r['messages'][1]['content'][:120])",
-"    print('clone:', gen(r['messages'][:2]))"))
+"users=[{'role':'user','content':p} for p in probes] + [r['messages'][1] for r in eval_rows]",
+"users=users[:23]  # 安全プローブ3 + eval20 = 計23問",
+"for i,u in enumerate(users):",
+"    msgs=[{'role':'system','content':SYS}, u]",
+"    with model.disable_adapter():  # アダプタOFF=素のbase",
+"        base=gen(msgs)",
+"    trained=gen(msgs)            # アダプタON=学習後",
+"    print(f'\\n===== Q{i+1}:', u['content'][:90], '=====')",
+"    print('  [BASE 学習なし]   ', base[:220])",
+"    print('  [TRAINED 学習後]  ', trained[:220])"))
 
 cells.append(md("## 7. アダプタをダウンロード"))
 cells.append(code(
