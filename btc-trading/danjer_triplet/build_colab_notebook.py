@@ -37,13 +37,14 @@ cells.append(code(
 "eval_rows=[json.loads(l) for l in open('danjer_lora_poc_eval.jsonl',encoding='utf-8')]",
 "print('train:',len(train_rows),'eval:',len(eval_rows))"))
 
-cells.append(md("## 3. ベースモデル読込 (Qwen2.5-0.5B-Instruct, fp32)",
-"※量子化なし・fp32で素直に学習(環境依存の混合精度バグを完全回避)。本番SFTでは大型モデルを使う。"))
+cells.append(md("## 3. ベースモデル読込 (Qwen2.5-1.5B-Instruct, fp32)",
+"※量子化なし・fp32(混合精度バグ回避)。T4 16GBに収めるため後段でバッチ1+勾配チェックポイント。"))
 cells.append(code(
 "from transformers import AutoModelForCausalLM, AutoTokenizer",
-"BASE='Qwen/Qwen2.5-0.5B-Instruct'",
+"BASE='Qwen/Qwen2.5-1.5B-Instruct'",
 "tok=AutoTokenizer.from_pretrained(BASE)",
 "model=AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float32).to('cuda')",
+"model.config.use_cache=False  # 勾配チェックポイントと併用",
 "print('loaded', BASE)"))
 
 cells.append(md("## 4. データ整形 (messages → chat template)"))
@@ -60,9 +61,10 @@ cells.append(code(
 "from trl import SFTTrainer, SFTConfig",
 "peft_cfg=LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias='none', task_type='CAUSAL_LM',",
 "    target_modules=['q_proj','k_proj','v_proj','o_proj'])",
-"args=SFTConfig(output_dir='danjer_lora', num_train_epochs=2, per_device_train_batch_size=2,",
-"    gradient_accumulation_steps=8, learning_rate=5e-5, logging_steps=10, report_to='none',",
-"    warmup_ratio=0.1, lr_scheduler_type='cosine', fp16=False, bf16=False)  # fp32・低LRで崩壊回避",
+"args=SFTConfig(output_dir='danjer_lora', num_train_epochs=2, per_device_train_batch_size=1,",
+"    gradient_accumulation_steps=16, learning_rate=5e-5, logging_steps=10, report_to='none',",
+"    warmup_ratio=0.1, lr_scheduler_type='cosine', fp16=False, bf16=False,",
+"    gradient_checkpointing=True, gradient_checkpointing_kwargs={'use_reentrant':False}, max_length=768)  # 1.5Bを T4 に収める",
 "trainer=SFTTrainer(model=model, train_dataset=ds, args=args, peft_config=peft_cfg)",
 "trainer.train()",
 "trainer.save_model('danjer_lora_adapter')",
