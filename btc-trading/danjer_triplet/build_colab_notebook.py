@@ -90,14 +90,20 @@ cells.append(code(
 "]",
 "users=[{'role':'user','content':p} for p in probes] + [r['messages'][1] for r in eval_rows]",
 "users=users[:23]  # 安全プローブ3 + eval20 = 計23問",
+"records=[]",
 "for i,u in enumerate(users):",
 "    msgs=[{'role':'system','content':SYS}, u]",
 "    with model.disable_adapter():  # アダプタOFF=素のbase",
 "        base=gen(msgs)",
 "    trained=gen(msgs)            # アダプタON=学習後",
+"    records.append({'q': u['content'], 'base': base, 'trained': trained})",
 "    print(f'\\n===== Q{i+1}:', u['content'][:90], '=====')",
 "    print('  [BASE 学習なし]   ', base[:220])",
-"    print('  [TRAINED 学習後]  ', trained[:220])"))
+"    print('  [TRAINED 学習後]  ', trained[:220])",
+"# 監査用JSONL保存(各問の入力+base+trained出力)",
+"with open('danjer_poc_compare.jsonl','w',encoding='utf-8') as f:",
+"    for r in records: f.write(json.dumps(r,ensure_ascii=False)+'\\n')",
+"print('\\n保存: danjer_poc_compare.jsonl', len(records),'件')"))
 
 cells.append(md("## 7. アダプタをダウンロード"))
 cells.append(code(
