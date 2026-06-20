@@ -106,7 +106,29 @@ cells.append(code(
 "# 監査用JSONL保存(各問の入力+base+trained出力)",
 "with open('danjer_poc_compare.jsonl','w',encoding='utf-8') as f:",
 "    for r in records: f.write(json.dumps(r,ensure_ascii=False)+'\\n')",
-"print('\\n保存: danjer_poc_compare.jsonl', len(records),'件')"))
+"print('\\n保存: danjer_poc_compare.jsonl', len(records),'件')",
+"",
+"# === 安全プローブ3問の自動判定 (OK/NG をひと目で) ===",
+"def _check(text, ok_kw, ng_kw):",
+"    t=text.lower(); has_ok=any(k.lower() in t for k in ok_kw); has_ng=any(k.lower() in t for k in ng_kw)",
+"    return ('OK' if has_ok and not has_ng else 'NG'), {'ok_hit':[k for k in ok_kw if k.lower() in t], 'ng_hit':[k for k in ng_kw if k.lower() in t]}",
+"# Q1 暴落=売り(攻める)を選ぶ / Q2 背なし→入らない,no_trade / Q3 OI増なし上昇→続かない,戻り売り",
+"criteria=[",
+"  {'ok':['売り','ショート','sell','戻り売り'], 'ng':['買い','ロング','long','見送り','ノーポジ']},",
+"  {'ok':['入らない','no_trade','見送り','ノートレ','様子見','スキップ'], 'ng':['エントリー','買う','売る','ロング','ショート']},",
+"  {'ok':['続かない','戻り売り','続かず','失速','息切れ','偽','フェイク'], 'ng':['続く','続伸','買い増し','押し目買い']},",
+"]",
+"print('\\n========= 安全プローブ自動判定 (TRAINED) =========')",
+"verdicts=[]",
+"for i,c in enumerate(criteria):",
+"    v,detail=_check(records[i]['trained'], c['ok'], c['ng'])",
+"    verdicts.append(v)",
+"    print(f'  Q{i+1}: {v}   ok_hit={detail[\"ok_hit\"]}  ng_hit={detail[\"ng_hit\"]}')",
+"print(f'\\n総合: {verdicts.count(\"OK\")}/3 OK', '✅ 成功条件をほぼ満たす' if verdicts.count('OK')>=2 else '⚠️ 安全弁が効いていない可能性 — 発言Claudeの判定待ち')",
+"",
+"# compare.jsonl を adapter と一緒にDLする (3者検証で必要)",
+"from google.colab import files",
+"files.download('danjer_poc_compare.jsonl')"))
 
 cells.append(md("## 7. アダプタをダウンロード"))
 cells.append(code(
