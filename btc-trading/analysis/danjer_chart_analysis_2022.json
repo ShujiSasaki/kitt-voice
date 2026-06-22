@@ -1,0 +1,296 @@
+{
+  "metadata": {
+    "source": "smile_danjer (@smile_danjer) Twitter/X",
+    "year": 2022,
+    "total_images": 1491,
+    "sampled_images": 299,
+    "analysis_date": "2026-05-19"
+  },
+
+  "indicators": {
+    "ichimoku_cloud": {
+      "frequency": "very_high",
+      "mention_count": 12,
+      "timeframes_used": ["4H", "8H", "3D"],
+      "usage": "Primary indicator for resistance/support and trend direction. Uses cloud (kumo) thickness as resistance strength indicator. Cloud twist (nejire) used as entry signal. Red cloud = bearish resistance, Green cloud = bullish support.",
+      "settings": "Default Ichimoku settings (9/26/52). Referred to simply as '雲' (kumo/cloud).",
+      "key_observations": [
+        "4H cloud used for short-term trend assessment",
+        "8H cloud used as key fractal comparison overlay",
+        "Cloud twist (ねじれ) as timing signal for trend change",
+        "Cloud entry: 'If price enters cloud, buy on pullback after becoming a wick'",
+        "Cloud thickness = resistance strength"
+      ]
+    },
+    "sma": {
+      "frequency": "high",
+      "periods_observed": {
+        "SMA25": {"color": "yellow", "usage": "Short-term trend on 4H"},
+        "SMA50": {"color": "yellow", "usage": "Medium-term on 3D for USDJPY"},
+        "SMA100": {"color": "white/yellow", "usage": "Key support/resistance on 4H, 8H, daily. Most frequently referenced SMA."},
+        "SMA200": {"color": "yellow", "usage": "Major trend indicator on 8H. 'Flattening = consolidation/squeeze signal'"}
+      },
+      "key_observations": [
+        "SMA100 and SMA200 are his primary SMAs",
+        "SMA100 on daily = year-end 2022 key reference (white line)",
+        "SMA100-200 range used as 'box range' for breakout trading",
+        "SMA25+100 combo on 4H for USDJPY analysis",
+        "SMA200 horizontal = consolidation signal (煮詰まり)"
+      ]
+    },
+    "macd": {
+      "frequency": "moderate",
+      "mention_count": 2,
+      "usage": "Primarily for divergence detection, NOT for signal line crosses. Combined with candlestick patterns for entries.",
+      "settings": "Default MACD settings",
+      "key_observations": [
+        "MACD divergence + resistance/support flip = high confidence trade",
+        "Divergence used for PROFIT TAKING, not for contrarian entries",
+        "When used for contrarian: must combine with candlestick confirmation"
+      ]
+    },
+    "gmma": {
+      "frequency": "moderate",
+      "mention_count": 3,
+      "timeframes_used": ["5min"],
+      "usage": "Short-term scalping tool. 5-minute GMMA for 'sell the bounce' after sharp drops.",
+      "settings": "Standard GMMA (Guppy Multiple Moving Average) - 12 EMAs total. Short-term group: 3,5,8,10,12,15. Long-term group: 30,35,40,45,50,60. Displayed as red (long) and green (short) ribbon.",
+      "key_observations": [
+        "Used exclusively on 5-min chart",
+        "Post-crash bounce selling strategy: 'First bounce sell usually works, second bounce is risky'",
+        "When GMMA ribbon is spread wide = strong trend, sell bounces to ribbon"
+      ]
+    },
+    "tars": {
+      "frequency": "rare",
+      "mention_count": 1,
+      "usage": "Consolidation/squeeze indicator. Called '煮詰まりインジケータ (TARS)'. Used on 8H chart to detect range compression before breakout.",
+      "settings": "Unknown custom settings. Name suggests it may be a TradingView custom indicator.",
+      "key_observations": [
+        "Used on 8H timeframe",
+        "Identifies consolidation before breakout",
+        "Combined with channel position analysis"
+      ]
+    },
+    "open_interest": {
+      "frequency": "very_high",
+      "mention_count": 23,
+      "sources": ["Coinglass", "Binance", "Bybit", "BitMEX", "FTX"],
+      "usage": "Core decision-making data. OI increase/decrease combined with price direction is his PRIMARY edge.",
+      "key_observations": [
+        "Price up + OI down = short cover (not real buying, will reverse)",
+        "Price down + OI up = new shorts being added (dangerous, reversal possible)",
+        "OI explosion = position crowding = liquidation cascade imminent",
+        "Active OI tracking by exchange (Binance, Bybit, BitMEX separately)",
+        "OI increase during range = fuel accumulation for breakout",
+        "FTX OI 'heavily piling on' = do not fight the flow",
+        "1B OI threshold = 'danger zone'",
+        "Leverage ratio monitoring (Bybit)"
+      ]
+    },
+    "funding_rate": {
+      "frequency": "moderate",
+      "mention_count": 5,
+      "abbreviation": "FR",
+      "usage": "Sentiment gauge. FR(+) = longs dominant, FR(-) = shorts dominant. Used alongside OI for positioning.",
+      "key_observations": [
+        "FR direction used to confirm OI positioning",
+        "Extreme FR = crowded positioning = reversal signal"
+      ]
+    },
+    "liquidation_data": {
+      "frequency": "moderate",
+      "sources": ["Coinglass"],
+      "usage": "Aggregated liquidations monitored for cascade events. Long liquidation cascades = buy opportunity after settling.",
+      "key_observations": [
+        "Large liquidation + OI decrease = forced selling exhaustion",
+        "Post-liquidation push = short-term reversal opportunity"
+      ]
+    },
+    "spot_buy_sell_ratio": {
+      "frequency": "low",
+      "source": "@btc_status dashboard",
+      "usage": "Spot vs derivatives buy/sell ratio for confirming real demand vs speculative activity"
+    },
+    "fibonacci": {
+      "frequency": "moderate",
+      "levels_used": ["0.236", "0.382", "0.5", "0.618", "0.786", "1.0"],
+      "usage": "Half retracement (50%) is the single most important level. References Gann: 'Gann considered 50% the most important level.'",
+      "key_observations": [
+        "50% retracement is danjer's most referenced level (12 mentions)",
+        "Used on daily, weekly, 3D, 12H timeframes",
+        "Fibonacci drawn from swing high to swing low",
+        "0.5 level used as both entry and invalidation point"
+      ]
+    }
+  },
+
+  "chart_patterns": {
+    "by_frequency": [
+      {"pattern": "Half retracement (50% / 半値)", "count": 12, "notes": "Most referenced. Gann's most important level."},
+      {"pattern": "Fractal overlay (フラクタル)", "count": 11, "notes": "Signature technique. Overlay past price structure on current."},
+      {"pattern": "Descending/Ascending channel (チャネル)", "count": 10, "notes": "Center line is 'ironclad' (鉄壁の中央ライン). Trades from channel edges."},
+      {"pattern": "Ascending triangle (アセトラ)", "count": 9, "notes": "DANGEROUS in BTC: 'BTC ascending triangle breakout never works well'"},
+      {"pattern": "Resistance/Support flip (レジサポ転換)", "count": 9, "notes": "Core concept. Always looks for flip confirmation."},
+      {"pattern": "Head & Shoulders / Triple top (三尊)", "count": 8, "notes": "Used in both directions. Combined with neckline analysis."},
+      {"pattern": "Consolidation/Squeeze (煮詰まり)", "count": 6, "notes": "Detected via SMA200 flattening or TARS indicator."},
+      {"pattern": "Adam & Eve bottom (アダムイブ底)", "count": 5, "notes": "Sharp V-bottom followed by rounded bottom. Eve = reverse H&S."},
+      {"pattern": "Inverse H&S (逆三尊)", "count": 5, "notes": "Bullish reversal pattern."},
+      {"pattern": "Wedge (ウェッジ)", "count": 4, "notes": "Descending wedge = bullish breakout after volatility compression."},
+      {"pattern": "Diamond (ダイアモンド)", "count": 4, "notes": "Expanding then contracting range."},
+      {"pattern": "V-shape reversal (V字)", "count": 4, "notes": "Sharp reversal pattern."},
+      {"pattern": "Falling three methods (下げ三法)", "count": 3, "notes": "Sakata Goho. 'Post-crash falling three methods is devastatingly effective.'"},
+      {"pattern": "Engulfing candle (包み足)", "count": 3, "notes": "Used for reversal confirmation."},
+      {"pattern": "Rising three methods (上げ三法)", "count": 1, "notes": "Sakata Goho. 4 candles without retrace = weak selling pressure."},
+      {"pattern": "Short selling structure (空売りの構造)", "count": 2, "notes": "Referenced from a Japanese trading book."},
+      {"pattern": "Doji (十字足)", "count": 8, "notes": "Market indecision signal. Inside bar after doji = squeeze."}
+    ]
+  },
+
+  "fractal_analysis": {
+    "description": "danjer's SIGNATURE technique. Overlays past BTC price patterns on current chart using TradingView's 'Bar Pattern' tool.",
+    "method": [
+      "1. Visually scan chart for similar patterns",
+      "2. Use TradingView Bar Pattern tool to copy the historical section",
+      "3. Overlay on current price and project future movement",
+      "4. Cross-reference with other indicators (OI, cloud, channels)"
+    ],
+    "historical_periods_referenced": [
+      {"period": "2018 bear market bottom", "used_for": "2022 bottom comparison. SMA100 daily comparison."},
+      {"period": "2021/12 weekly", "used_for": "CME gap close + slight high update then weekly bearish close"},
+      {"period": "2022/06/30-07/03", "used_for": "FTX crash bottom comparison (Adam & Eve)"},
+      {"period": "2022 May mid-month", "used_for": "Adam & Eve neckline rejection fractal"},
+      {"period": "2022 Sept upper / Sept lower", "used_for": "4H cloud + triangle formation comparison"}
+    ],
+    "timeframes_for_fractals": ["3D", "8H", "4H", "Weekly"],
+    "key_insight": "Fractals work best when combined with Ichimoku cloud similarity and channel position"
+  },
+
+  "timeframes": {
+    "by_frequency": [
+      {"timeframe": "Daily (日足)", "count": 35, "usage": "Primary analysis timeframe. Trend direction, major S/R."},
+      {"timeframe": "4H (4時間足)", "count": 33, "usage": "Main trading timeframe. Patterns, cloud, channels."},
+      {"timeframe": "8H (8時間足)", "count": 21, "usage": "Cloud analysis, SMA200, TARS, fractal overlays. Unique to danjer."},
+      {"timeframe": "1H (1時間足)", "count": 16, "usage": "Short-term patterns, trendline breaks, OI analysis."},
+      {"timeframe": "3D (3日足)", "count": 14, "usage": "Major structure, descending triangles, wedges, cycle analysis."},
+      {"timeframe": "Weekly (週足)", "count": 7, "usage": "Macro structure, half retracements, candle body analysis."},
+      {"timeframe": "5min (5分足)", "count": 5, "usage": "Scalping with GMMA. Sell-the-bounce after crashes."},
+      {"timeframe": "12H (12時間足)", "count": 2, "usage": "Channel analysis."},
+      {"timeframe": "Monthly (月足)", "count": 2, "usage": "Macro view, half-value levels."},
+      {"timeframe": "15min (15分足)", "count": 1, "usage": "Double bottom entries."},
+      {"timeframe": "30min (30分足)", "count": 1, "usage": "OI increase/decrease analysis."},
+      {"timeframe": "1min (1分足)", "count": 2, "usage": "Execution timing (separate tool, not TradingView)."}
+    ],
+    "unique_observation": "8H timeframe is unusually prominent - not commonly used by other traders. danjer uses it as his 'sweet spot' between 4H and daily."
+  },
+
+  "tools_and_platforms": {
+    "primary": {
+      "TradingView": {
+        "usage": "Main charting platform",
+        "exchange": "COINBASE (BTCUSD pair)",
+        "features_used": ["Bar Pattern (fractal overlays)", "Drawing tools", "Multi-layout", "Replay mode"],
+        "chart_tabs": "Multiple saved layouts visible (6_BTC/USD, 5_BTC/USD, etc.)"
+      }
+    },
+    "secondary": {
+      "Coinglass": {
+        "usage": "OI, Funding Rate, Liquidations, Leverage Ratio",
+        "timeframes": ["1H", "4H", "1D"],
+        "exchanges_monitored": ["Binance", "Bybit", "BitMEX", "FTX (pre-collapse)"]
+      },
+      "orderbook_tool": {
+        "description": "Desktop application showing 1m+15m BitMEX charts, orderbook (BitMEX/Bitfinex/Binance), volume checker, FR, OI/OV. Similar to TradingLite.",
+        "usage": "1-minute execution and orderbook depth analysis. Free installable PC tool.",
+        "features": ["Realtime orderbook depth", "Inago flyer-like volume visualization", "FR display", "Memo function"]
+      }
+    },
+    "mobile": "TradingView mobile app (screenshot from iPhone visible)",
+    "exchange_for_trading": "BitMEX confirmed (position screenshots showing lots, pips)"
+  },
+
+  "charting_style": {
+    "drawing_techniques": {
+      "channels": {
+        "description": "Descending/ascending channels drawn on 4H, 8H, 12H, daily",
+        "colors": "Red/pink for descending channels, yellow for key trendlines",
+        "center_line": "Channel center line is called '鉄壁の中央ライン' (ironclad center line). Key resistance/support.",
+        "trading_approach": "Swing trade from channel edges. Center = avoid positions or scalp only."
+      },
+      "horizontal_lines": {
+        "colors": "Yellow = key S/R levels, White = range boundaries, Green = support zones",
+        "zones": "Uses range boxes (rectangles) to mark consolidation zones"
+      },
+      "annotations": {
+        "style": "Heavy use of Japanese text annotations directly on chart",
+        "arrows": "White/large arrows for expected price direction",
+        "labels": "Blue labels with white text for key concepts (レジライン, サポライン, etc.)"
+      },
+      "projected_moves": {
+        "style": "White/blue zigzag lines showing expected future price path",
+        "color_coding": "Red zigzag = bearish scenario, Blue = bullish scenario"
+      }
+    },
+    "multi_chart_layouts": {
+      "common_setups": [
+        "Current vs Historical (side by side for fractal comparison)",
+        "8H above + 4H below (same asset, different indicators)",
+        "Multiple assets (BTC + USDJPY + NASDAQ)"
+      ]
+    }
+  },
+
+  "trading_philosophy": {
+    "core_principles": [
+      "Fractal analysis is the primary edge - 'フラクタルしか勝たん' (Only fractals win)",
+      "OI/FR analysis is critical - never fight the flow when OI is exploding",
+      "Half retracement (50%) is the most important Fibonacci level",
+      "BTC ascending triangle breakouts are historically dangerous (opposite of textbook)",
+      "Channel center line is the strongest S/R in a channel",
+      "Post-crash: sell the bounce with GMMA on 5min. First bounce works, second is risky.",
+      "Falling three methods (下げ三法) after crash is extremely reliable",
+      "Volatility compression (煮詰まり) = breakout imminent. Wait for direction, then follow.",
+      "Dow Theory: BTC trend reversal confirmed only above $25,000 (in 2022 context)",
+      "Cut losses fast, rebuy at better levels rather than holding",
+      "Candle body close confirmation before acting (not just wicks)"
+    ],
+    "risk_management": [
+      "Minimum 1:2 risk/reward ratio",
+      "Stop loss placed at candle body close below level (not wick)",
+      "Low leverage for swing positions",
+      "Position cutting on first sign of plan invalidation"
+    ],
+    "unique_insights": [
+      "BTC ascending triangle breakout = usually fails. Learned this multiple times in 2022.",
+      "Short covering (OI decrease during price increase) = not real buying, will reverse",
+      "New shorts piling in (OI increase during price decrease) = liquidation cascade setup",
+      "Exchange-specific OI matters - FTX OI was heavy before collapse",
+      "Leverage ratio by exchange tracks speculative excess",
+      "Astrology/lunar cycles occasionally referenced (蟹座満月 in Jan 2022 tweet)"
+    ]
+  },
+
+  "key_price_levels_2022": [
+    {"level": 25000, "significance": "Trend reversal confirmation (Dow Theory)"},
+    {"level": 21350, "significance": "Key resistance/support flip level"},
+    {"level": 20900, "significance": "Sell-the-bounce target (late June)"},
+    {"level": 20000, "significance": "Major psychological level, range boundary"},
+    {"level": 19750, "significance": "Long target / support (July)"},
+    {"level": 19500, "significance": "Range boundary (Sept-Oct)"},
+    {"level": 18750, "significance": "Break below = crash scenario"},
+    {"level": 18500, "significance": "Fib 50% level on 3D (Dec), monthly half-value"},
+    {"level": 17650, "significance": "Short target (July)"},
+    {"level": 17000, "significance": "Key level post-FTX"},
+    {"level": 16600, "significance": "Diamond pattern target / S/R flip zone"},
+    {"level": 15527, "significance": "Fib 0 level (bottom) on 3D"}
+  ],
+
+  "instruments_analyzed": [
+    "BTCUSD (primary - COINBASE)",
+    "BTCUSDT (Binance, for OI analysis)",
+    "USDJPY (secondary - FXCM)",
+    "NASDAQ",
+    "Gold",
+    "TSE stocks (occasional)"
+  ]
+}

@@ -1,0 +1,349 @@
+{
+  "metadata": {
+    "analyst": "Claude",
+    "date": "2026-05-19",
+    "dataset": "2180 chart images from @smile_danjer (2023)",
+    "sampling": "Every 7th image (312 sampled), 35+ images visually inspected",
+    "period": "2023-01-02 to 2023-12-10"
+  },
+
+  "activity_distribution": {
+    "total_images": 2180,
+    "h1_jan_jun": 1882,
+    "h2_jul_dec": 298,
+    "note": "Activity dropped 84% in H2. July=0 images. Sep=9 images. Peak activity was March (497).",
+    "monthly": {
+      "2023-01": 290,
+      "2023-02": 370,
+      "2023-03": 497,
+      "2023-04": 115,
+      "2023-05": 398,
+      "2023-06": 212,
+      "2023-07": 0,
+      "2023-08": 73,
+      "2023-09": 9,
+      "2023-10": 53,
+      "2023-11": 99,
+      "2023-12": 64
+    }
+  },
+
+  "assets_traded": {
+    "BTC": {"mentions": 717, "pct": "33%", "note": "Primary asset. BTCUSD on Coinbase + BTCUSDT on Binance perps"},
+    "Gold_XAU": {"mentions": 139, "pct": "6%", "note": "XAU/USD, frequently traded alongside BTC"},
+    "USDJPY": {"mentions": 136, "pct": "6%", "note": "Active in Jan-Mar 2023 during BOJ policy shifts"},
+    "ETH": {"mentions": 33, "pct": "2%", "note": "Mostly for comparison/dominance analysis"},
+    "NASDAQ": {"mentions": 15, "pct": "1%", "note": "US100 for macro correlation"}
+  },
+
+  "timeframe_distribution": {
+    "daily": {"count": 240, "note": "PRIMARY. Most trend analysis done here"},
+    "4H": {"count": 168, "note": "PRIMARY. Cycle theory main timeframe"},
+    "1H": {"count": 99, "note": "Entry timing, Ichimoku cloud analysis"},
+    "8H": {"count": 97, "note": "DISTINCTIVE. Used heavily for Ichimoku cloud + diamond patterns"},
+    "5min": {"count": 95, "note": "Scalping entries with GMMA breakout"},
+    "weekly": {"count": 63, "note": "Macro structure, log scale analysis"},
+    "2H": {"count": 58, "note": "CME futures analysis, cloud twist timing"},
+    "3day": {"count": 57, "note": "DISTINCTIVE. Cycle + TARS breakout detection"},
+    "15min": {"count": 55, "note": "Short-term pattern confirmation"},
+    "1min": {"count": 38, "note": "Scalp execution, liquidation events"},
+    "monthly": {"count": 30, "note": "Macro cycles, Elliott wave counting"},
+    "30min": {"count": 21},
+    "12H": {"count": 4}
+  },
+
+  "indicators_and_settings": {
+    "ichimoku_cloud": {
+      "count": 78,
+      "settings": "Default TradingView settings (9,26,52)",
+      "usage": [
+        "Cloud twist = timing of potential reversals",
+        "Cloud thickness = support/resistance strength",
+        "Price entering cloud = dangerous zone (hard to trade)",
+        "Cloud as jump pad for uptrend continuation",
+        "Monday 5AM (JST) cloud twist = watch for manipulation"
+      ],
+      "timeframes": ["1H", "2H", "4H", "8H"],
+      "visual_note": "Green/red cloud fill visible on TradingView. Red line (Senkou A) and green line (Senkou B) clearly shown"
+    },
+    "GMMA": {
+      "count": 35,
+      "full_name": "Guppy Multiple Moving Average",
+      "settings": "Custom 'GMMA改' (modified version). Standard short-term (3,5,8,10,12,15) + long-term (30,35,40,45,50,60) EMA bundles",
+      "usage": [
+        "Short-term bundle vs long-term bundle = trend strength",
+        "Bundles intertwined = consolidation/range",
+        "Long-term bundle spacing wide = strong trend",
+        "Price breaking through long-term GMMA = major move incoming",
+        "GMMA + SMA200 combo for 5min scalping",
+        "Perfect Order = all MAs aligned = strong trend",
+        "GC/DC signals between bundles for entry/exit"
+      ],
+      "combined_with": ["SMA200 (yellow)", "Ichimoku Cloud"],
+      "timeframes": ["5min (scalping)", "1H", "4H"],
+      "visual_note": "Rainbow-colored bands - red/yellow for short-term, green/blue for long-term on dark TradingView theme"
+    },
+    "TARS": {
+      "count": 17,
+      "full_name": "TARS Breakout Indicator (TradingView)",
+      "description": "Breakout detection indicator. Shows vertical purple/blue shading when price is consolidating ('煮詰まり'). Does NOT predict direction, only signals volatility compression before breakout",
+      "settings": "Custom indicator on TradingView. Sub-pane shows histogram (green) that spikes when breakout conditions are met",
+      "usage": [
+        "Purple vertical bars = consolidation detected",
+        "Histogram peaks = breakout imminent",
+        "Combined with 3-day chart for macro breakout timing",
+        "Used to time entries - wait for TARS signal then direction confirmation"
+      ],
+      "timeframes": ["Daily", "3Day", "8H"],
+      "visual_note": "Purple/blue vertical shading zones on main chart, green histogram below. Layout reference: '8_BTC_TARS'"
+    },
+    "SMA_EMA": {
+      "count": 81,
+      "settings": {
+        "SMA200": "Yellow line, used as dynamic support/resistance on 5min for scalping",
+        "SMA_general": "Standard periods visible in charts"
+      },
+      "usage": ["SMA200 as major S/R on 5min chart", "Combined with GMMA for breakout confirmation"]
+    },
+    "MACD": {
+      "count": 20,
+      "settings": "Default (12, 26, 9)",
+      "usage": [
+        "Divergence detection (regular and hidden)",
+        "Golden Cross (GC) = bullish, Dead Cross (DC) = bearish",
+        "Hidden GC = bullish continuation (price higher low + MACD lower low)",
+        "Regular divergence = reversal warning",
+        "Used on 1H-4H for timing"
+      ]
+    },
+    "RMI_Trend_Sniper": {
+      "count": 1,
+      "description": "TradingView indicator. Shows trend direction with colored bands + triangle signals (green up / red down). Appeared in Oct 2023",
+      "visual_note": "Red/blue/green colored bands with arrow signals. Layout: '1.BTUSD_coin'",
+      "timeframes": ["1H (18-month scale)"]
+    },
+    "CVD_Volume": {
+      "count": "Visible in TradingLite screenshots",
+      "description": "(D7R) CVD+ and (D7R) Volume+ indicators on TradingLite",
+      "usage": "Large order flow analysis, whale tracking"
+    },
+    "Bollinger_Bands": {
+      "count": 5,
+      "note": "Rarely mentioned, minor usage"
+    }
+  },
+
+  "chart_patterns": {
+    "triangle_wedge": {"count": 65, "note": "Includes symmetric triangles, wedges, and general triangle references"},
+    "channel": {"count": 58, "note": "Parallel channels (ascending/descending), used for range-bound trading"},
+    "head_and_shoulders": {"count": 49, "note": "三尊 (triple mountain). Both regular and inverted"},
+    "diamond": {"count": 44, "note": "DISTINCTIVE. danjer's specialty pattern. Used on 15min to 8H. Often precedes major reversals"},
+    "ascending_triangle": {"count": 32, "note": "アセトラ - bullish pattern, frequent in Mar-Jun 2023 as BTC built base"},
+    "double_top_bottom": {"count": 25, "note": "W-bottom for entry, double top for exit"},
+    "dragon_pattern": {"count": 23, "note": "ドラゴンチャート - specialty pattern: tail, body, legs, head. Back = resistance, tail tip = price target"},
+    "inside_outside": {"count": 18, "note": "Inside bars for range compression, outside bars for breakout confirmation. Used on weekly"},
+    "cup_and_handle": {"count": 6, "note": "Used on monthly ETH chart and daily BTC. Classic pattern"},
+    "descending_triangle": {"count": 4, "note": "Bearish pattern, less frequent in 2023 uptrend"},
+    "flag_pennant": {"count": 0, "note": "Not commonly referenced"}
+  },
+
+  "analysis_methods": {
+    "cycle_theory": {
+      "count": 84,
+      "details": {
+        "4H_cycle": {"bars": "60-80 candles", "note": "Primary trading cycle"},
+        "daily_cycle": {"bars": "~74 bars", "note": "Used for swing trades"},
+        "3day_cycle": {"note": "Major turning points"},
+        "left_right_translation": {"count": 29, "description": "High point in left half = bearish (LT), right half = bullish (RT). Used to determine trend within cycle"},
+        "bar_counting": "Uses TradingView's bar count + percentage range measurement tool"
+      },
+      "key_insight": "danjer counts bars between cycle lows, looks for 60-80 bar 4H cycles. Left/Right translation determines bias within cycle"
+    },
+    "fractal_analysis": {
+      "count": 46,
+      "usage": [
+        "Overlaying past price action onto current chart (yellow box = past, current = present)",
+        "Sep-Nov 2022 pattern copy-pasted onto Jan 2023",
+        "Historical pattern matching for direction prediction",
+        "Combined with channel analysis for projection"
+      ],
+      "key_insight": "danjer physically draws past patterns over current price to find similarities. When match is strong, trades with high conviction"
+    },
+    "elliott_wave": {
+      "count": 20,
+      "usage": "Mapped to sentiment cycle: pessimism (Wave 1-2), skepticism (Wave 3), optimism (Wave 4-5), euphoria (top)",
+      "note": "More conceptual than strict counting. Uses 'market is born in pessimism' quote frequently"
+    },
+    "dow_theory": {
+      "count": 8,
+      "usage": "Higher highs + higher lows = uptrend, lower highs + lower lows = downtrend. Used for basic trend determination on 8H"
+    },
+    "log_scale": {
+      "count": 7,
+      "usage": "Weekly BTC analysis on log scale to find long-term trendlines spanning 2015-2024"
+    }
+  },
+
+  "derivatives_data_usage": {
+    "liquidation": {
+      "count": 161,
+      "sources": ["Coinglass liquidation heatmap (精算ヒートマップ)", "TradingLite (D7R) Liquidations", "Binance liquidation data"],
+      "usage": [
+        "Mega liquidation events = potential reversal points",
+        "Liquidation clusters below price = magnets pulling price down",
+        "After large long liquidation = consider long (shorts are crowded)",
+        "3-day heatmap view on Coinglass for identifying major liquidation zones"
+      ],
+      "key_levels_dec_2023": "$43000 and $44000 long liq clusters identified"
+    },
+    "open_interest": {
+      "count": 149,
+      "sources": ["Coinglass OI Kline", "Binance-BTCUSDT"],
+      "usage": [
+        "OI surge = fuel accumulating (direction unknown)",
+        "OI drop + price drop = longs closing (healthy correction)",
+        "OI rise + price rise = new longs opening (watch for reversal)",
+        "OI rise + price drop = shorts opening (potential squeeze target)",
+        "Bybit + Binance OI compared side by side"
+      ]
+    },
+    "funding_rate": {
+      "count": 56,
+      "sources": ["Coinglass", "Binance derivatives", "@btc_status derivatives sheet"],
+      "usage": [
+        "Negative FR = shorts paying longs = potential bottom signal",
+        "High positive FR = overleveraged longs = caution",
+        "FR displayed as bar chart at bottom of Coinglass charts"
+      ]
+    },
+    "order_book": {
+      "count": 77,
+      "sources": ["TradingLite", "Binance spot/derivatives depth"],
+      "usage": [
+        "Large bid walls = potential support (but can be moved/pulled)",
+        "Watching for wall consumption vs wall movement",
+        "Price levels with thin order book = fast moves expected",
+        "TradingLite for visual heatmap of large orders"
+      ]
+    },
+    "derivatives_sheet": {
+      "source": "@btc_status Bitcoin Derivatives Sheet",
+      "data": "Price, Basis, BasisChg, Funding, Next FR, Yield, Open Interest, 24h Volume across 20+ venues",
+      "usage": "CME basis premium monitoring, cross-exchange OI comparison"
+    }
+  },
+
+  "support_resistance_methods": {
+    "horizontal_levels": "Most frequently used. Yellow/cyan/white horizontal lines at key price points",
+    "neckline": {"count": 39, "note": "Critical for H&S patterns and double bottom entries"},
+    "range": {"count": 198, "note": "Box/rectangle drawing for consolidation zones"},
+    "breakout": {"count": 100, "note": "Often combined with GMMA/TARS for timing"},
+    "channel_lines": "Drawn in cyan/white/yellow on TradingView. Parallel channels very common",
+    "monthly_open": "月足始値 (monthly candle open) used as key level"
+  },
+
+  "trading_platforms": {
+    "TradingView": {
+      "charts": "PRIMARY charting platform",
+      "layouts": ["1.BTUSD_coin", "2.ETH/USD", "5_BTC/USD", "6_BTC/USD", "8_BTC_TARS", "9_通貨ペア用"],
+      "features": ["Multiple saved layouts", "Log scale", "Bar replay", "Custom indicators", "Pine scripts"],
+      "data_sources": ["COINBASE (spot)", "BINANCE (perps)", "BITSTAMP", "CME (futures)", "CURRENCYCOM"]
+    },
+    "Coinglass": {
+      "usage": "OI, Liquidation heatmap, Funding rates",
+      "view": "Japanese language interface"
+    },
+    "TradingLite": {
+      "usage": "Order flow, large order visualization, CVD, Volume+",
+      "note": "Paid subscription required for major exchanges"
+    },
+    "FXGT": {
+      "usage": "Trading execution for high-leverage trades (up to 1000x)",
+      "accounts": "Multiple accounts, MT4/MT5, Standard+ account for bonus"
+    },
+    "Binance": {"mentions": 72, "usage": "Primary derivatives exchange"},
+    "Bybit": {"mentions": 43, "usage": "Secondary derivatives exchange"}
+  },
+
+  "annotation_style": {
+    "colors": {
+      "yellow": "Primary annotation color - trendlines, projected price paths, cycle counts",
+      "cyan": "Support/resistance levels, channel lines, key zones",
+      "white": "Secondary trendlines, projected patterns, Dow theory arrows",
+      "pink_magenta": "Highlighted zones, key candles, liquidation areas",
+      "red": "Bearish scenarios, resistance, danger zones",
+      "blue": "Bullish scenarios, GMMA long-term bundle"
+    },
+    "text_annotations": {
+      "language": "Japanese with occasional English",
+      "style": "Blue/cyan text boxes with explanations directly on chart",
+      "common_labels": [
+        "レジサポ転換 (S/R flip)",
+        "高値切り下げ (lower highs)",
+        "安値切り上げ (higher lows)",
+        "煮詰まり (consolidation/squeeze)",
+        "雲の捻じれ (cloud twist)",
+        "ここ超えたら本物 (if breaks here, it's real)",
+        "定着出来るか？ (can it hold?)"
+      ]
+    },
+    "arrow_annotations": "Large silver/white 3D arrows for projected direction"
+  },
+
+  "evolution_from_2022": {
+    "new_in_2023": [
+      "TARS breakout indicator (first appeared Feb 2023, used through Dec)",
+      "RMI Trend Sniper (appeared Oct 2023, seems to be testing new tools)",
+      "Modified GMMA ('GMMA改') with GC/DC signals on bundles",
+      "Dragon pattern analysis (ドラゴンチャート) - more refined in 2023",
+      "Bitcoin Derivatives Sheet (@btc_status) for cross-exchange analysis",
+      "Cup with Handle pattern recognition (Jun/Nov 2023)",
+      "More systematic cycle bar-counting with specific 60-80 bar targets",
+      "CME gap analysis became more prominent (34 mentions, especially Nov-Dec with BTC rally)",
+      "High-leverage challenge content ('1万チャレンジ') became systematic in Mar-May 2023"
+    ],
+    "continued_from_2022": [
+      "Cycle theory remains core (84 mentions)",
+      "Fractal overlay analysis unchanged in method",
+      "Ichimoku cloud as primary trend indicator",
+      "Coinglass for OI/liquidation/FR",
+      "TradingView as primary charting platform",
+      "GMMA for trend strength assessment"
+    ],
+    "reduced_in_2023": [
+      "Overall posting volume dropped dramatically in H2 (84% decline)",
+      "July 2023: zero images (vacation or break?)",
+      "Elliott wave references decreased",
+      "Fibonacci usage minimal (only 4 mentions)",
+      "No APS indicator found in 2023 data"
+    ],
+    "key_evolution_narrative": "danjer's 2023 analysis shows refinement rather than revolution. The core framework (Cycle + Fractal + Ichimoku + GMMA) remained stable. New tools (TARS, RMI) were tested but not dominant. The biggest change was incorporating more derivatives data (OI/FR/Liquidation increased vs pure chart patterns). Diamond pattern analysis became a signature move. The massive H2 activity drop suggests either real trading focus (less posting) or reduced market interest during BTC's summer consolidation."
+  },
+
+  "key_price_levels_2023": {
+    "BTC_major_levels": [
+      "$16,800 - 2022 bear market low region (Jan)",
+      "$18,000 - First major resistance (Jan)",
+      "$21,500 - Critical neckline level (Jan-Feb)",
+      "$22,200 - Most mentioned level (8 times). Key S/R zone",
+      "$23,600 - Range resistance (Feb-Mar)",
+      "$25,200 - Post-banking-crisis support (Mar)",
+      "$27,000 - Major horizontal level (7 times). Cycle theory target",
+      "$28,000-28,800 - Strong resistance zone (Mar-Apr)",
+      "$29,000-29,250 - Summer range top",
+      "$31,000 - Year high resistance / Cup neckline (Jun)",
+      "$33,600 - Liquidation target zone (Oct)",
+      "$37,000-38,000 - November rally zone, cloud + fractal analysis",
+      "$43,000-45,000 - December targets, CME gap + liquidation zones"
+    ]
+  },
+
+  "trading_style_insights": {
+    "position_sizing": "1万 (10,000 JPY) challenge accounts with 100-1000x leverage on FXGT. Separate from main trading",
+    "risk_management": "0-cut (zero-cut = exchange liquidation as stop loss). Extract profits immediately ('出金こそ命')",
+    "entry_style": "Wait for consolidation completion → breakout confirmation → enter. 'Chance will come again'",
+    "exit_style": "Set TP immediately on entry. Take partial profits early. 'Any profit is better than potential profit'",
+    "multi_timeframe": "Analyze Weekly/3D for direction → 8H/4H for cycle positioning → 1H/5min for entry",
+    "conviction_trading": "When fractal match is strong + cycle aligns + GMMA confirms → high conviction (large position)"
+  }
+}

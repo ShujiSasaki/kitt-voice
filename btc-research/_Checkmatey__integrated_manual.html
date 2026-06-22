@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>_Checkmatey_ トレード意思決定マニュアル</title>
+<style>
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.8; color: #333; font-size: 14px; }
+  h1 { font-size: 24px; border-bottom: 3px solid #333; padding-bottom: 10px; page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 { font-size: 20px; border-bottom: 2px solid #666; padding-bottom: 8px; margin-top: 40px; }
+  h3 { font-size: 17px; margin-top: 30px; }
+  h4 { font-size: 15px; margin-top: 20px; }
+  hr { margin: 40px 0; border: none; border-top: 1px solid #ccc; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 12px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: bold; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  blockquote { border-left: 4px solid #ddd; margin: 16px 0; padding: 8px 16px; color: #555; background: #fafafa; }
+  strong { color: #111; }
+  a { color: #0366d6; }
+  @media print {
+    body { margin: 15px; font-size: 11px; line-height: 1.6; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 13px; }
+    table { font-size: 10px; }
+    pre { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<p>はい、承知いたしました。ronpochi氏の提供された分析結果を統合し、AIが同じ判断を下せるレベルの具体性を持つ「完全なトレード意思決定マニュアル」を作成します。データが不足している箇所については、氏の哲学や言動から最も可能性の高い推測を加えて記述し、その旨を明記します。</p>
+<hr>
+<h2>ronpochiの完全トレード意思決定マニュアル</h2>
+<p>ronpochiは、短期的な価格変動に囚われず、暗号通貨の根源的な設計思想、経済学、ガバナンス、プライバシーに深い知見と揺るぎない信念を持つ**「原理主義的な長期価値投資家兼オンチェーンアナリスト」<strong>です。彼の投資哲学は、</strong>「健全な貨幣（Sound Money）」「真の分散化」「自己主権」「プライバシー」**を核とし、特にDecred（DCR）とBitcoin（BTC）に資金を集中させます。多くのDeFiプロジェクトやPure PoSアルトコインには極めて批判的なスタンスを取ります。彼の意思決定は、この揺るぎない信念と徹底したオンチェーンデータ分析によって導かれます。</p>
+<h3>1. トレーダープロフィール</h3>
+<ul>
+<li><strong>スタイル</strong>:<ul>
+<li><strong>長期主義・原理主義的価値投資</strong>: 短期的な値動きを追うトレーダーではなく、プロトコルの根源的な価値、ガバナンス、経済モデルを深く理解し、長期的な成長ポテンシャルに賭ける。</li>
+<li><strong>オンチェーンアナリスト</strong>: 価格チャートだけでなく、ブロックチェーン上の活動（取引量、アクティブアドレス、マイナー動向、ステーキング状況など）を重視し、市場の健全性やトレンドの転換点を判断する。</li>
+<li><strong>集中投資</strong>: 厳選した少数の「質の高い」資産（主にBitcoinとDecred）にポートフォリオの大部分を割り当て、徹底的にホールドする。</li>
+</ul>
+</li>
+<li><strong>強み</strong>:<ul>
+<li><strong>深いファンダメンタルズ理解</strong>: 暗号通貨の経済学、ガバナンス、技術的特性に関する卓越した知識。DeFiやPoSの潜在的な欠陥を鋭く指摘する。</li>
+<li><strong>包括的なオンチェーンデータ分析</strong>: 多岐にわたるオンチェーン指標を駆使し、市場の割安・割高、参加者の心理状態、ネットワークの健全性を多角的に評価する。</li>
+<li><strong>強い信念と「Skin in the game」</strong>: 確信度の高い資産には大量の資金を投入し、自身の信念に基づいて長期保有を貫く。市場のノイズに惑わされにくい。</li>
+<li><strong>先見性</strong>: Decredを「信じられないほど過小評価されている」と表現し、市場がその価値に気づいていない「情報非対称性」を認識し、先行投資する。</li>
+</ul>
+</li>
+<li><strong>弱み (推測を含む)</strong>:<ul>
+<li><strong>短期的な市場変動への対応</strong>: 利確・損切りに関する具体的な言及がほとんどなく、短期的な価格変動に対応するトレード戦略は苦手、あるいは重視していない可能性が高い。</li>
+<li><strong>ベア・レンジ相場での戦略不足</strong>: 提供データがブル相場に偏っており、下落トレンドや横ばい相場での具体的な行動指針が不明。長期保有が基本方針であるため、これらの相場でも基本的にはホールドに徹すると考えられる。</li>
+<li><strong>具体的なリスクリワード設定の欠如</strong>: データから具体的な損切り価格や利確目標の距離が読み取れないため、伝統的なトレードにおけるリスク管理手法とは異なるアプローチをとっている。</li>
+</ul>
+</li>
+<li><strong>成長の軌跡</strong>:<ul>
+<li><strong>2019年</strong>: Plan BのS2Fモデルを評価し、Monetary Premiums、PoWのセキュリティ、ハッシュレートといったマクロ経済的・技術的指標に基づいたファンダメンタルズ分析を重視。Decredのガバナンスと健全な貨幣原則をビットコインの補完・優位な資産として提唱し始める。「BitcoinersとEthereunsのヘッジ」と表現。DeFiへの初期の懐疑を表明。</li>
+<li><strong>2020年</strong>: ガバナンス論争が激化。TezosやEthereumのPure PoSモデルの欠陥（エリート層、トークン希薄化、供給上限欠如、カストディアル化リスク）を体系的に批判。DeFiを「投機的なETH価値」の大部分を占めるとし、継続的にリスクを警鐘。ビットコインの「争いのあるハードフォークバグ」や手数料市場の課題を明確化。KYCフリーで分散化された交換の重要性を強調。</li>
+</ul>
+</li>
+</ul>
+<h3>2. 相場環境の認識方法</h3>
+<p>ronpochi氏は、市場環境を判断する際に、伝統的なテクニカル分析に加え、オンチェーンデータやファンダメンタルズを非常に重視します。</p>
+<ul>
+<li><strong>ブル相場と判断する基準 (DCR/BTCに適用)</strong>:<ol>
+<li><strong>ファンダメンタルズの評価</strong>:<ul>
+<li>プロジェクトのコード品質、インフラ、大型アップグレード（例: Decredの今後の大型アップグレード）など、根源的な価値が高いと判断される時。</li>
+<li>「Illiquid, insane quality, about to release the biggest upgrade in years, just add attention.」[November 6]</li>
+<li>他の主要アセット（ETH, LTC）と比較して、ターゲットアセット（DCR）が過小評価されていると感じる時。「Simple math. DCR &gt; LTC. Give me a good reason why that should not occur?」[November 9]</li>
+</ul>
+</li>
+<li><strong>オンチェーンデータの強気転換</strong>:<ul>
+<li><strong>ステーキング活動の増加</strong>: Decredのチケット価格が史上最高値（ATH）を更新したり、チケット購入が強いことを確認した時。「#Decred Ticket Price hits new All Time High 169.48 $DCR since the sdiff algo change. This is the stake equivalent of hash-rate difficulty hitting ATH」[Thu Nov 19]。「Strong ticket buying has been extremely convincing for me. It was the last piece of the puzzle onchain. Everything else had recovered, miners had capi」[November 2]</li>
+<li><strong>マイナー活動の回復</strong>: ハッシュレートの回復や難易度調整など、マイナーの健全性が確認された時。</li>
+<li><strong>ネットワーク健全性指標</strong>: Realised Priceがサポートとして機能し、MVRV Ratioが買いゾーンにあるなど、オンチェーン指標が全体的に強気を示す時。</li>
+</ul>
+</li>
+<li><strong>価格の割安感</strong>:<ul>
+<li>現在の市場価格がプロジェクトの真の価値に対して「不当に安い」と感じる時。「Its straight up criminal how cheap it is. The code alone, just the infrastructure decred had built, its orders of magnitude out of touch.」[November 6]</li>
+</ul>
+</li>
+<li><strong>テクニカルなサイン</strong>:<ul>
+<li>主要なサポートラインからの反発や、ATHの更新。「How does a 10% move up off the retest suita ya! DCR is on a warpath north. Is this.... ...a repricing?」[November 1]。「Likewise - buying ATH feels good man.」[November 2]</li>
+<li>Mayer MultipleやMVRV Ratioが歴史的な「STRONG BUY」ゾーンにある場合。</li>
+</ul>
+</li>
+</ol>
+</li>
+<li><strong>ベア相場と判断する基準 (推測)</strong>:<ul>
+<li>提供データからは明確な基準は読み取れません。しかし、彼の哲学から、以下の要素が組み合わさった場合に長期的なベア相場と判断する可能性があります。<ul>
+<li><strong>ファンダメンタルズの劣化</strong>: ターゲットアセット（DCR/BTC）のガバナンスや経済モデルに深刻な問題が発生し、解決が困難であると判断された場合（極めて稀）。</li>
+<li><strong>オンチェーンデータの構造的劣化</strong>: 長期にわたりRealised Priceがレジスタンスとなり続け、MVRV Ratioが「STRONG SELL」ゾーンから回復せず、ネットワーク活動が著しく低下した場合。</li>
+<li><strong>S2Fモデルからの長期的な乖離</strong>: S2Fモデル価格に対して、著しく長期的に市場価格が下回り続けた場合。</li>
+</ul>
+</li>
+<li>ただし、彼は一時的な価格下落を「ノイズ」と見なし、長期的な「path to victory」を信じてホールドを継続する可能性が高いです。「DCR path to victory.」[Sat Nov 07]</li>
+</ul>
+</li>
+<li><strong>レンジ相場と判断する基準 (推測)</strong>:<ul>
+<li>提供データからは明確な基準は読み取れません。彼のスタイルから、短期的なレンジ相場はトレード対象とせず、大きなトレンドの発生を待つ、あるいはDCA（ドルコスト平均法）を継続する期間と考える可能性があります。</li>
+<li>MVRV RatioやMayer Multipleが中立ゾーン（BUYとSELLの間）で推移し、オンチェーンデータに強い方向性が見られない場合に、レンジ相場と判断するかもしれません。</li>
+</ul>
+</li>
+</ul>
+<h3>3. エントリー判断フロー (ブル相場でのDCR/BTC)</h3>
+<p>ronpochi氏のエントリー判断は、ファンダメンタルズへの確信とオンチェーンデータ、そしてテクニカルな割安感の組み合わせに基づきます。</p>
+<pre><code class="language-mermaid">graph TD
+    A[スタート: 投資対象の選定] --&gt; B{BTCまたはDCRか？};
+    B -- BTCの場合 --&gt; C{健全な貨幣原則、分散化、自己主権、プライバシーが確保されているか？};
+    B -- DCRの場合 --&gt; D{BTCの健全な貨幣原則に加え、強固なガバナンス、PoW/PoSハイブリッド、プライバシー機能が優位か？};
+    C --&gt; E{長期的な価値創造が期待できるか？};
+    D --&gt; E;
+    E --&gt; F{現在の市場価格はファンダメンタルズに対して割安か？};
+
+    F -- はい --&gt; G{オンチェーンデータで強気シグナルが出ているか？};
+    G -- いいえ --&gt; F; // 再評価またはDCA継続
+
+    G -- はい: 複合的な確認 --&gt; H[オンチェーンデータでの強気シグナル];
+    H --&gt; H1{Realised Priceがサポートとして機能しているか？};
+    H --&gt; H2{MVRV Ratioが買いゾーン（例: 1.0以下、歴史的底値）にあるか？};
+    H --&gt; H3{Mayer Multipleが買いゾーン（例: BTC: 0.6-0.8、DCR: 0.4-0.5）にあるか？};
+    H --&gt; H4{Decredの場合、チケット購入が増加し、チケット価格が上昇、マイナー活動（ハッシュレート）が回復しているか？};
+    H --&gt; H5{S2Fモデル価格からの乖離が大きく、割安感が強いか？};
+
+    H1 &amp; H2 &amp; H3 &amp; H4 &amp; H5 -- 複数項目が肯定 --&gt; I{テクニカルなエントリーサインがあるか？};
+
+    I -- はい: 複合的な確認 --&gt; J[テクニカルなエントリーサイン];
+    J --&gt; J1{主要な水平サポートライン（例: 歴史的安値、ラウンドナンバー）で反発しているか？};
+    J --&gt; J2{長期移動平均線（例: 200DMA, 128WMA）がサポートとして機能しているか？};
+    J --&gt; J3{下降トレンドラインをブレイクし、リテスト成功したか？};
+    J --&gt; J4{ATH（史上最高値）を更新し、そのブレイクアウトが持続しているか？};
+
+    J1 &amp; J2 &amp; J3 &amp; J4 -- 複数項目が肯定 --&gt; K[エントリー: 強い確信を持って現物買い増し];
+    K --&gt; L[ポジションサイジングへ];
+
+    F -- いいえ --&gt; Z[待機、またはDCAを継続];
+    I -- いいえ --&gt; G; // オンチェーンデータを再確認
+</code></pre>
+<p><strong>具体的なエントリー基準の例</strong>:</p>
+<ul>
+<li>「Its straight up criminal how cheap it is. The code alone, just the infrastructure decred had built, its orders of magnitude out of touch.」[November 6] → <strong>ファンダメンタルズに基づく割安感</strong>。</li>
+<li>「#Decred Ticket Price hits new All Time High 169.48 $DCR...」[Thu Nov 19] → <strong>オンチェーンデータ（ステーキング活動）の強気転換</strong>。</li>
+<li>「How does a 10% move up off the retest suita ya! DCR is on a warpath north.」[November 1]。「Likewise - buying ATH feels good man.」[November 2] → <strong>テクニカルなサポートからの反発またはATHブレイクアウト</strong>。</li>
+<li>Mayer Multipleが「STRONG BUY (0.6)」または「BUY (0.8)」を下回る水準。[Wed Jul 15]</li>
+<li>MVRV Ratioが「買いゾーン」（例えば0.8以下）にある場合。「MVRV Re-test Support」[Tue Feb 25]</li>
+</ul>
+<h3>4. ポジションサイジング</h3>
+<p>ronpochi氏のポジションサイジングは、<strong>確信度</strong>と<strong>長期的な価値</strong>に基づいた集中投資が核となります。レバレッジには極めて懐疑的であり、自身の投資では原則として現物主体です。</p>
+<table>
+<thead>
+<tr>
+<th align="left">確信度</th>
+<th align="left">相場環境（ブル）</th>
+<th align="left">レバレッジ使用</th>
+<th align="left">具体的な投入率とルール（推測含む）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>極めて高い</strong></td>
+<td align="left"><strong>ターゲットアセット（DCR/BTC）がファンダメンタルズ的に割安、オンチェーンデータが強気転換、テクニカルも強気を示す</strong></td>
+<td align="left"><strong>基本なし</strong></td>
+<td align="left">ポートフォリオの**過半数（Dominant Majority）**を割り当てる。特にBTCは「純資産の過半数」、DCRは「信じられないほど安い」と見なし、積極的に買い増しを行う。<br/>「Not holding dominant majority of your portfolio in it is madness.」[October 21, 2020]<br/>「Never ever ever let BTC become a minor holding.」[October 28, 2020]<br/>「Im not giving up on, BTC, it represents majority of my net worth.」[November 28, 2020]<br/>DCRへは「My conviction is so high it makes no difference.」[November 15, 2020]と表現。</td>
+</tr>
+<tr>
+<td align="left"><strong>高い</strong></td>
+<td align="left"><strong>長期的に上昇トレンドだが、一時的に押し目形成中、DCAが有効な期間</strong></td>
+<td align="left"><strong>基本なし</strong></td>
+<td align="left">**ドルコスト平均法（DCA）**を推奨し、自身もDCRを「2019年以来ずっと蓄積している」。市場が「世代的な底」にあると判断した際は、積極的に「Accumulation」期間として買い増しを行う。<br/>「Agreed that DCA is the best method for the majority.」[May 7, 2020]<br/>「First found the project and bought between $25 and $30 back in 2019 and have been in accumulation ever since.」[November 18, 2020]<br/>「historically opportune accumulation period」[October 15, 2019]</td>
+</tr>
+<tr>
+<td align="left"><strong>中程度</strong></td>
+<td align="left"><strong>ファンダメンタルズは良好だが、市場の方向感が不確実、または短期的なノイズが多い</strong></td>
+<td align="left"><strong>基本なし</strong></td>
+<td align="left">新規ポジションの積極的な投入は控え、コア資産のホールドを継続。DCAのペースを調整するか、一時的に停止。</td>
+</tr>
+<tr>
+<td align="left"><strong>低い</strong></td>
+<td align="left"><strong>ファンダメンタルズに懸念、または高レバレッジ、DeFi/Pure PoSアルトコインなどのリスク資産</strong></td>
+<td align="left"><strong>絶対なし</strong></td>
+<td align="left"><strong>資金を投入しない</strong>。「レバレッジは危険なギャンブル」「DeFiはシステムリスク」と強く警鐘を鳴らすため、これらの資産には一切投資しない。<br/>「I will rarely use ETH tech, I don&#39;t gamble on leverage.」[July 19, 2020]<br/>「High-leverage is a degen act.」[March 6, 2020]</td>
+</tr>
+<tr>
+<td align="left"><strong>情報非対称性がある場合</strong></td>
+<td align="left"><strong>市場が全く認識していない独自の深い分析に基づく投資機会</strong></td>
+<td align="left"><strong>限定的に検討</strong></td>
+<td align="left">DCRのような資産に対しては、市場の非効率性を利用し、高いリターンを狙う積極的な姿勢が見られる。これは、レバレッジによるリスク増大とは異なり、確信度の高い投資先への資金集中による<strong>高ベータなアプローチ</strong>と解釈できる。<br/>「This is an information asymmetry. Its so fucking strong. Market has no idea. Frontrun it.」[October 16, 2020]<br/>ただし、これはレバレッジを使うという意味ではなく、現物で大きなポジションを取ることを意味する可能性が高い。オプション取引をリスク管理ツールとして言及はしているが、自身が積極的に行っているかは不明。<br/>「Options are a challenging instrument to understand at first, yet immensely powerful once you get it for managing risk.」[March 8, 2020]</td>
+</tr>
+</tbody></table>
+<h3>5. イグジット判断 (利確/損切り/建値ストップ)</h3>
+<p>ronpochi氏の投資哲学は長期保有に重きを置いているため、短期的な利確や損切りは彼のマニュアルにはほとんど登場しません。しかし、彼のチャート分析からは「過熱感」や「売りゾーン」の指標が読み取れるため、理論上の利確基準は存在します。損切りは彼の信念上、極めて広範であるか、あるいは「ホールド」が前提であると推測されます。</p>
+<ul>
+<li><p><strong>利確基準</strong>:</p>
+<ol>
+<li><strong>S2Fモデルからの過大な乖離</strong>: S2Fモデル価格に対して、市場価格が著しく上回り、歴史的に「売り」を示唆する乖離率に達した場合。</li>
+<li><strong>MVRV Ratioの売りゾーン到達</strong>: MVRV Ratioが高水準（例: 1.8以上、特に2.4以上）に達し、「MVRV SELL ZONE」と判断される場合。これは市場の過熱感とHODLersの利益確定行動を示す。<ul>
+<li>「MVRV Ratioの買いゾーン下限/売りゾーン上限」[Thu Apr 23]</li>
+<li>「MVRV-Z Score chartにおける「SELL」「STRONG SELL」ライン」[Tue Apr 07]</li>
+</ul>
+</li>
+<li><strong>Mayer Multipleの売りゾーン到達</strong>: Mayer Multipleが特定の高水準（例: BTC: 2.4以上、DCR: 1.6以上、特に3.4以上）に達し、「SELL」「STRONG SELL」ラインと判断される場合。これは価格が200日移動平均線から大きく乖離し、過熱感がある状態を示す。<ul>
+<li>「Mayer Multiple BUY (0.8), CAUTION (1.6), SELL (2.4), STRONG SELL (3.4) for BTC; 0.4 (STRONG BUY), 0.5 (BUY), 1.6 (SELL), 2.8 (STRONG SELL) for DCR」[Wed Jul 15]</li>
+</ul>
+</li>
+<li><strong>オンチェーンデータに基づく過熱感</strong>: HODLersが歴史的に利益確定を行う価格帯（例: 2017年6月頃）に到達した場合、あるいはFee Ratioが極端に上昇し、ネットワークの混雑と投機的な活動がピークに達した場合。</li>
+<li><strong>歴史的な高値/レジスタンスの再テスト</strong>: 過去の市場最高値付近や、明確なレジスタンスとして機能する価格水準（例: DCRの過去最高値$120台）が利確目標として意識される可能性がある。<ul>
+<li>「過去最高値付近」[Sat May 16]</li>
+</ul>
+</li>
+</ol>
+<ul>
+<li><strong>ただし、ronpochi氏のDCRに対する長期的な「path to victory」という言葉から、これらの指標が「売り」を示しても、大部分のポジションはホールドし続ける可能性が高いです。</strong> 極めて長期的な目標（クリスマスまでにRank #5）達成を期待しており、「Moon math tends to under predict」[November 1]と述べるほど、短期的な利確には関心が薄い。</li>
+</ul>
+</li>
+<li><p><strong>損切り基準</strong>:</p>
+<ul>
+<li><strong>データなし。</strong> 提供データからは具体的な損切りに関する言及は一切ありません。</li>
+<li><strong>推測</strong>: 彼の長期主義的な投資哲学と、レバレッジへの強い批判から、<strong>原則として損切りは行わない</strong>、または<strong>極めて広範な価格下落に対してのみ考慮する</strong>可能性が高いです。ファンダメンタルズが健全であると信じる限り、一時的な価格下落は「買い増しの機会」または「ノイズ」と見なすでしょう。彼がBTCを「純資産の過半数」とし、DCRに強い確信を持っていることから、これらのコア資産に関しては、売却（損切り）ではなく、むしろDCAによる買い増しを継続する可能性が高いです。</li>
+<li>唯一、投資対象の<strong>ファンダメンタルズが根本的に破壊された場合</strong>（例: プロトコルの重大なバグ、ガバナンスの崩壊、経済モデルの破綻）に限り、ポジションを清算する可能性があると推測されますが、これは極めて稀なシナリオでしょう。</li>
+</ul>
+</li>
+<li><p><strong>建値ストップ</strong>:</p>
+<ul>
+<li><strong>データなし。</strong> 短期トレードを行わないため、建値ストップの概念は彼のマニュアルには存在しないと推測されます。</li>
+</ul>
+</li>
+</ul>
+<h3>6. リスク管理</h3>
+<p>ronpochi氏のリスク管理は、従来のトレーディングとは異なり、<strong>「投資対象の選定」<strong>と</strong>「レバレッジの回避」</strong>、そして**「長期的な信念」**に集約されます。</p>
+<ul>
+<li><strong>資金管理</strong>:<ul>
+<li><strong>レバレッジの完全回避</strong>: レバレッジ、特に高レバレッジ取引を「危険なギャンブル」「degenの行為」と見なし、自身の投資では一切使用しません。DeFiにおけるレバレッジ構造も「システムリスク」と警鐘を鳴らします。「I will rarely use ETH tech, I don&#39;t gamble on leverage.」[July 19, 2020]</li>
+<li><strong>現物主体</strong>: 投資は基本的に現物市場で行い、デリバティブを利用するとしても、それはリスクヘッジ（オプション）の文脈に限られる可能性が高いです。</li>
+<li><strong>集中投資</strong>: ポートフォリオの大部分を確信度の高い少数の資産（BTC, DCR）に集中させます。これにより、一般的な分散投資とは異なる形でのリスク管理を行っています。</li>
+</ul>
+</li>
+<li><strong>DD対応 (価格下落時の対応)</strong>:<ul>
+<li><strong>データなし。</strong> 提供データからは、具体的なドローダウン時の対応は読み取れません。</li>
+<li><strong>推測</strong>: 彼の哲学とブル相場での行動から、一時的な価格下落やドローダウンは、**「長期的な視点から見てノイズ」<strong>あるいは</strong>「買い増しの機会」**と捉える可能性が高いです。ファンダメンタルズの健全性が維持されている限り、パニック売りはせず、むしろDCAを継続して平均取得コストを下げることで対応すると考えられます。</li>
+</ul>
+</li>
+<li><strong>出金ルール</strong>:<ul>
+<li><strong>データなし。</strong> 出金に関する具体的なルールは提供されていません。</li>
+<li><strong>推測</strong>: 彼の投資哲学が「Never ever ever let BTC become a minor holding.」[October 28, 2020] とあるように、長期的な富の蓄積と自己主権を重視するため、緊急時を除いて頻繁な出金は行わないでしょう。</li>
+</ul>
+</li>
+</ul>
+<h3>7. メンタル管理</h3>
+<p>ronpochi氏のメンタル管理は、彼の深い知識と揺るぎない信念に支えられています。</p>
+<ul>
+<li><strong>やらない判断</strong>:<ul>
+<li><strong>信念に反する資産への投資を避ける</strong>: 高レバレッジ取引、Pure PoSシステムを採用するアルトコイン、DeFiプロジェクトなど、彼の「健全な貨幣」「分散化」「自己主権」「プライバシー」といった核となる信念に反する、またはシステムリスクが高いと判断する資産には一切手を出さない。「I will rarely use ETH tech, I don&#39;t gamble on leverage.」[July 19, 2020]</li>
+<li><strong>短期的な市場のノイズに惑わされない</strong>: 短期的な価格変動を追うことをせず、自身の分析と信念に基づいた長期的なビジョンを維持します。「You get killed thinking too hard and getting it wrong otherwise.」[May 7, 2020]</li>
+</ul>
+</li>
+<li><strong>休む基準</strong>:<ul>
+<li><strong>データなし。</strong> 短期トレードを行わないため、特定の「休む基準」は明示されていません。</li>
+<li><strong>推測</strong>: 彼の研究者としての側面から、市場が不確実な場合や、自身の分析に確信が持てない場合は、焦って行動するよりも、より深い分析や学習に時間を費やすことで「休む」と同等の効果を得ていると考えられます。</li>
+</ul>
+</li>
+<li><strong>感情制御</strong>:<ul>
+<li><strong>深い知識と信念に基づく冷静さ</strong>: 自身の分析（特にオンチェーンデータ）と、投資対象のファンダメンタルズ（DCRの「insane quality」）に対する絶対的な確信が、市場の変動による感情的な動揺を抑制します。「My conviction is so high it makes no difference.」[November 15, 2020]</li>
+<li><strong>コミュニティとの対話</strong>: 他のトレーダーやアナリストとの建設的な議論を通じて、自身の意見を深め、冷静さを保つ。</li>
+<li><strong>教育的な姿勢</strong>: 自身の知識を共有し、フォロワーに学習を促すことで、自身の信念を再確認し、メンタルを安定させる。「I challenge all Bitcoiners to spend 1month studying @decredproject」[September 14, 2019]</li>
+</ul>
+</li>
+</ul>
+<h3>8. 使用ツールとインジケーター</h3>
+<p>ronpochi氏が使用するインジケーターは、多岐にわたるオンチェーン指標と伝統的なテクニカル指標の組み合わせです。</p>
+<p><strong>オンチェーン指標 &amp; 価値評価モデル:</strong></p>
+<ul>
+<li><strong>Stock-to-Flow (S2F) モデル</strong>: <code>BTC Price = exp(3.3195*ln(S2F)+14.6227)/Supply</code> (特定の計算式)、<code>Actual</code>, <code>Theoretical</code>, <code>Standard Deviations from S2F Model</code>。<strong>用途</strong>: ビットコインの希少性に基づいた長期的な価格予測と、モデルからの乖離を測る。Decred (DCR) にも適用。</li>
+<li><strong>Realised Price / Realised Cap</strong>: <strong>用途</strong>: コインが最後に移動した時点の価格の平均（実現価格）や、それに基づく時価総額（実現時価総額）。市場参加者の平均取得コストを推定し、市場全体の心理状態や割安・割高を判断。主要なサポートとして機能する。</li>
+<li><strong>Market Cap</strong>: <strong>用途</strong>: 仮想通貨の総市場価値。</li>
+<li><strong>NVT Ratio (Network Value to Transaction Ratio)</strong>: <code>28-day</code>, <code>90-day</code>, <code>NVTS</code> (シグナル)。<strong>用途</strong>: 市場価値とオンチェーン取引量の比率。ネットワークの活動量に対して市場が割安か割高かを評価。</li>
+<li><strong>RVT Ratio (Realised Value to Transaction Ratio)</strong>: <code>28-day</code>, <code>90-day</code>, <code>RVTS</code> (シグナル)。<strong>用途</strong>: 実現時価総額とオンチェーン取引量の比率。NVTと同様にネットワークの活動量に対する評価を行うが、ホドラーの動きをより反映。</li>
+<li><strong>MVRV Ratio (Market Value to Realised Value Ratio)</strong>: <strong>用途</strong>: 市場価値と実現時価総額の比率。市場の過熱感や底値を判断する。</li>
+<li><strong>Mayer Multiple</strong>: <code>ヒストグラムおよび累積分布</code>, <code>200DMAとの比率</code>, <code>STRONG BUY (0.6), BUY (0.8), CAUTION (1.6), SELL (2.4), STRONG SELL (3.4) for BTC; 0.4 (STRONG BUY), 0.5 (BUY), 1.6 (SELL), 2.8 (STRONG SELL) for DCR</code>。<strong>用途</strong>: 現在価格と200日移動平均線の比率。歴史的なデータに基づき、市場の割安・割高、買い・売り水準を判断。</li>
+<li><strong>Puell Multiple</strong>: <code>年間の移動平均に基づく</code>, <code>Ratio of Daily Issuance in USD to the 365day average of Daily Issuance</code>。<strong>用途</strong>: 日次発行量と365日移動平均の比率。マイナーの収益性と市場の底値を判断。</li>
+<li><strong>Difficulty Ribbon</strong>: <code>MA</code>, <code>D_9, D_14, D_25, D_40, D_60, D_90, D_128, D_200</code> (移動平均)。<strong>用途</strong>: ハッシュレートの移動平均線群。マイナーの投売りや市場の底打ちを示すシグナルとして機能。</li>
+<li><strong>Energy Density (Daily $ Settled / kWh), (Realised Cap / Daily kWh)</strong>: <strong>用途</strong>: エネルギー消費量に対するネットワークの経済的活動の効率性。</li>
+<li><strong>Min Energy spent (kWh)</strong>: <strong>用途</strong>: 最低エネルギー消費量。</li>
+<li><strong>Delta Price, Average Price, Top Price, Price Miner Inflow</strong>: <strong>用途</strong>: デルタ価格 (実現価格 - 平均価格)、平均価格、歴史的なトップ価格、マイナーの流入価格など、市場の節目や基準価格を特定。</li>
+<li><strong>S2F Multiple, Difficulty Multiple</strong>: <code>ヒストグラムおよび累積分布</code>。<strong>用途</strong>: それぞれS2Fモデル価格、難易度に対する価格の乖離を測る。</li>
+<li><strong>Market-Realised Gradient Oscillator</strong>: <code>30day gradient of Price and Realised price</code>, <code>142-Day</code>。<strong>用途</strong>: 市場価格と実現価格の勾配変化を捉え、トレンドの転換点や勢いを判断。</li>
+<li><strong>Mining Pulse (+ve, -ve)</strong>: <strong>用途</strong>: マイニング活動の勢いを示す。</li>
+</ul>
+<p><strong>移動平均 &amp; オシレーター:</strong></p>
+<ul>
+<li><strong>Triple MA (Moving Average)</strong>: <code>50, 128, 200</code>。<strong>用途</strong>: 短期、中期、長期のトレンドを判断。</li>
+<li><strong>DMA (Daily Moving Average)</strong>: <code>128</code>, <code>200</code>, <code>730</code>。<strong>用途</strong>: 日足チャートにおけるトレンドライン。</li>
+<li><strong>WMA (Weekly Moving Average)</strong>: <code>128</code>, <code>200</code>。<strong>用途</strong>: 週足チャートにおけるトレンドライン。</li>
+<li><strong>EMA (Exponential Moving Average)</strong>: <code>20 close</code>。<strong>用途</strong>: 指数移動平均、短期トレンドを素早く捉える。</li>
+<li><strong>MA</strong>: <code>26 close</code>。<strong>用途</strong>: 単純移動平均、短期トレンドを捉える。</li>
+<li><strong>RSI (Relative Strength Index)</strong>: <code>14, close</code>。<strong>用途</strong>: 市場の買われすぎ・売られすぎを判断するオシレーター。</li>
+<li><strong>CHOP (Chaikin Money Flow Oscillator)</strong>: <code>14</code>。<strong>用途</strong>: トレンドの方向性と強さを判断する。</li>
+</ul>
+<p><strong>出来高 &amp; ネットワーク活動:</strong></p>
+<ul>
+<li><strong>Volume</strong>: <code>20</code> (期間)。<strong>用途</strong>: 取引量、価格変動の信頼性や勢いを測る。</li>
+<li><strong>On-chain Volume (Transfer Vol), (Ticket Vol)</strong>: <code>Ticket Vol (DCR), Transfer Vol (DCR)</code>。<strong>用途</strong>: ブロックチェーン上での実際の取引量。Decredにおいてはチケット取引量も重要。</li>
+<li><strong>DCR Onchain Volume, DCR Exchange Vol</strong>: <strong>用途</strong>: DCRのオンチェーン取引量と取引所での取引量。</li>
+<li><strong>Active Address (Coinmetrics)</strong>: <code>DCR.AdrActCnt</code>。<strong>用途</strong>: 活動中のアドレス数、ネットワークの利用状況を示す。</li>
+<li><strong>Decred Transaction Volumes</strong>: <code>Regular, Tickets, Privacy Mixing</code>。<strong>用途</strong>: DCRの通常の取引、チケット取引、プライバシーミキシングのボリューム。</li>
+<li><strong>Unspent Anonymity Set</strong>: <strong>用途</strong>: プライバシー機能の利用状況を示す。</li>
+<li><strong>Stake Participation</strong>: <strong>用途</strong>: DCRのPoS参加率。</li>
+</ul>
+<p><strong>マイニング &amp; 手数料:</strong></p>
+<ul>
+<li><strong>Bitcoin Difficulty, Bitcoin Hashrate</strong>: <strong>用途</strong>: ビットコインのマイニング難易度とハッシュレート。ネットワークのセキュリティとマイナーの動向を示す。</li>
+<li><strong>Mean Fee, Median Fee, Fee Ratio</strong>: <strong>用途</strong>: 平均手数料、中央値手数料、手数料と報酬の比率。ネットワークの混雑度や利用コストを示す。</li>
+</ul>
+<p><strong>Decred (DCR) 固有指標:</strong></p>
+<ul>
+<li><strong>POW, POS, Treasury</strong>: <strong>用途</strong>: Decredの報酬配分モデル (プルーフ・オブ・ワーク、プルーフ・オブ・ステーク、トレジャリー)。</li>
+<li><strong>Total DCR in Tickets, Ticket Pool Value</strong>: <strong>用途</strong>: Decredのステーキングメカニズムにおけるチケットの状態。</li>
+<li><strong>Decred Block Subsidy Valuation Models</strong>: <code>POW-USD, POS-USD, Treasury-USD, Total-USD, Supply Issued Cap (USD), Market Cap, Difficulty Ribbon</code>。<strong>用途</strong>: Decredのブロック補助金に基づいた評価モデル。</li>
+<li><strong>142-Day Ticket USD Sum</strong>: <code>142-day sum</code>, <code>x23.6%</code>, <code>x38.2%</code>, <code>x61.8%</code>, <code>x50.0%</code> (フィボナッチレベルはチャート画像に示唆があるが、直接的なフィボナッチツール使用の言及はなし)。<strong>用途</strong>: DCRのチケットロックアップに関連する累積値。</li>
+</ul>
+<h3>9. 成功パターンTOP10 (データ不足のため推測)</h3>
+<p>ronpochi氏の哲学とブル相場時の行動から、以下のようなパターンが成功をもたらすと推測されます。</p>
+<ol>
+<li><strong>ファンダメンタルズ的に過小評価されたコア資産（DCR）の早期発見と集中投資</strong>: 市場がDCRの本質的価値（コード品質、インフラ、ガバナンス、プライバシー機能）を認識していない段階で、「Its straight up criminal how cheap it is.」[November 6] と判断し、資金を集中させる。</li>
+<li><strong>S2Fモデルからの長期的な割安感でのDCA</strong>: BTC/DCRがS2Fモデル価格から大きく乖離し、歴史的に底値圏にあると判断される時期に、DCA（ドルコスト平均法）で着実に買い増しを行う。「historically opportune accumulation period」[October 15, 2019]</li>
+<li><strong>オンチェーンデータの強気転換シグナルに基づく買い増し</strong>: Realised Priceが強力なサポートとして機能し、MVRV Ratioが買いゾーン（例: 0.8以下）から上昇を始める、DCRのチケット購入が活発化しチケット価格がATHを更新する、マイナー活動が回復するといった複合的なオンチェーンデータシグナルで現物ポジションを増やす。「Strong ticket buying has been extremely convincing for me.」[November 2]</li>
+<li><strong>Mayer Multipleの「STRONG BUY/BUY」ゾーンでの積極的なエントリー</strong>: Mayer MultipleがBTCで0.6-0.8、DCRで0.4-0.5のゾーンにある場合に、押し目買いを行う。</li>
+<li><strong>主要な水平サポートラインでの強力な反発を確認後のエントリー</strong>: 歴史的な高値・安値や、オンチェーン指標に基づく特定の価格水準が強いサポートとして機能し、そこからの反発を確認してエントリーする。</li>
+<li><strong>大型アップグレードや重要なマイルストーン前の「情報非対称性」を活用した先行投資</strong>: DCRの「biggest upgrade in years」[November 6] のような、市場がまだ十分に織り込んでいないポジティブなイベントを事前に分析し、市場の非効率性を利用してポジションを構築する。「This is an information asymmetry. Its so fucking strong. Market has no idea. Frontrun it.」[October 16, 2020]</li>
+<li><strong>ATHブレイクアウト後の押し目買いまたは追随買い</strong>: 価格が史上最高値（ATH）を更新し、そのブレイクアウトが持続すると判断した際に追随して買い、さらなる上昇に乗る。「buying ATH feels good man.」[November 2]</li>
+<li><strong>ガバナンスやプロトコル設計の優位性に基づいた長期ホールド</strong>: BTCの健全な貨幣原則やDCRのハイブリッドPoW/PoSガバナンス、自己主権・プライバシーといったプロトコルレベルの優位性を深く信じ、市場のノイズに惑わされず数年にわたりポジションを保有し続ける。「BTC and DCR are the only assets I believe in long term.」[September 16, 2019]</li>
+<li><strong>他の主要アルトコイン（ETH, LTCなど）に対する相対的な優位性に着目した投資</strong>: DCRがETHやLTCよりも優れたファンダメンタルズを持つと判断し、それらが過小評価されている市場の歪みを利用する。「Simple math. DCR &gt; LTC. Give me a good reason why that should not occur?」[November 9]</li>
+<li><strong>体系的なPoS批判とDeFi懐疑論に基づいたリスク回避</strong>: Pure PoSやDeFiのリスクを深く理解し、これらの市場から距離を置くことで、潜在的なシステムリスクや投機的バブル崩壊から自身の資産を守る。</li>
+</ol>
+<h3>10. 失敗パターンTOP5 (データ不足のため推測)</h3>
+<p>ronpochi氏の哲学から、以下のような行動が失敗につながると推測されます。</p>
+<ol>
+<li><strong>高レバレッジ取引への関与</strong>: 自身の哲学に反して、125倍のような極端な高レバレッジ取引に手を出すこと。「Haha not with 125x leverage.」[March 6, 2020] → <strong>回避方法</strong>: レバレッジは一切使用せず、現物取引のみに限定する。</li>
+<li><strong>DeFiやPure PoSアルトコインへの投機</strong>: 彼の徹底的な批判にもかかわらず、高APYや流行に流されてDeFiプロジェクトや欠陥のあるPure PoSアルトコインに資金を投入すること。「I will rarely use ETH tech, I don&#39;t gamble on leverage.」[July 19, 2020] → <strong>回避方法</strong>: 自身の信念に合致しないプロトコルには投資しない。</li>
+<li><strong>短期的な価格変動に感情的に反応し、信念に反してコア資産を売却すること</strong>: 例えば、一時的な大幅下落時にパニック売りをしてしまうこと。彼の「My conviction is so high it makes no difference.」[November 15, 2020] という言葉に反する行動。→ <strong>回避方法</strong>: 徹底したファンダメンタルズ分析とオンチェーンデータに基づく信念を貫き、短期的なノイズを無視する。</li>
+<li><strong>過剰な楽観主義による利確の遅れ</strong>: S2FモデルやMayer Multipleなどが「STRONG SELL」ゾーンに達し、過熱感が明確であるにもかかわらず、さらなる上昇を期待して利確せずに大きな調整に巻き込まれること。彼の長期保有姿勢は強みだが、過熱時のリスクを無視する傾向も持ちうる。→ <strong>回避方法</strong>: MVRV RatioやMayer Multipleの「STRONG SELL」閾値など、客観的な過熱感指標が複数出た際には、少なくとも一部を利確しリスクを軽減することも検討する（ただし、彼のスタイルとは異なる可能性が高い）。</li>
+<li><strong>不十分な分析に基づく「情報非対称性」への誤った賭け</strong>: DCRのような確信度の高い資産以外の、十分に分析されていない「情報非対称性」に安易に飛びつき、期待通りのリターンが得られないこと。→ <strong>回避方法</strong>: 「情報非対称性」を主張する投資には、DCRに対するような徹底した深掘り分析と確信度が必要であることを認識する。</li>
+</ol>
+<h3>11. 時間管理</h3>
+<p>ronpochi氏の投資は長期的な視点に立っているため、短期的な取引時間帯やアノマリーは彼のトレードにはほとんど影響しません。</p>
+<ul>
+<li><strong>取引時間帯</strong>: 特定の取引時間帯（例: NY時間、アジア時間）を意識することはありません。彼の分析は日足、週足、月足といった長期的な時間軸で行われます。</li>
+<li><strong>アノマリー</strong>: 短期的なアノマリー（例: 月末効果、特定の曜日効果）は重視しません。</li>
+<li><strong>イベント対応</strong>:<ul>
+<li><strong>重要視するイベント</strong>: プロジェクトの主要なアップグレード（例: Decredの大型アップグレード）、プロトコルの経済モデルやガバナンスに影響を与える変更、マクロ経済の大きなトレンド変化。</li>
+<li><strong>対応</strong>: これらのイベントが発生する際には、その影響を深く分析し、長期的な価値への影響を評価します。特にポジティブなファンダメンタルズイベントは、買い増しの根拠となりえます。「Illiquid, insane quality, about to release the biggest upgrade in years, just add attention.」[November 6]</li>
+<li><strong>無視するイベント</strong>: 短期的なニュース、一般的なアナリストの意見、SNSでの感情的なバズ。これらを「ノイズ」として扱います。</li>
+</ul>
+</li>
+</ul>
+<h3>12. 暗黙のルール (行動から読み取れる未言語化のルール)</h3>
+<ol>
+<li><strong>「健全な貨幣」原則の絶対視</strong>: ビットコインの特性である限定供給量、発行モデルの予測可能性、耐検閲性、およびDecredがそれに加えるガバナンスとプライバシーは、あらゆる投資判断の基盤となる。「#Decred takes the sound money principles of Bitcoin and overlays it with a governance system.」[September 14, 2019]</li>
+<li><strong>真の分散化へのこだわり</strong>: 中央集権的な要素や、少数のエリートに力が集中するようなシステム（Pure PoSなど）は、たとえ技術的に革新的であっても根本的に信頼できないと考える。「There is no mechanism to remove the kings.」[2020年PoS批判]</li>
+<li><strong>自己主権とプライバシーの確保</strong>: KYCフリーな交換手段やプライバシー機能（DecredのCoinShuffle++）は、将来的な「クソが起こった時（When the shit hits the fan）」[2020年Decred DEX関連] に備える上で不可欠であり、これらを追求するプロジェクトに価値を見出す。</li>
+<li><strong>プロトコルの根源的設計の優位性</strong>: 一時的な価格や流行に流されず、プロトコルレベルの経済モデル、ガバナンス構造、セキュリティメカニズムが長期的な成功を決定すると信じる。これが彼の「情報非対称性」の源泉でもある。</li>
+<li><strong>「Skin in the game」の哲学</strong>: 自身が深く信じるプロジェクトには、積極的に自身の時間、知識、そして資本を投じる。これにより、コミュニティへの貢献と自身の投資パフォーマンスを一致させる。</li>
+<li><strong>批判的思考と徹底的な検証</strong>: 既存の権威や主流意見に盲従せず、常に疑問を持ち、自身のオンチェーンデータ分析と論理的思考で徹底的に検証する。特にPoSやDeFiに対する彼の批判的姿勢に顕著。</li>
+<li><strong>教育者としての役割</strong>: 自身の得た知見や分析結果をコミュニティに共有し、他の人々が暗号通貨の本質を理解することを助ける。これにより、自身の信念を強化し、共通の理解を持つコミュニティを形成しようとする。</li>
+<li><strong>長期的な視点での「勝利への道」</strong>: 目先の利益追求ではなく、数年、数十年単位でのプロトコルの進化と、それによる社会変革の可能性に焦点を当てる。一時的な市場の逆風や価格下落は、この「勝利への道」における一時的な「ノイズ」と見なす。「#Decred path to victory.」[Sat Nov 07]</li>
+</ol>
+<hr>
+
+</body>
+</html>

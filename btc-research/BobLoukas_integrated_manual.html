@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>BobLoukas トレード意思決定マニュアル</title>
+<style>
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.8; color: #333; font-size: 14px; }
+  h1 { font-size: 24px; border-bottom: 3px solid #333; padding-bottom: 10px; page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 { font-size: 20px; border-bottom: 2px solid #666; padding-bottom: 8px; margin-top: 40px; }
+  h3 { font-size: 17px; margin-top: 30px; }
+  h4 { font-size: 15px; margin-top: 20px; }
+  hr { margin: 40px 0; border: none; border-top: 1px solid #ccc; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 12px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f5; font-weight: bold; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  blockquote { border-left: 4px solid #ddd; margin: 16px 0; padding: 8px 16px; color: #555; background: #fafafa; }
+  strong { color: #111; }
+  a { color: #0366d6; }
+  @media print {
+    body { margin: 15px; font-size: 11px; line-height: 1.6; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 13px; }
+    table { font-size: 10px; }
+    pre { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<p>BTCトレード手法の研究者として、ronpochiトレーダー（BobLoukasの分析結果を含む）の提供された分析に基づき、以下の「完全なトレード意思決定マニュアル」を作成します。このマニュアルは、AIがronpochiと同じ判断を下せるレベルの具体性で記述されており、各項目には具体的な数値、価格、引用を含みます。</p>
+<hr>
+<h2>ronpochi（BobLoukasの教えを実践するトレーダー）のBTCトレーダー意思決定マニュアル</h2>
+<h3>1. トレーダープロフィール</h3>
+<ul>
+<li><strong>スタイル</strong>: ronpochiは、サイクル理論に基づいた深い市場分析、徹底したリスク管理、そして何よりもトレーダーのメンタルコントロールを重視する、非常に規律正しいプロフェッショナルです。彼はBitcoinの長期的な成功を強く確信し、その成長トレンドに乗ることを得意としますが、同時に短期的な市場のサイクルとボラティリティを戦略的に利用します。レバレッジは両刃の剣と認識し、高確信度の局面でのみ慎重かつ戦略的に使用します。</li>
+<li><strong>強み</strong>:<ul>
+<li><strong>サイクル分析</strong>: 60日、4年、8年といった明確なサイクルを特定し、そのボトムやトップを予測する能力。</li>
+<li><strong>リスク管理</strong>: ポジションサイジングとリスクに晒す資本の絶対量を最重要視し、損失を最小限に抑えることを優先。</li>
+<li><strong>メンタルコントロール</strong>: 自身の予測が外れることを認め、感情に流されずに計画に固執する規律。市場のFUDやFOMOに対する冷静な視点。</li>
+<li><strong>確信度の高い局面での大胆さ</strong>: サイクルローや大幅な押し目では、リスクを限定しつつも「大きく買い増し」する決断力。</li>
+<li><strong>長期的な視点</strong>: Bitcoinの長期的な成長を信じ、ATHを通過点と捉え、投資元本回収後は心理的に「負けない」トレードで大きな利益を狙う。</li>
+</ul>
+</li>
+<li><strong>弱み</strong>:<ul>
+<li>提供データからは、ベア相場やレンジ相場における具体的なエントリー・利確・損切り基準が不足しており、これらの市場環境での戦略の明確性が課題となる可能性があります。</li>
+<li>具体的な成功・失敗トレード事例がデータに含まれていないため、過去の経験からの具体的な学びや再現性が明確ではありません（ただし、警告や後悔から学ぶ姿勢は見られます）。</li>
+</ul>
+</li>
+<li><strong>成長の軌跡</strong>:<ul>
+<li><strong>2018年</strong>: サイクル分析（60-day Cycle, 4-Year Cycle）を導入し、ベアマーケットでショート戦略を実践。サイクルローには「#FUD, huge volume and capitulation」が必要という認識を確立。教育プラットフォーム「Bitcoin Live」を開設し、知見の共有を開始。</li>
+<li><strong>2019年</strong>: ブルマーケットへの転換期をサイクル分析で捉え、BTCの長期的な強気予測（$100,000）を提示。レバレッジへの強い警告とポジションサイズの重要性を強調。自身の予測の不確実性を認め、トレードを確率論として捉えるメンタル的な成熟を見せる。アルトコインに対しては「plague（疫病）」とまで表現し、強い懐疑的姿勢を明確化。</li>
+<li><strong>2020年</strong>: 2020年と2021年を「big yrs」と位置づけ、強気相場への確信を深める。より長期の「8-Yr Cycle」にも言及。特定の高確信度でのレバレッジ使用を公言し始める。</li>
+<li><strong>2021年</strong>: ブル相場での戦略を継続し、ATHをさらなる上昇の触媒と捉える。HODLと短期トレードの明確な区別を強調し、資金の目的別配分を徹底。メンタル管理の重要性を再認識。</li>
+</ul>
+</li>
+</ul>
+<h3>2. 相場環境の認識方法</h3>
+<p>ronpochiは、主に価格アクション、サイクル分析、ファンダメンタルズ、そしてセンチメントを総合的に判断して相場環境を認識します。</p>
+<ul>
+<li><strong>ブル相場（上昇トレンド）であると判断する基準:</strong><ul>
+<li><strong>価格アクションとATH更新</strong>:<ul>
+<li>「#stocks continue to sit at ATH&#39;s. Plenty of reasons the be bearish, but <strong>price is telling us otherwise</strong>。」<code>[Fri Nov 20]</code> - 逆風があっても価格がATH（史上最高値）にあること。</li>
+<li>「S&amp;P &gt; 4,000 and still pushing ATH&#39;s.」<code>[Fri Apr 02]</code> - 主要インデックスもATHを更新し続けていること。</li>
+<li>「ATH’s before any significant reaction.」<code>[January 9,] $ETH</code> - 特定の主要銘柄がATHに到達していること。</li>
+</ul>
+</li>
+<li><strong>サイクル分析</strong>:<ul>
+<li>「Day 57 low marks a possible end to the downtrend. Sentiment reset. Right Cycle timing band.」<code>[Fri Jan 22]</code> - デイリーサイクルが底打ちし、下降トレンドが終わりを告げ、上昇トレンドへの転換期にあると判断できる場合。</li>
+<li>「Bitcoin Cycle looks ready for another good move higher.」<code>[August 29, 2019]</code> - サイクル分析が次の上昇を示唆している場合。</li>
+</ul>
+</li>
+<li><strong>ファンダメンタルズと需要超過</strong>:<ul>
+<li>「Demand significantly &gt; Supply.#math」<code>[November 2]</code> - 需要が供給を大幅に上回る状況。</li>
+</ul>
+</li>
+<li><strong>月足の動き</strong>:<ul>
+<li>「#bitcoin working on 4th straight Green Monthly candle. That only occurs in the heart of a bull market.」<code>[October 2, 2019]</code> - 月足が連続して陽線を形成している場合。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>ベア相場（下降トレンド）であると判断する示唆（データからの推測）:</strong><ul>
+<li><strong>「ブローオフ（暴騰）」後の調整期間</strong>: 「Starting to think we need to churn one weekly cycle (6-months) after the recent blow-off move to ATH&#39;s.」<code>[Wed Nov 25]</code> - ATHへの暴騰後、週足サイクル（約6ヶ月）にわたる調整やレンジ相場への移行が必要となる場合。これが長期的なトップ形成の兆候となり得る。</li>
+<li><strong>「大きなマルチマストップ」の形成</strong>: 「Yes an ATH break here could send this into big multi-month top.」<code>[March 22,]</code> - ATHブレイクが「数ヶ月続く大きなトップ」を形成する可能性を指摘しており、これが本格的なベア相場への転換点となる。</li>
+<li><strong>極度のFUDと降伏売り</strong>: 「However, I prefer my cycle lows to be on #FUD, huge volume and capitulation.」<code>[July 1, 2018]</code> - ベア相場の末期にはFUD、大量の出来高、降伏売りが伴う。これらはベア相場の最終段階の特徴であり、その前の期間はベア相場であると認識する。</li>
+</ul>
+</li>
+<li><strong>レンジ相場（方向感のない相場）であると判断する示唆（データからの推測）:</strong><ul>
+<li>「churn one weekly cycle (6-months) after the recent blow-off move to ATH&#39;s.」<code>[Wed Nov 25]</code> - ブローオフ後の調整期間中に、価格が明確なトレンドなく上下する時期。</li>
+<li>サイクル分析で次のサイクル方向性が不明瞭な時期。</li>
+</ul>
+</li>
+</ul>
+<h3>3. エントリー判断フロー</h3>
+<p>ronpochiのエントリー判断は、市場環境の認識、サイクル分析、価格アクション、そしてインジケーターによる確認を段階的に経て行われます。</p>
+<ol>
+<li><p><strong>市場環境の認識</strong>:</p>
+<ul>
+<li>まず、「2. 相場環境の認識方法」に基づいて、現在の市場がブル相場、ベア相場、レンジ相場のいずれであるかを判断する。</li>
+<li><strong>ブル相場と判断した場合</strong>: 主にロングエントリーの機会を狙う。</li>
+<li><strong>ベア相場と判断した場合</strong>: 主にショートエントリー（2018年の例）または待ちの姿勢。</li>
+<li><strong>レンジ相場と判断した場合</strong>: 取引機会が少ない、または高確信度の場合のみ。</li>
+</ul>
+</li>
+<li><p><strong>一次フィルター：サイクル分析によるタイミングの絞り込み</strong>:</p>
+<ul>
+<li><strong>ブル相場でのロングエントリー</strong>:<ul>
+<li>「Day 57 low marks a possible end to the downtrend. Sentiment reset. Right Cycle timing band.」<code>[Fri Jan 22]</code> - デイリーサイクルの底（例: Day 57, Day 59）が形成されるタイミングバンドに注目。</li>
+<li>「Waiting patiently. Day 59 of the #Bitcoin Cycle with a looming Cycle Low in focus. Day 50 bull trap behind us.」<code>[Mon Mar 22]</code> - サイクルローの到来を忍耐強く待つ。</li>
+<li>「健全な3週間の調整期間を経た場合に、「少しのレバレッジ」を再度検討する可能性に言及。」<code>[Wed Jan 13 15:36:50 +0000 2021]</code> - 健全な調整期間後のエントリーを検討。</li>
+<li>「レバレッジは『Jan 29th-Feb2nd confirmation』のような特定の、確信度の高いタイミングでのみ使うべきだったと示唆。」<code>[February 22, 2021]</code> - 特定のサイクル確認（例: Jan 29th-Feb2nd）がエントリーのトリガー。</li>
+</ul>
+</li>
+<li><strong>ベア相場でのショートエントリー</strong>:<ul>
+<li>「My #bitcoin Cycle shows another 32 trading days of &quot;generally&quot; lower prices. #bearish」<code>[August 2, 2018]</code> - サイクルがさらなる下落を示唆している場合。</li>
+<li>「Looking promising for end of #Bitcoin 60-day Cycle!」<code>[July 27, 2018]</code> - サイクル終了付近での転換を狙う。</li>
+</ul>
+</li>
+<li><strong>高確信度の暴落時</strong>:<ul>
+<li>「Cycle Low 39」、「8 Yr Cycle Low」、「Half Cycle Low」など、より大きなサイクルに基づく安値。</li>
+<li>「FUD, huge volume and capitulation」<code>[July 1, 2018]</code> - 極度の恐怖、大量の出来高、降伏売りが伴う場合。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>二次フィルター：価格アクションと市場構造の確認</strong>:</p>
+<ul>
+<li><strong>コンフルエンスゾーンでの反発/ブレイク</strong>:<ul>
+<li>「ライン・価格帯」で特定された、複数の水平線、トレンドライン、チャネルの境界線、移動平均線（例: MA(20), MA(9)）などが重なるコンフルエンスゾーンに価格が到達した際の反応を観察。</li>
+<li>特に、過去のサポート/レジスタンスフリップ（例: <code>3032.4</code>, <code>3034.7</code>といったレジスタンスがブレイク後サポートとして機能）を重視。</li>
+</ul>
+</li>
+<li><strong>深めの押し目</strong>:<ul>
+<li>「If somehow get below that area, <strong>buy it big</strong>。」<code>[Thu Nov 05]</code> - 特定の重要なサポートエリアを下回った際。</li>
+<li>「もしレバレッジを使うなら、「大幅な押し目とネガティブなセンチメント」という、リスクリワードが有利な局面を待つべきだと考えています。」<code>[February 7, 2020]</code> - 大幅な押し目で、かつネガティブなセンチメントが蔓延している局面。</li>
+</ul>
+</li>
+<li><strong>重要なサポートライン</strong>: 「Last week&#39;s lows are a reasonable stop here.#bullmarket」<code>[Wed Jan 20]</code> - 前週の安値など、明確なストップロスを設定できるサポートライン付近。</li>
+<li><strong>トレンドの初期段階</strong>: 「プロのトレーダーは動きの初期段階で最大のポジションを取り」<code>[July 30, 2020]</code> - 新しいトレンドが始まる初期段階で「fully positioned（十分にポジションを取る）」ことを目指す。</li>
+</ul>
+</li>
+<li><p><strong>三次フィルター：インジケーターによる最終確認</strong>:</p>
+<ul>
+<li><strong>オシレーター系</strong>:<ul>
+<li><strong>RSI (期間5, 7, 14)</strong>、<strong>Double Smoothed Stochastic (DSS)</strong>、<strong>Stochastic RSI</strong>: 売られすぎゾーン（RSI 30以下、DSS/Stochastic RSI 20以下）からの反転サイン、または強気ダイバージェンスの出現を確認。</li>
+<li><strong>Detrended Price Oscillator (DPO 期間30)</strong>: 価格からトレンドを除去し、サイクルのボトムを示唆する動きを捕捉。</li>
+</ul>
+</li>
+<li><strong>トレンド・ボラティリティ系</strong>:<ul>
+<li><strong>Moving Average (MA)</strong>: 短期MA（例: MA(9), MA(10)）が長期MA（例: MA(20), MA(26), MA(40), MA(100), MA(200)）を上抜くゴールデンクロス、または価格がMAサポートで反発するのを確認。</li>
+<li><strong>Bollinger Bands (期間20, 標準偏差2)</strong>: 価格が下限バンドに接触し、バンドウォークが終了する兆候、またはバンドが収縮（Bollinger Bands Width）した後のエクスパンションの開始。</li>
+<li><strong>MACD (短期EMA12, 長期EMA26, シグナル期間9)</strong>: MACDラインがシグナルラインを上抜くクロス、またはヒストグラムが底を打ち上昇に転じるのを確認。</li>
+</ul>
+</li>
+<li><strong>出来高 (Volume)</strong>: 大幅な価格下落時、またはサイクルローでの反転時に「huge volume」<code>[July 1, 2018]</code>が伴うことで、その動きの信頼性を確認。</li>
+</ul>
+</li>
+<li><p><strong>ポジションサイジングとレバレッジの決定</strong>:</p>
+<ul>
+<li>「4. ポジションサイジング」および「1. レバレッジ戦略」の基準に基づき、最終的な投入資本とレバレッジ倍率を決定。</li>
+<li>確信度が高く、リスクリワードが有利なブル相場での押し目買いやサイクルローで、BTCに限定して低めのレバレッジ（例: 3倍）を適用。</li>
+<li>「損失が少ない、あるいはリスクが低いと判断できる場面では、大きなリスクを取らずに試行的なポジションを取ることを許容しています。」<code>[April 8, 2021]</code> - 低リスクの試行的なエントリーも可能。</li>
+</ul>
+</li>
+</ol>
+<h3>4. ポジションサイジング</h3>
+<p>ronpochiはポジションサイジングを「最も重要」な要素と捉え、自身の確信度、リスク許容度、市場のボラティリティ、資金の目的に基づいて厳格に決定します。感情に流された無計画なポジション調整は厳禁です。</p>
+<p><strong>哲学と原則:</strong></p>
+<ul>
+<li>「ポジションサイズが最も重要であると認識しており、過度なポジションサイズがトレーダーを感情的にさせ、失敗に導くと考えています。」<code>[June 5, 2019]</code></li>
+<li>「ポジションサイズは、全損しても精神的に問題ない範囲に抑えるべきだと述べています。」<code>[November 26, 2019]</code></li>
+<li>「レバレッジ自体は「考慮事項ではない」と明言し、それよりも「自分がリスクに晒している資本」を重要視している」<code>[August 6, 2020]</code></li>
+<li>「投資元本を回収することで、心理的に「負けない」状態を作り出し、残りのポジションを安心してホールドし、さらなる大きな利益を狙う戦略。」<code>[December 26, 2020]</code></li>
+</ul>
+<p><strong>確信度、市場環境、レバレッジを考慮した投入率と分割ルール:</strong></p>
+<table>
+<thead>
+<tr>
+<th align="left">確信度</th>
+<th align="left">市場環境</th>
+<th align="left">レバレッジ</th>
+<th align="left">ポジションサイジング戦略（対総資本比）</th>
+<th align="left">具体的な行動・条件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>高</strong></td>
+<td align="left">ブル相場 (初期/押し目)</td>
+<td align="left">低～中 (例: 3倍)</td>
+<td align="left"><strong>最大投入 (Fully Positioned)</strong>: トレンド初期で最大、深押しでダブルダウン</td>
+<td align="left">「プロのトレーダーは動きの初期段階で最大のポジションを取り」<code>[July 30, 2020]</code>、「『fully positioned』できれば非常に良い状況」<code>[February 18, 2021]</code>、「もしレバレッジを使うなら、「大幅な押し目とネガティブなセンチメント」という、リスクリワードが有利な局面」<code>[February 7, 2020]</code>、「本来は56BTC買うべきだった」<code>[March 14, 2021]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>高</strong></td>
+<td align="left">ブル相場 (高確信度暴落)</td>
+<td align="left">低 (必要に応じ)</td>
+<td align="left"><strong>大規模買い増し (Buy it big)</strong>: 計画に基づき大幅に追加</td>
+<td align="left">「もし somehow そのエリアを下回るなら、大きく買い増せ。」<code>[Thu Nov 05]</code>、「自身の過去最大の失敗として、ビットコイン暴落時に買い増しを5.6BTCに留めたことを挙げ、本来は56BTC買うべきだったと反省している。」<code>[March 14, 2021]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>中</strong></td>
+<td align="left">ブル相場 (トレンド継続中)</td>
+<td align="left">低 (例: 3倍)</td>
+<td align="left"><strong>維持/追加検討</strong>: 既存ポジション維持、有利な価格（stink bids）で追加考慮</td>
+<td align="left">「強気相場においてはトレンドに従うことが重要であり、サイクル分析が困難な場合でもレバレッジロングを維持する。」<code>[November 16, 2020]</code>、「清算されないような低めのレバレッジ（3倍ロングを例に挙げる）を推奨。」<code>[January 9, 2021]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>低</strong></td>
+<td align="left">試行的なセットアップ</td>
+<td align="left">なし/超低</td>
+<td align="left"><strong>超少額リスク</strong>: 全口座の0.5%未満</td>
+<td align="left">「損失が少ない、あるいはリスクが低いと判断できる場面では、大きなリスクを取らずにエントリーすることを許容。」<code>[April 8, 2021]</code>、「宝くじのような取引にはストップがない。全か無かだ。ポジションサイズは常に口座の0.5%未満であるべきだ。」<code>[October 10, 2020]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>中</strong></td>
+<td align="left">投機的取引 (ETF等)</td>
+<td align="left">低 (例: 2倍ETF)</td>
+<td align="left"><strong>限定的資本投入</strong>: 全資本の10%程度</td>
+<td align="left">「レバレッジETF自体よりも、『リスクにさらす資本の量』が重要...2倍ETFに全資本を投入するのはリスクが高すぎるとし、10%程度であれば許容範囲かもしれない、と示唆。」<code>[June 2, 2020]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>高</strong></td>
+<td align="left">ベア相場 (ショート)</td>
+<td align="left">低 (必要に応じ)</td>
+<td align="left"><strong>計画的ショート</strong>: 目標価格を設定し利確・損切り</td>
+<td align="left">「I just closed half of my Bitcoin short position after a $400 drop. Entry/exit posted on Bitcoin Live.」「Closed 3/4 of my short position here. Huge. Remainder closes at $3,150 or 3,510. Buy order start triggering at $3,025 and in real size at $2,920.」<code>[December 10, 2018]</code></td>
+</tr>
+<tr>
+<td align="left"><strong>全般</strong></td>
+<td align="left">資金目的別配分</td>
+<td align="left">なし/分離</td>
+<td align="left"><strong>明確な分離</strong>: 短期トレード資金と長期投資資金は別物</td>
+<td align="left">「ETHステーキングの例で、『これはトレードではなく、長期投資である。資金配分には目的が必要だ』と述べています。」<code>[April 3, 2021]</code>、「レバレッジを用いた取引は、彼の長期的なHODL/投資とは完全に別物であると明言。」<code>[March 22, 2021]</code></td>
+</tr>
+</tbody></table>
+<h3>5. イグジット判断</h3>
+<p>ronpochiのイグジット判断は、長期的な視点とサイクル分析を基盤としつつ、明確な損切りラインを設定し、投資元本を回収することでリスクフリーな状態を目指します。</p>
+<ul>
+<li><strong>利確基準:</strong><ul>
+<li><strong>サイクルの終焉/トップの兆候</strong>:<ul>
+<li>「Yes an ATH break here could send this into big multi-month top.」<code>[March 22,]</code> - ATHブレイクが「数ヶ月続く大きなトップ」を形成する可能性を指摘。このトップの形成兆候（例: 週足サイクル（6ヶ月）の調整、インジケーターの過熱感など）を観察し、段階的に利確。</li>
+<li>「Weekly Cycle top」<code>[Price Line data]</code>や「Day 34 トップ」<code>[Price Line data]</code>など、サイクル分析に基づく特定の高値目標に到達した場合。</li>
+<li>「Starting to think we need to churn one weekly cycle (6-months) after the recent blow-off move to ATH&#39;s.」<code>[Wed Nov 25]</code> - 「ブローオフ（暴騰）」を伴うATH達成後、週足サイクル（6ヶ月）程度の調整期間に入る前に利確を検討。</li>
+</ul>
+</li>
+<li><strong>投資元本の回収</strong>:<ul>
+<li>「投資元本を回収することで、心理的に「負けない」状態を作り出し、残りのポジションを安心してホールドし、さらなる大きな利益を狙う戦略を取っています。」<code>[December 26, 2020]</code> - 十分な利益が出た段階で、まず投入した元本分を回収し、残りのポジションはリスクフリーで保有。</li>
+</ul>
+</li>
+<li><strong>スケールアウト戦略</strong>:<ul>
+<li>「プロのトレーダーは動きの初期段階で最大のポジションを取り、市場が上昇するにつれて徐々に減らしていく『スケールアウト』戦略を採用」<code>[July 30, 2020]</code> - 価格が上昇するにつれて、段階的にポジションを減らしていく。</li>
+</ul>
+</li>
+<li><strong>ATHは通過点</strong>:<ul>
+<li>「The next new #bitcoin ATH, when it comes, <strong>unlocks the thundering herd</strong>。」<code>[March 9, 2]</code> - ATHは単なる利確ポイントではなく、さらなる上昇の触媒と捉えるため、ATH到達で即座に全利確はしない。</li>
+</ul>
+</li>
+<li><strong>具体的な目標価格</strong>:<ul>
+<li>「ターゲット」や「目標価格」（例: <code>3150ドル</code>、<code>3510ドル</code> for short）<code>[December 10, 2018]</code>として設定された特定の価格レベル。</li>
+<li>「次のサイクルローターゲット」<code>[Price Line data]</code>など、サイクル分析に基づく将来のターゲット価格。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>損切り基準:</strong><ul>
+<li><strong>明確なストップロスの設定</strong>:<ul>
+<li>「Last week&#39;s lows are a reasonable stop here.#bullmarket」<code>[Wed Jan 20]</code> - 前週の安値や、特定の重要なサポートライン（例: <code>17.23</code>ドル for <code>17.555</code>ドル entry）<code>[Thu Nov 07]</code>をストップロスとして設定。</li>
+<li>リスク幅は、エントリー価格の<code>0.27%</code>から<code>1.85%</code>と比較的狭く設定される傾向（例: ショートエントリー <code>3279.25</code>ドルに対し損切り <code>3288</code>ドル、リスク幅 <code>8.75</code>ドル、約<code>0.27%</code>）<code>[Fri Jan 10]</code>。</li>
+</ul>
+</li>
+<li><strong>リスクに晒す資本の絶対量で判断</strong>:<ul>
+<li>「レバレッジ自体は「考慮事項ではない」と明言し、それよりも「自分がリスクに晒している資本」を重要視している」<code>[August 6, 2020]</code> - 許容可能な損失額を事前に決め、それを超える場合は損切り。</li>
+</ul>
+</li>
+<li><strong>「宝くじ」のような取引</strong>:<ul>
+<li>「宝くじのような取引にはストップがない。全か無かだ。ポジションサイズは常に口座の0.5%未満であるべきだ。」<code>[October 10, 2020]</code> - ポジションサイズの小さい投機的な取引は、全損を許容する前提で行う。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>建値ストップ（ブレイクイーブン）:</strong><ul>
+<li>明示的な言及はないが、「投資元本の回収」の哲学から、元本回収後は残りのポジションを建値ストップ（またはそれ以上）に移動させ、リスクフリーな状態にする可能性が高いと推測される。</li>
+</ul>
+</li>
+</ul>
+<h3>6. リスク管理</h3>
+<p>ronpochiはリスク管理をトレードの成功における最重要要素と認識しています。</p>
+<ul>
+<li><strong>資金管理の原則:</strong><ul>
+<li><strong>資本の絶対量重視</strong>: レバレッジ倍率よりも「自分がリスクに晒している資本」の絶対量をコントロールする。<code>[August 6, 2020]</code></li>
+<li><strong>目的別の資金配分</strong>: 「ETHステーキングの例で、『これはトレードではなく、長期投資である。資金配分には目的が必要だ』と述べています。」<code>[April 3, 2021]</code> - 長期HODL用資金、短期トレード用資金、投機用資金などを明確に分離し、それぞれに適切なリスクを割り当てる。</li>
+<li><strong>投機的取引の超低リスク化</strong>: 宝くじのような高リスク高リターンの取引（例: オプション）は、全口座資金の0.5%未満という極めて小さい資金にリスクを限定し、全損を許容する。<code>[October 10, 2020]</code></li>
+<li><strong>レバレッジETF</strong>: 全資本の10%程度に留める。<code>[June 2, 2020]</code></li>
+</ul>
+</li>
+<li><strong>ドローダウン（DD）対応:</strong><ul>
+<li><strong>ストップロスの厳守</strong>: 事前に設定したストップロス（例: 「Last week&#39;s lows are a reasonable stop here.」<code>[Wed Jan 20]</code>）に到達した場合、感情に流されず損切りを実行。</li>
+<li><strong>確信度の高い局面での買い増し</strong>: 市場が大きく下落し、自身のサイクル分析やコンフルエンスゾーンが強力な買い場を示唆する場合、「もし somehow そのエリアを下回るなら、大きく買い増せ。」<code>[Thu Nov 05]</code> - ダブルダウン戦略でリカバリーを図る、あるいはより良いエントリー機会と捉える。ただし、これは高い確信度と計画に基づいた行動であり、無計画なナンピンとは異なる。</li>
+</ul>
+</li>
+<li><strong>出金ルール:</strong><ul>
+<li><strong>投資元本の早期回収</strong>: 大きな利益が出た場合、まず投資元本を回収し、残りのポジションを「負けない」状態で保有する。<code>[December 26, 2020]</code> これにより、精神的負担を軽減し、さらなる大きな利益を狙う。</li>
+<li>「The hard earned sweat capital that&#39;s pissed away. All because ppl don&#39;t want follow the surer path, seemingly more difficult, in」<code>[March 12,]</code> - 衝動的なトレードや誤った判断で苦労して得た資本を失うことを戒め、慎重なリスク管理と計画的なトレードを通じて資本を守る。</li>
+</ul>
+</li>
+</ul>
+<h3>7. メンタル管理</h3>
+<p>ronpochiはメンタル管理がトレードの成功に不可欠であると強く認識し、自己認識と規律を重視します。</p>
+<ul>
+<li><strong>やらない判断、休む基準:</strong><ul>
+<li><strong>FOMO（乗り遅れることへの恐怖）の排除</strong>: 「レバレッジが小売トレーダーの損失につながるメカニズムを説明し、FOMO（乗り遅れることへの恐怖）とレバレッジの組み合わせが危険であると警告しています。」<code>[April 3, 2019]</code> - FOMOに駆られて無計画なトレードをしたり、過度なレバレッジを使ったりしない。</li>
+<li><strong>不確実な相場での待機</strong>: 「Waiting patiently. Day 59 of the #Bitcoin Cycle with a looming Cycle Low in focus.」<code>[Mon Mar 22]</code> - 適切なサイクルタイミングや確信度の高いセットアップが来るまで忍耐強く待つ。</li>
+<li><strong>市場の過熱感</strong>: 「massive short-term unsustainable rally」<code>[October 25, 2019]</code> - 持続不可能な短期的な暴騰時には、冷静さを保ち、高値掴みを避ける。</li>
+<li><strong>自己認識の欠如</strong>: 「もし『何%のレバレッジで取引していますか』と尋ねるなら、直ちにレバレッジ製品の使用を止めるべきです。」<code>[January 24, 2020]</code> - 自身のリスク許容度やレバレッジの仕組みを理解できていない場合は、取引を停止する。</li>
+</ul>
+</li>
+<li><strong>感情制御:</strong><ul>
+<li><strong>ポジションサイズの調整</strong>: 「ポジションサイズは、全損しても精神的に問題ない範囲に抑えるべきだと述べています。」<code>[November 26, 2019]</code> - ポジションサイズを小さく保つことで、市場の変動に感情が揺さぶられ、「パニックになったり眠れなくなったりしない」ようにする。</li>
+<li><strong>トレードを確率論として受け入れる</strong>: 「My charts are often wrong. What&#39;s your point? Such is trading my friend. A numbers game over time.」<code>[October 24, 2019]</code> - 自身の予測が常に正しいわけではないことを受け入れ、個々のトレードの結果に一喜一憂せず、長期的な視点で確率的に優位なトレードを繰り返すことを重視。</li>
+<li><strong>「負けない」状態の確立</strong>: 投資元本を回収することで、残りのポジションに対する精神的負担を軽減し、感情に左右されにくい状態を作り出す。<code>[December 26, 2020]</code></li>
+<li><strong>市場の心理を読む</strong>: 市場の「FUD」や「ネガティブなセンチメント」<code>[February 7, 2020]</code>を重要な指標として認識し、感情に流されずに逆張りの機会を探る。</li>
+</ul>
+</li>
+</ul>
+<h3>8. 使用ツールとインジケーター</h3>
+<p>ronpochiが使用しているインジケーターと主要パラメータ、用途は以下の通りです。</p>
+<ol>
+<li><strong>Bollinger Bands (ボリンジャーバンド)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 20, 標準偏差: 2 (または不明な標準偏差), 1日足</li>
+<li><strong>用途:</strong> 価格のボラティリティ測定、逆張りシグナル（バンドタッチ）、トレンド判断（中心線MA）。バンドの収縮（スクイーズ）と拡大（エクスパンション）でボラティリティ変化を予測。</li>
+</ul>
+</li>
+<li><strong>Bollinger Bands Width</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 20, 標準偏差: 2</li>
+<li><strong>用途:</strong> ボリンジャーバンドの幅を数値化し、ボラティリティの収縮・拡大を客観的に判断。スクイーズアウトを捉える。</li>
+</ul>
+</li>
+<li><strong>Detrended Price Oscillator (DPO)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 30</li>
+<li><strong>用途:</strong> 価格からトレンドを取り除き、サイクルやオシレーションを視覚化。買われすぎ・売られすぎ、サイクル転換点を捉える。</li>
+</ul>
+</li>
+<li><strong>Double Smoothed Stochastic (DSS)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間K: 10, 期間D: 9, 平滑化期間: 5, 買われすぎ: 80, 売られすぎ: 20</li>
+<li><strong>用途:</strong> Stochastic Oscillatorを平滑化し、買われすぎ・売られすぎの状態をより滑らかに表示。騙しを減らし、トレンド転換の初期シグナルとして使用。</li>
+</ul>
+</li>
+<li><strong>Exponential Moving Average (EMA)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 短期 (具体的な数値不明)</li>
+<li><strong>用途:</strong> 直近の価格に重きを置いた移動平均線で、価格変動への反応が速い。トレンドの方向性や短期的な支持・抵抗を示す。</li>
+</ul>
+</li>
+<li><strong>MACD (移動平均収束拡散)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 短期EMA期間: 12, 長期EMA期間: 26, シグナル期間: 9</li>
+<li><strong>用途:</strong> トレンドの勢いと転換点を示す。MACDラインとシグナルラインのクロス、ヒストグラムの変化を分析。</li>
+</ul>
+</li>
+<li><strong>Moving Average (移動平均線)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 9, 10, 20, 26, 40, 50 (推定), 100, 200, 1日足, 10週足</li>
+<li><strong>用途:</strong> 価格の平滑化、トレンドの方向性・強さの把握。短期MAは直近の価格変動に敏感、長期MAは長期トレンド。動的な支持・抵抗ラインとして使用。</li>
+</ul>
+</li>
+<li><strong>Moving Average Cross (MAクロス)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 不明 (通常は2本のMA期間の組み合わせ)</li>
+<li><strong>用途:</strong> 2本以上のMA（短期と長期）のゴールデンクロス（買いシグナル）やデッドクロス（売りシグナル）を判断。</li>
+</ul>
+</li>
+<li><strong>RSI (Relative Strength Index)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 5, 7, 14</li>
+<li><strong>用途:</strong> 買われすぎ（70以上）や売られすぎ（30以下）の状態を示すオシレーター。トレンドの強弱やダイバージェンスも確認。</li>
+</ul>
+</li>
+<li><strong>Stochastic RSI</strong><ul>
+<li><strong>パラメータ/期間:</strong> RSI期間: 10, %K期間: 9, %D期間: 5</li>
+<li><strong>用途:</strong> RSIの値をストキャスティクスで平滑化し、RSIより敏感に買われすぎ・売られすぎを捉え、トレンド転換の初期シグナルとして使用。</li>
+</ul>
+</li>
+<li><strong>Volume (出来高)</strong><ul>
+<li><strong>パラメータ/期間:</strong> 期間: 20 (または不明)</li>
+<li><strong>用途:</strong> 取引量の多さを示し、価格変動の信頼性を測る。出来高を伴う値動きは信頼性が高い。特に「huge volume」<code>[July 1, 2018]</code>はサイクルローでの降伏売りや反転の確認に重要。</li>
+</ul>
+</li>
+</ol>
+<p><strong>時間足ごとの使い分け（推測含む）:</strong></p>
+<ul>
+<li><strong>日足 (1D)</strong>: MA (20, 100, 200), Bollinger Bands, RSI (14)。長期トレンドと主要サポート/レジスタンス確認。</li>
+<li><strong>週足 (10-week)</strong>: MA (10週), RSI。超長期トレンドとサイクルの終焉/開始。</li>
+<li><strong>短期足 (不明、おそらく4H, 1H, etc.)</strong>: Bollinger Bands, Moving Average (9, 10), Volume, RSI (5, 7), DSS, Stochastic RSI, DPO, MACD。短期的なエントリー/エグジットタイミング、ボラティリティ、モメンタム、サイクル転換点の詳細分析。</li>
+</ul>
+<p><strong>インジケーターの組み合わせパターン:</strong></p>
+<ul>
+<li><strong>基本セット</strong>: Bollinger Bands, Moving Average, Volume (高頻度で併用)。</li>
+<li><strong>オシレーター併用</strong>: 基本セットにRSI, Double Smoothed Stochasticを追加し、売買タイミングの精度を高める。</li>
+</ul>
+<h3>9. 成功パターンTOP10（戦略からの推測）</h3>
+<p><strong>注意</strong>: 提供データには具体的な成功トレード事例が欠如しているため、以下のパターンはronpochiの<strong>戦略や哲学から推測される、成功に繋がりやすいと考えられる行動</strong>です。</p>
+<ol>
+<li><strong>サイクルローでの確信的エントリー</strong>:<ul>
+<li><strong>条件</strong>: デイリーサイクルのボトム（例: Day 57, Day 59）が迫り、かつ市場に「#FUD, huge volume and capitulation」<code>[July 1, 2018]</code>という極度の恐怖と降伏売りが見られる局面。強力なコンフルエンスゾーン（過去のサポート、MAサポートなど）での反発が確認できる場合。</li>
+<li><strong>再現方法</strong>: サイクル分析に基づき、タイミングバンドを特定。FUDと出来高の増加を確認後、主要サポートラインでの反発を確認し、レバレッジを限定しつつエントリー。</li>
+</ul>
+</li>
+<li><strong>ブル相場における深押しでの買い増し（ダブルダウン）</strong>:<ul>
+<li><strong>条件</strong>: 明確なブル相場中に、一時的な大幅な押し目が発生し、センチメントがネガティブに傾いている状況。「リスクリワードが有利な局面」<code>[February 7, 2020]</code>であり、自身の分析が強いサポート（例: <code>If somehow get below that area</code> <code>[Thu Nov 05]</code>）を示唆している場合。</li>
+<li><strong>再現方法</strong>: 事前に深押しでの買い増し計画を立て、設定した重要サポートライン（例: 過去の安値、長期MA）での反発を待って、通常よりも大きなポジションサイズで買い増す。</li>
+</ul>
+</li>
+<li><strong>トレンド初期段階での「Fully Positioned」</strong>:<ul>
+<li><strong>条件</strong>: ベア相場が終わり、サイクル分析が新しいブルマーケットの開始を示唆し、価格アクションが明確な上昇トレンドへの転換を見せている初期段階。</li>
+<li><strong>再現方法</strong>: 「プロのトレーダーは動きの初期段階で最大のポジションを取り」<code>[July 30, 2020]</code>という原則に従い、トレンド転換の初期シグナル（MAクロス、主要レジスタンスブレイク、出来高増加）で最大限のポジションを構築する。</li>
+</ul>
+</li>
+<li><strong>BTCへの限定的なレバレッジロング維持</strong>:<ul>
+<li><strong>条件</strong>: 暗号資産市場全体が成長する中で、BTCが最も確実であるという前提のもと、明確な上昇トレンドが確立され、自身のサイクル分析がその方向性を示唆している局面。「自身の予想を超える強い動きであっても、トレンドが明確であればレバレッジロングを継続。」<code>[November 5, 2020]</code></li>
+<li><strong>再現方法</strong>: BTCに限定し、清算リスクの低い低めのレバレッジ（例: 3倍）でロングポジションを維持。トレンドの明確な転換シグナルが出るまでホールド。</li>
+</ul>
+</li>
+<li><strong>投資元本回収による「負けない」トレード</strong>:<ul>
+<li><strong>条件</strong>: 投入したポジションが十分な含み益となり、投資元本を回収できる状態になった場合。</li>
+<li><strong>再現方法</strong>: 利益確定の一部として投資元本と同額を回収し、残りのポジションはリスクフリーな状態で保有し、さらなる大きな利益（スケールアウトしながら）を狙う。<code>[December 26, 2020]</code></li>
+</ul>
+</li>
+<li><strong>市場のFUDを無視し、価格アクションに従う</strong>:<ul>
+<li><strong>条件</strong>: ニュースでは多くの弱気な情報が流れていても、主要な価格（例: #stocks, BTC）がATHを更新し続けるなど、価格アクションが強気を示している場合。</li>
+<li><strong>再現方法</strong>: 「Plenty of reasons the be bearish, but <strong>price is telling us otherwise</strong>。」<code>[Fri Nov 20]</code> - 感情的なFUDに惑わされず、純粋な価格行動とファンダメンタルズ（Demand &gt; Supply）を信じてロングポジションを維持または追加する。</li>
+</ul>
+</li>
+<li><strong>ATHブレイク後の上昇に乗り続ける</strong>:<ul>
+<li><strong>条件</strong>: BTCがATHを更新した直後、多くのトレーダーが利確を考える局面。</li>
+<li><strong>再現方法</strong>: 「The next new #bitcoin ATH, when it comes, <strong>unlocks the thundering herd</strong>。」<code>[March 9, 2]</code> - ATHはさらなる上昇の触媒と捉え、即座に全利確せず、サイクルの終焉やブローオフの兆候が出るまで、スケールアウトしながらポジションを維持する。</li>
+</ul>
+</li>
+<li><strong>Stink Bidsによる有利なエントリー</strong>:<ul>
+<li><strong>条件</strong>: 市場の暴落や急落時、または重要なコンフルエンスゾーンの遥か下方に、自身の「ストップロス（stink bids）」価格帯として定義した非常に有利な価格がある場合。</li>
+<li><strong>再現方法</strong>: 事前に特定の低い価格帯に指値注文を配置し、市場のパニックや瞬間的なフラッシュクラッシュで自動的にエントリーを成立させる。</li>
+</ul>
+</li>
+<li><strong>アルトコインを避ける</strong>:<ul>
+<li><strong>条件</strong>: 市場が不確実な局面や、アルトコインのチャートがBTCに対して弱い動きを示している場合。</li>
+<li><strong>再現方法</strong>: 「Alt&#39;s like the plague」<code>[October 2, 2019]</code>と表現するほど、アルトコインへの投資を避け、より確実性の高いBTCに資本を集中させる。</li>
+</ul>
+</li>
+<li><strong>感情に流されず計画に固執する</strong>:<ul>
+<li><strong>条件</strong>: 市場の急変動や、自身の予測が外れたと感じる時。</li>
+<li><strong>再現方法</strong>: 「ポジションサイズは画一的なものではなく、『リスクと確信度』に基づいて定義し、それに固執すること（規律）が最も重要」<code>[July 19, 2020]</code> - 事前に立てた計画とリスク管理ルールに感情を挟まず忠実に従うことで、無駄な損失や機会損失を避ける。</li>
+</ul>
+</li>
+</ol>
+<h3>10. 失敗パターンTOP5（警告や後悔からの推測）</h3>
+<p><strong>注意</strong>: 提供データには具体的な失敗トレード事例が欠如しているため、以下のパターンはronpochiの<strong>警告や後悔から推測される、避けるべき行動</strong>です。</p>
+<ol>
+<li><strong>過度なレバレッジの使用</strong>:<ul>
+<li><strong>原因</strong>: 「レバレッジが小売トレーダーの損失につながるメカニズムを説明し、FOMO（乗り遅れることへの恐怖）とレバレッジの組み合わせが危険であると警告しています。」<code>[April 3, 2019]</code> - FOMOに駆られた感情的なトレードや、レバレッジの危険性を理解しないまま高倍率をかけること。</li>
+<li><strong>回避方法</strong>: 「もし『何%のレバレッジで取引していますか』と尋ねるなら、直ちにレバレッジ製品の使用を止めるべきです。」<code>[January 24, 2020]</code> - 自身の理解度とリスク許容度を正確に把握し、リスクに晒す資本の絶対量を重視する。清算リスクのない低めのレバレッジに限定する。</li>
+</ul>
+</li>
+<li><strong>感情に流された無計画なトレード</strong>:<ul>
+<li><strong>原因</strong>: 「ポジションサイズが最も重要であると認識しており、過度なポジションサイズがトレーダーを感情的にさせ、失敗に導くと考えています。」<code>[June 5, 2019]</code> - ギャンブルのように高いベットサイズを賭け、感情的に行動すること。ベアマーケットで「買い下がっていく初心者」<code>[December 17, 2018]</code>のように感情に麻痺して行動すること。</li>
+<li><strong>回避方法</strong>: 事前に定義したポジションサイズと計画に固執し、市場のFUDやFOMOに動じない規律を保つ。全損しても精神的に問題ない範囲にポジションサイズを抑える。</li>
+</ul>
+</li>
+<li><strong>高確信度の暴落時における買い増し不足</strong>:<ul>
+<li><strong>原因</strong>: 「自身の過去最大の失敗として、ビットコイン暴落時に買い増しを5.6BTCに留めたことを挙げ、本来は56BTC買うべきだったと反省している。」<code>[March 14, 2021]</code> - 確信度の高い暴落局面（FUD, huge volume, capitulationを伴うサイクルローなど）で、感情的な恐怖から買い増しを躊躇すること。</li>
+<li><strong>回避方法</strong>: 事前にサイクル分析とコンフルエンスゾーンに基づき、高確信度での買い増し計画を立てておく。恐怖が蔓延する局面こそが最大の買い場であるという認識を強く持つ。</li>
+</ul>
+</li>
+<li><strong>計画的な分割エントリーの不遵守</strong>:<ul>
+<li><strong>原因</strong>: 「私はダンプ前に購入してしまった経験について語る中で、計画通りに分割エントリーをして、より多くのBTCを同じ価格で拾えなかったことを後悔しています。」<code>[September 24, 2019]</code> - 事前に立てた分割エントリー計画を感情や市場の急な動きによって破り、最適な価格で十分なポジションを構築できないこと。</li>
+<li><strong>回避方法</strong>: 計画した分割戦略を厳守する。一度エントリーした後も、より良い価格が来れば追加エントリーできるよう、資金配分に余裕を持たせる。</li>
+</ul>
+</li>
+<li><strong>アルトコインへの無計画な投機</strong>:<ul>
+<li><strong>原因</strong>: 「Alt&#39;s like the plague」<code>[October 2, 2019]</code>と表現されるアルトコイン市場の不安定性や、明確な優位性がない中で投機的に手を出してしまうこと。</li>
+<li><strong>回避方法</strong>: アルトコインへの投資は基本的に避ける。どうしても検討する場合は、BTCへの集中投資で得た利益のごく一部を、超低リスク（全口座の0.5%未満）で「宝くじのような取引」<code>[October 10, 2020]</code>として試行するに留める。</li>
+</ul>
+</li>
+</ol>
+<h3>11. 時間管理</h3>
+<p>ronpochiは、特定の取引時間帯について明示的に言及していませんが、サイクルに基づく時間的なアノマリーと、長期的なイベント・トレンドを重視します。</p>
+<ul>
+<li><strong>取引時間帯</strong>:<ul>
+<li>特定の時間帯（例: NY市場オープン、アジア時間など）に関する言及は提供データにはありません。</li>
+<li>しかし、日足や週足のインジケーターの使用頻度が高いことから、日中を通してチャートを監視し、日足・週足の確定を重視していると推測されます。</li>
+</ul>
+</li>
+<li><strong>アノマリーとサイクル</strong>:<ul>
+<li><strong>デイリーサイクル</strong>: 「Day 57 low marks a possible end to the downtrend.」「Day 59 of the #Bitcoin Cycle」<code>[Fri Jan 22, Mon Mar 22]</code> - 約60日周期のデイリーサイクルボトムをエントリータイミングの主要な根拠とします。</li>
+<li><strong>週間サイクル</strong>: 「健全な3週間の調整期間」<code>[Wed Jan 13 15:36:50 +0000 2021]</code>、または「Starting to think we need to churn one weekly cycle (6-months)」<code>[Wed Nov 25]</code> - 週足ベースのサイクル（3週間調整、6ヶ月調整）を、エントリーや利確のタイミング、相場環境の転換点として認識。</li>
+<li><strong>長期サイクル</strong>: 「4-Year Cycle」「8-Yr Cycle peak next year. Into the 2023 Low&#39;s.」<code>[October 2, 2019, July 29, 2020]</code> - 数年単位の長期サイクルを全体的な市場の方向性や大きな転換点として捉え、長期的な投資戦略の基礎とします。</li>
+</ul>
+</li>
+<li><strong>イベント対応</strong>:<ul>
+<li>具体的なイベント（例: FOMC発表、半減期など）への対応は明示されていません。</li>
+<li>しかし、「#stocks continue to sit at ATH&#39;s. Plenty of reasons the be bearish, but <strong>price is telling us otherwise</strong>。」<code>[Fri Nov 20]</code>という発言から、外部イベントによるFUDや弱気なニュースがあったとしても、価格アクションがそれを上回る強気を示していれば、そのシグナルを優先してトレード判断を下す傾向があると考えられます。つまり、ファンダメンタルズよりも価格が最終的なシグナルとなります。</li>
+</ul>
+</li>
+</ul>
+<h3>12. 暗黙のルール（行動から読み取れる未言語化のルール）</h3>
+<p>ronpochiの言動や哲学から読み取れる、明文化されていないが彼が重視していると思われるルールを以下に示します。</p>
+<ul>
+<li><strong>規律こそが全て</strong>: 自身の経験や失敗から学び、常に進化し続ける規律正しい姿勢が、一貫した利益を上げる上で最も重要であると信じている。計画を立てたら感情に流されず、それに固執することが成功の鍵。</li>
+<li><strong>「損しない」ことを最優先</strong>: 投資元本を回収し、残りのポジションを「リスクフリー」にするという哲学は、利益を追求するよりもまず「損をしない」という資本保全の考え方が根底にあることを示唆している。</li>
+<li><strong>シンプルであることの追求</strong>: 使用するインジケーターは多岐にわたるが、最も頻繁に用いられるのは水平線、トレンドライン、MA、BB、Volumeといった基本的なもの。複雑なシステムよりも、核となるサイクル分析と価格アクションの理解を深めることを重視している。</li>
+<li><strong>教えることで学ぶ</strong>: 「Bitcoin Live」の開設やYouTubeチャンネルでの情報発信は、自身の分析やトレード情報を共有することで、自身の理解を深め、体系化するプロセスの一部であると同時に、コミュニティへの貢献も重視している。</li>
+<li><strong>市場への適応力</strong>: 初期にはレバレッジに強い警告を出し、その後市場が明確な強気トレンドに入ると自身のレバレッジロングを公言するなど、レバレッジに対する姿勢が市場環境と自身の確信度によって変化している。これは、絶対的なルールに固執せず、市場の変化に適応する柔軟性を示している。</li>
+<li><strong>自己言及と反省</strong>: 自身の「最大の失敗」<code>[March 14, 2021]</code>を公言し、そこから学ぶ姿勢は、客観的な自己分析と継続的な改善を重視している証拠。</li>
+<li><strong>長期的な視点での価値投資</strong>: 短期トレードで利益を狙う一方で、Bitcoin自体が「wildly successful」<code>[August 29, 2019]</code>になると強く信じているため、トレード利益を長期的なHODL資産に振り分けるなど、投資と投機のバランスを重視している。</li>
+</ul>
+
+</body>
+</html>
