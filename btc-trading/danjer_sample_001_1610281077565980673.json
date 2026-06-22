@@ -1,0 +1,55 @@
+{
+  "schema_version": "danjer_reading_v1",
+  "tweet_id": "1610281077565980673",
+  "screen_name": "smile_danjer",
+  "posted_at_utc": "2023-01-03T14:25:01Z",
+  "posted_at_jst": "2023-01-03T23:25:01+09:00",
+  "reply_context": null,
+  "text": "#BTC #ByBit BTC/USDT 日足 @ OI増減  高値切り下げ、OI増加「ダイバジェス」  2枚目：週足 過去最強にOi増加してます  3枚目：パワー溜め込んでます",
+  "images": [
+    {
+      "id": "1610281077565980673_1506.jpg",
+      "kind": "chart",
+      "reading": "BTCUSDT日足(Bybit/coinglass)。価格は2022年に約40,000→16,700へ下落後レンジ。赤矢印で価格の高値切り下げ(約24k→21k→18k→16.7k)を明示。下段OpenInterest Klineは赤上矢印で右肩上がり(約73.6-76.3K)。緑枠2箇所=価格急落とOI積み上げが同時進行した局面。価格↓×OI↑=ダイバージェンス。"
+    },
+    {
+      "id": "1610281077565980673_1507.jpg",
+      "kind": "chart",
+      "reading": "BTCUSDT週足(Bybit/coinglass)。2021年の約69,000天井→16,700底へ赤大矢印で下落トレンド。下段OIは過去最強の76.256K、赤上矢印で上昇。価格は弱気相場の底値圏なのにOIは史上最高=週足でもダイバージェンス。"
+    },
+    {
+      "id": "1610281077565980673_1508.png",
+      "kind": "meme",
+      "reading": "チャートではなく筋肉質の人物の写真ミーム。「パワー溜め込み(エネルギー蓄積)」の比喩。danjerの作風で、テクニカル情報は無い。"
+    }
+  ],
+  "market_snapshot": {
+    "leak_safe": true,
+    "confirmed_daily_candle_date": "2023-01-02",
+    "daily": { "open": 16617.17, "high": 16799.23, "low": 16548.70, "close": 16672.87, "volume": 121889 },
+    "price_at_post_time_approx": 16675,
+    "funding_rate_last_settled": { "ts_utc": "2023-01-03T08:00:00Z", "value_pct": 0.00898 },
+    "open_interest_btc_approx_K": 76,
+    "open_interest_note": "Bybit BTCUSDT OI 約76K=史上最高(チャート由来)",
+    "long_short_ratio": null,
+    "liquidations_24h": null,
+    "unavailable_note": "LS比率・清算データはローカル未保有(N/A)"
+  },
+  "fundamental_context": "2022年末FTX破綻の余波が残る弱気相場の底値圏。年始。",
+  "anomaly_context": "弱気相場の煮詰まり局面・年始のボラ縮小。",
+  "danjer_thesis": "価格は高値切り下げで弱く見えるが、OIが日足・週足ともに過去最強に増加=ポジション(特にショート)が史上最大に蓄積。FRはほぼ中立(+0.009%)でまだ一方向に過熱していない。『パワー溜め込み』=エネルギー蓄積で、近く大きなボラ拡大/急変が来る前兆。ダイバージェンスはトレンド転換または急変の予兆。",
+  "danjer_action": {
+    "direction": "未断定(neutral/watch)",
+    "stance": "煮詰まり→ブレイク待ち。ブレイクした方向に追随する構え。",
+    "explicit_entry": false,
+    "lot": null,
+    "leverage": null
+  },
+  "invalidation": "OIが減少に転じる、または価格がレンジを明確に抜けて素直にトレンド化する(=ダイバージェンス不成立)。",
+  "confidence": "中(方向は未断定・エネルギー蓄積の観察段階)",
+  "provenance": {
+    "built_by": "発言Claude (Claude Code) in-session Read",
+    "external_paid_api_used": false,
+    "built_at_jst": "2026-06-13T01:19:17+09:00"
+  }
+}

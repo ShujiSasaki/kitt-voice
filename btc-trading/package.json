@@ -1,0 +1,14 @@
+{
+  "name": "btc-trading",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^7.0.0",
+    "@google-cloud/functions-framework": "^3.0.0",
+    "@google-cloud/storage": "^7.0.0",
+    "better-sqlite3": "^12.9.0",
+    "playwright": "^1.59.1"
+  }
+}
