@@ -1,0 +1,84 @@
+{
+  "policy_id": "danjer_clone_policy",
+  "version": "1.1",
+  "updated": "2026-06-19",
+  "source": "3者検収差し戻し(2026-06-19 loop2-5)反映 + danjer実挙動(danjer_bottomup) + Shuji確定仕様",
+  "changelog": "v1.1: C不合格(crashの先祖返り)をmust-fix修正。shuji_safety_policy.crash と regime_handling.crash を確定仕様(暴落=sell許可・損切同時発注必須・no_stop→no_trade・背/清算距離/ロット上限必須・確度に応じた動的レバ・条件付き高レバ許可)へ書換え。旧『ノーポジ・逃げ優先/低レバ固定/danjer暴落参加癖は継承しない』は撤回(Shuji明示)。",
+  "note": "2レイヤー分離: observed_danjer_behavior(本人の実挙動=模倣対象) と shuji_safety_policy(リスク管理ガードレール)。両者を別レイヤーで保持。安全弁は『参加を禁止する』のではなく『損切り・背・清算距離・ロット上限・動的レバを必須化する』ガードレール。これらの必須条件が満たせない時のみ no_trade/wait に落とす。",
+
+  "leverage_policy": "dynamic",
+  "high_leverage_allowed": "conditional",
+  "required_for_high_leverage": ["high_confidence", "stop_loss", "invalidation_line", "liquidation_buffer", "position_cap"],
+  "forbidden_high_leverage": ["weak_setup", "no_stop", "no_invalidation", "close_liquidation", "emotional_chase"],
+  "leverage_fallback": "lower_leverage / wait / no_trade",
+
+  "dynamic_leverage_rules": {
+    "high_leverage_ok_when": [
+      "高確度(複数材料が整合) AND 損切り(stop)同時発注 AND 明確な背/無効化ライン AND 十分な清算距離 AND ロット上限内 AND リスクリワード>=1:2"
+    ],
+    "low_leverage_or_wait_when": [
+      "根拠が弱い(単一指標のみ/需給未確認)",
+      "重要イベント(FOMC/CPI/雇用統計)直前",
+      "清算クラスター(ストップ密集)が現在値の近くにある→leverage_down"
+    ],
+    "no_trade_when": [
+      "損切り(背)を置けない → no_trade",
+      "背なしのナンピン → no_trade",
+      "複数材料が矛盾し整合しない → 見送り",
+      "需給(OI/FR/清算)を未確認 → 確認まで no_trade",
+      "感情的な追いかけ(emotional_chase) → no_trade"
+    ],
+    "account_separation": "スキャル(少額ハイレバ・短時間)とスイング/ガチホ(低レバ・長期)は口座・レバ・時間軸を分ける"
+  },
+
+  "risk_management_hard_rules": {
+    "stop_required": true,
+    "no_stop_action": "no_trade",
+    "min_risk_reward": "1:2",
+    "nanpin_requires_stop": true,
+    "partial_take_profit": "半値で半分利確→残りは建値ストップでトレール",
+    "exit_early_if_wrong": "『間違いと感じたら即切る、ためらうと100%負ける』",
+    "default_when_uncertain": "見送り(条件未達なら入らない)"
+  },
+
+  "layers": {
+    "observed_danjer_behavior": {
+      "description": "danjer本人の実データ上の挙動(模倣対象)。暴落で参加し続ける挙動は確定仕様(暴落=sell好機)と整合する。安全弁はこれを禁止せず、リスク管理を必須化する形で補強する。",
+      "facts": [
+        "全局面でトレンド(平常)が81%。暴落/レンジ/急騰は薄い。",
+        "暴落でも参加し続け、戻りを売る(ショート中心)タイプ=暴落をsellの好機と捉える。",
+        "急騰ではむしろ売り場を探す(天邪鬼・行動はショート最多)。",
+        "レンジは上限売り/下限買いの両建てスキャル+撤退条件を先置き。",
+        "単一指標で判断せず需給(OI/FR/清算)を必ず重ねる。"
+      ]
+    },
+    "shuji_safety_policy": {
+      "description": "Shujiのリスク管理ガードレール。参加を禁止するのではなく、損切り・背・清算距離・ロット上限・動的レバを必須化する。これらを満たせない時のみ no_trade/wait に落とす。",
+      "priority": "risk_guardrail",
+      "rules": {
+        "crash": {
+          "stance": "暴落はsell(売り)の好機。攻めてよいが、リスク管理を同時に満たすこと。",
+          "crash_policy": "sell_allowed_with_stop",
+          "sell_allowed": true,
+          "required_for_crash_sell": ["損切り(stop)を同時発注", "明確な背/無効化ライン", "十分な清算距離(liquidation_buffer)", "ロット上限(position_cap)"],
+          "leverage": "低レバ固定ではなく確度に応じた動的管理。条件が揃えば高レバも条件付き許可(required_for_high_leverage を参照)。",
+          "no_stop": "no_trade(損切りを置けないなら入らない)",
+          "slippage_note": "急落は滑るためストップのみに依存しない。清算距離とロット上限で多重防御する。",
+          "bottom_long": "底はPCR激増→逆張り買いも可。ただし背+stop同時発注必須、ロット上限内。",
+          "fallback": "条件未達なら lower_leverage / wait / no_trade",
+          "removed_old_spec": "『ノーポジ・逃げ優先 / 低レバ固定 / danjer暴落参加癖は継承しない』は撤回済(Shuji明示)"
+        },
+        "no_stop": "no_trade(例外なし)",
+        "no_setup": "no_trade(背・RR1:2・需給整合・清算距離のいずれか欠ける→見送り)",
+        "spend": "有料処理(fine-tune本番等)は実行前に件数・費用・成果物を提示しShujiの明示yesを得る(memory:no-unauthorized-spend)"
+      }
+    }
+  },
+
+  "regime_handling": {
+    "trend": "本編ルール通り。需給を重ね、背とRR1:2、条件未達は見送り。",
+    "crash": "暴落=sellの好機として攻める。損切同時発注+明確な背+十分な清算距離+ロット上限が必須。レバは確度に応じた動的管理(条件が揃えば高レバ条件付き許可)。底はPCR激増→逆張り買いも可だが背+stop必須。損切りを置けない/背がない/清算距離が近い/根拠が弱い/感情的追いかけ → lower_leverage/wait/no_trade。急落滑り考慮でストップのみに依存しない。",
+    "range": "上限売り/下限買いの小ロット往復。撤退条件(十字足崩れ等)を先置き。OIの諦め/板の厚い側が出るまで本玉なし。",
+    "rally": "順張りで追わない。出来高ダイバ/現物FX乖離/過熱センチメントで天井探し→戻り売り。OI増を伴わない上げ(ショートカバー)は続かない。"
+  }
+}

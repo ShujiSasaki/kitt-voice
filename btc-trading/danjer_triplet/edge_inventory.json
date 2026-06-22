@@ -1,0 +1,3796 @@
+{
+ "spec": "danjer材料インベントリ+右側予測精度 (2026-06-18)",
+ "母集団": {
+  "抽出あり局面": 10084,
+  "方向long/short": 5137,
+  "精度計算可能(方向+リターン)": 4455
+ },
+ "注記": "局面数=投稿単位(重複排除)。neutralは右側予測なしで精度対象外。returnsはclean horizon(1d/7d/30d/90d)のみ。",
+ "primary_horizon": "ret_7d",
+ "A_材料カテゴリ別": [
+  {
+   "label": "technical",
+   "局面数": 8027,
+   "方向内訳": {
+    "long": 2739,
+    "short": 1330,
+    "neutral": 3958
+   },
+   "精度計算可能局面": 4069,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 3504,
+     "win_rate": 50.8,
+     "ev_pct": 0.13,
+     "median_pct": 0.04,
+     "baseline_ev_pct": 0.08,
+     "excess_pct": 0.06
+    },
+    "ret_7d": {
+     "scored_n": 3500,
+     "win_rate": 50.3,
+     "ev_pct": 0.48,
+     "median_pct": 0.12,
+     "baseline_ev_pct": 0.69,
+     "excess_pct": -0.21
+    },
+    "ret_30d": {
+     "scored_n": 3457,
+     "win_rate": 52.1,
+     "ev_pct": 1.42,
+     "median_pct": 0.49,
+     "baseline_ev_pct": 2.55,
+     "excess_pct": -1.12
+    },
+    "ret_90d": {
+     "scored_n": 3250,
+     "win_rate": 51.1,
+     "ev_pct": 2.66,
+     "median_pct": 0.83,
+     "baseline_ev_pct": 5.25,
+     "excess_pct": -2.59
+    }
+   }
+  },
+  {
+   "label": "other",
+   "局面数": 3317,
+   "方向内訳": {
+    "long": 1260,
+    "short": 540,
+    "neutral": 1517
+   },
+   "精度計算可能局面": 1800,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1547,
+     "win_rate": 52.8,
+     "ev_pct": 0.31,
+     "median_pct": 0.11,
+     "baseline_ev_pct": 0.09,
+     "excess_pct": 0.22
+    },
+    "ret_7d": {
+     "scored_n": 1547,
+     "win_rate": 50.2,
+     "ev_pct": 0.62,
+     "median_pct": 0.12,
+     "baseline_ev_pct": 0.68,
+     "excess_pct": -0.05
+    },
+    "ret_30d": {
+     "scored_n": 1535,
+     "win_rate": 52.1,
+     "ev_pct": 1.47,
+     "median_pct": 0.5,
+     "baseline_ev_pct": 1.97,
+     "excess_pct": -0.49
+    },
+    "ret_90d": {
+     "scored_n": 1453,
+     "win_rate": 52.1,
+     "ev_pct": 3.62,
+     "median_pct": 1.38,
+     "baseline_ev_pct": 5.38,
+     "excess_pct": -1.76
+    }
+   }
+  },
+  {
+   "label": "sentiment",
+   "局面数": 2660,
+   "方向内訳": {
+    "long": 931,
+    "short": 522,
+    "neutral": 1207
+   },
+   "精度計算可能局面": 1453,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1239,
+     "win_rate": 51.3,
+     "ev_pct": 0.23,
+     "median_pct": 0.09,
+     "baseline_ev_pct": 0.15,
+     "excess_pct": 0.08
+    },
+    "ret_7d": {
+     "scored_n": 1238,
+     "win_rate": 51.5,
+     "ev_pct": 0.46,
+     "median_pct": 0.28,
+     "baseline_ev_pct": 0.61,
+     "excess_pct": -0.15
+    },
+    "ret_30d": {
+     "scored_n": 1223,
+     "win_rate": 51.8,
+     "ev_pct": 1.64,
+     "median_pct": 0.65,
+     "baseline_ev_pct": 2.28,
+     "excess_pct": -0.65
+    },
+    "ret_90d": {
+     "scored_n": 1156,
+     "win_rate": 53.0,
+     "ev_pct": 3.09,
+     "median_pct": 2.34,
+     "baseline_ev_pct": 4.53,
+     "excess_pct": -1.44
+    }
+   }
+  },
+  {
+   "label": "leverage_risk",
+   "局面数": 1251,
+   "方向内訳": {
+    "long": 547,
+    "short": 205,
+    "neutral": 499
+   },
+   "精度計算可能局面": 752,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 641,
+     "win_rate": 51.0,
+     "ev_pct": 0.21,
+     "median_pct": 0.03,
+     "baseline_ev_pct": 0.23,
+     "excess_pct": -0.02
+    },
+    "ret_7d": {
+     "scored_n": 640,
+     "win_rate": 46.4,
+     "ev_pct": 0.23,
+     "median_pct": -0.43,
+     "baseline_ev_pct": 0.63,
+     "excess_pct": -0.4
+    },
+    "ret_30d": {
+     "scored_n": 628,
+     "win_rate": 50.0,
+     "ev_pct": 1.13,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 2.32,
+     "excess_pct": -1.19
+    },
+    "ret_90d": {
+     "scored_n": 577,
+     "win_rate": 49.6,
+     "ev_pct": 1.99,
+     "median_pct": -0.52,
+     "baseline_ev_pct": 4.37,
+     "excess_pct": -2.38
+    }
+   }
+  },
+  {
+   "label": "fundamental",
+   "局面数": 714,
+   "方向内訳": {
+    "long": 232,
+    "short": 98,
+    "neutral": 384
+   },
+   "精度計算可能局面": 330,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 290,
+     "win_rate": 53.4,
+     "ev_pct": 0.61,
+     "median_pct": 0.16,
+     "baseline_ev_pct": 0.15,
+     "excess_pct": 0.47
+    },
+    "ret_7d": {
+     "scored_n": 290,
+     "win_rate": 54.1,
+     "ev_pct": 0.83,
+     "median_pct": 0.65,
+     "baseline_ev_pct": 0.91,
+     "excess_pct": -0.07
+    },
+    "ret_30d": {
+     "scored_n": 289,
+     "win_rate": 52.2,
+     "ev_pct": 2.04,
+     "median_pct": 1.03,
+     "baseline_ev_pct": 4.09,
+     "excess_pct": -2.05
+    },
+    "ret_90d": {
+     "scored_n": 279,
+     "win_rate": 48.0,
+     "ev_pct": 2.97,
+     "median_pct": -2.19,
+     "baseline_ev_pct": 7.1,
+     "excess_pct": -4.13
+    }
+   }
+  },
+  {
+   "label": "anomaly",
+   "局面数": 540,
+   "方向内訳": {
+    "long": 237,
+    "short": 91,
+    "neutral": 212
+   },
+   "精度計算可能局面": 328,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 284,
+     "win_rate": 52.5,
+     "ev_pct": 0.25,
+     "median_pct": 0.07,
+     "baseline_ev_pct": -0.03,
+     "excess_pct": 0.28
+    },
+    "ret_7d": {
+     "scored_n": 284,
+     "win_rate": 50.7,
+     "ev_pct": 0.48,
+     "median_pct": 0.17,
+     "baseline_ev_pct": 0.03,
+     "excess_pct": 0.45
+    },
+    "ret_30d": {
+     "scored_n": 284,
+     "win_rate": 51.1,
+     "ev_pct": 1.11,
+     "median_pct": 0.46,
+     "baseline_ev_pct": 1.44,
+     "excess_pct": -0.33
+    },
+    "ret_90d": {
+     "scored_n": 265,
+     "win_rate": 52.8,
+     "ev_pct": 4.31,
+     "median_pct": 2.22,
+     "baseline_ev_pct": 3.34,
+     "excess_pct": 0.97
+    }
+   }
+  },
+  {
+   "label": "on-chain",
+   "局面数": 6,
+   "方向内訳": {
+    "long": 2,
+    "short": 1,
+    "neutral": 3
+   },
+   "精度計算可能局面": 3,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 1.46,
+     "median_pct": 1.46,
+     "baseline_ev_pct": 1.46,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 3.56,
+     "median_pct": 3.56,
+     "baseline_ev_pct": 3.56,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 5.88,
+     "median_pct": 5.88,
+     "baseline_ev_pct": 5.88,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 2,
+     "win_rate": 100.0,
+     "ev_pct": 31.38,
+     "median_pct": 31.38,
+     "baseline_ev_pct": 31.38,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "onchain",
+   "局面数": 2,
+   "方向内訳": {
+    "long": 0,
+    "short": 1,
+    "neutral": 1
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 8.3,
+     "median_pct": 8.3,
+     "baseline_ev_pct": -8.3,
+     "excess_pct": 16.6
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 12.05,
+     "median_pct": 12.05,
+     "baseline_ev_pct": -12.05,
+     "excess_pct": 24.11
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 11.78,
+     "median_pct": 11.78,
+     "baseline_ev_pct": -11.78,
+     "excess_pct": 23.56
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 20.8,
+     "median_pct": 20.8,
+     "baseline_ev_pct": -20.8,
+     "excess_pct": 41.59
+    }
+   }
+  },
+  {
+   "label": "strategy",
+   "局面数": 2,
+   "方向内訳": {
+    "long": 2,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 2,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 1.46,
+     "median_pct": 1.46,
+     "baseline_ev_pct": 1.46,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 0.08,
+     "median_pct": 0.08,
+     "baseline_ev_pct": 0.08,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": 3.23,
+     "median_pct": 3.23,
+     "baseline_ev_pct": 3.23,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 2,
+     "win_rate": 50.0,
+     "ev_pct": -5.78,
+     "median_pct": -5.78,
+     "baseline_ev_pct": -5.78,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "event",
+   "局面数": 2,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -0.02,
+     "median_pct": -0.02,
+     "baseline_ev_pct": -0.02,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -9.44,
+     "median_pct": -9.44,
+     "baseline_ev_pct": -9.44,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -5.43,
+     "median_pct": -5.43,
+     "baseline_ev_pct": -5.43,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 0.43,
+     "median_pct": 0.43,
+     "baseline_ev_pct": 0.43,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "order_book",
+   "局面数": 2,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 2
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "correlation",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 1,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 2.77,
+     "median_pct": 2.77,
+     "baseline_ev_pct": -2.77,
+     "excess_pct": 5.54
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -1.2,
+     "median_pct": -1.2,
+     "baseline_ev_pct": 1.2,
+     "excess_pct": -2.39
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 18.97,
+     "median_pct": 18.97,
+     "baseline_ev_pct": -18.97,
+     "excess_pct": 37.94
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 12.2,
+     "median_pct": 12.2,
+     "baseline_ev_pct": -12.2,
+     "excess_pct": 24.4
+    }
+   }
+  },
+  {
+   "label": "intermarket",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 1,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -1.05,
+     "median_pct": -1.05,
+     "baseline_ev_pct": 1.05,
+     "excess_pct": -2.1
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -4.59,
+     "median_pct": -4.59,
+     "baseline_ev_pct": 4.59,
+     "excess_pct": -9.18
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -40.86,
+     "median_pct": -40.86,
+     "baseline_ev_pct": 40.86,
+     "excess_pct": -81.72
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -66.71,
+     "median_pct": -66.71,
+     "baseline_ev_pct": 66.71,
+     "excess_pct": -133.43
+    }
+   }
+  },
+  {
+   "label": "on_chain",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "price_action",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "exchange_activity",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 0.59,
+     "median_pct": 0.59,
+     "baseline_ev_pct": 0.59,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 5.36,
+     "median_pct": 5.36,
+     "baseline_ev_pct": 5.36,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 4.39,
+     "median_pct": 4.39,
+     "baseline_ev_pct": 4.39,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -4.13,
+     "median_pct": -4.13,
+     "baseline_ev_pct": -4.13,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "market_psychology",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -0.16,
+     "median_pct": -0.16,
+     "baseline_ev_pct": -0.16,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -4.27,
+     "median_pct": -4.27,
+     "baseline_ev_pct": -4.27,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -16.65,
+     "median_pct": -16.65,
+     "baseline_ev_pct": -16.65,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -22.24,
+     "median_pct": -22.24,
+     "baseline_ev_pct": -22.24,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "analogy",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -0.16,
+     "median_pct": -0.16,
+     "baseline_ev_pct": -0.16,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -4.27,
+     "median_pct": -4.27,
+     "baseline_ev_pct": -4.27,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -16.65,
+     "median_pct": -16.65,
+     "baseline_ev_pct": -16.65,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -22.24,
+     "median_pct": -22.24,
+     "baseline_ev_pct": -22.24,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "onchain_data",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -0.16,
+     "median_pct": -0.16,
+     "baseline_ev_pct": -0.16,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -4.27,
+     "median_pct": -4.27,
+     "baseline_ev_pct": -4.27,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -16.65,
+     "median_pct": -16.65,
+     "baseline_ev_pct": -16.65,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -22.24,
+     "median_pct": -22.24,
+     "baseline_ev_pct": -22.24,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "time_based_anomaly",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -1.49,
+     "median_pct": -1.49,
+     "baseline_ev_pct": -1.49,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -1.04,
+     "median_pct": -1.04,
+     "baseline_ev_pct": -1.04,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -13.9,
+     "median_pct": -13.9,
+     "baseline_ev_pct": -13.9,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 6.04,
+     "median_pct": 6.04,
+     "baseline_ev_pct": 6.04,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "exchange_specific_flow",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "derivates_open_interest",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "order_flow",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "orderbook",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 1,
+    "short": 0,
+    "neutral": 0
+   },
+   "精度計算可能局面": 1,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1,
+     "win_rate": 100.0,
+     "ev_pct": 0.07,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -0.03,
+     "median_pct": -0.03,
+     "baseline_ev_pct": -0.03,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -1.94,
+     "median_pct": -1.94,
+     "baseline_ev_pct": -1.94,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 1,
+     "win_rate": 0.0,
+     "ev_pct": -21.71,
+     "median_pct": -21.71,
+     "baseline_ev_pct": -21.71,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "orderflow",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  },
+  {
+   "label": "market_structure",
+   "局面数": 1,
+   "方向内訳": {
+    "long": 0,
+    "short": 0,
+    "neutral": 1
+   },
+   "精度計算可能局面": 0,
+   "精度": {
+    "ret_1d": null,
+    "ret_7d": null,
+    "ret_30d": null,
+    "ret_90d": null
+   }
+  }
+ ],
+ "B_具体テクニック別": [
+  {
+   "label": "サポレジ",
+   "局面数": 1677,
+   "方向内訳": {
+    "long": 585,
+    "short": 290,
+    "neutral": 802
+   },
+   "精度計算可能局面": 875,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 773,
+     "win_rate": 50.7,
+     "ev_pct": 0.1,
+     "median_pct": 0.05,
+     "baseline_ev_pct": -0.07,
+     "excess_pct": 0.18
+    },
+    "ret_7d": {
+     "scored_n": 771,
+     "win_rate": 49.4,
+     "ev_pct": 0.32,
+     "median_pct": -0.06,
+     "baseline_ev_pct": 0.47,
+     "excess_pct": -0.15
+    },
+    "ret_30d": {
+     "scored_n": 759,
+     "win_rate": 52.2,
+     "ev_pct": 1.8,
+     "median_pct": 0.68,
+     "baseline_ev_pct": 2.32,
+     "excess_pct": -0.52
+    },
+    "ret_90d": {
+     "scored_n": 700,
+     "win_rate": 51.4,
+     "ev_pct": 2.72,
+     "median_pct": 1.77,
+     "baseline_ev_pct": 4.73,
+     "excess_pct": -2.01
+    }
+   }
+  },
+  {
+   "label": "ブレイク",
+   "局面数": 1508,
+   "方向内訳": {
+    "long": 501,
+    "short": 261,
+    "neutral": 746
+   },
+   "精度計算可能局面": 762,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 674,
+     "win_rate": 52.1,
+     "ev_pct": 0.27,
+     "median_pct": 0.14,
+     "baseline_ev_pct": 0.06,
+     "excess_pct": 0.21
+    },
+    "ret_7d": {
+     "scored_n": 674,
+     "win_rate": 49.6,
+     "ev_pct": 0.28,
+     "median_pct": -0.09,
+     "baseline_ev_pct": 0.63,
+     "excess_pct": -0.36
+    },
+    "ret_30d": {
+     "scored_n": 660,
+     "win_rate": 52.3,
+     "ev_pct": 1.37,
+     "median_pct": 0.46,
+     "baseline_ev_pct": 3.19,
+     "excess_pct": -1.82
+    },
+    "ret_90d": {
+     "scored_n": 629,
+     "win_rate": 47.9,
+     "ev_pct": 1.07,
+     "median_pct": -1.1,
+     "baseline_ev_pct": 5.79,
+     "excess_pct": -4.71
+    }
+   }
+  },
+  {
+   "label": "レンジ/ボックス",
+   "局面数": 1447,
+   "方向内訳": {
+    "long": 406,
+    "short": 205,
+    "neutral": 836
+   },
+   "精度計算可能局面": 611,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 541,
+     "win_rate": 49.4,
+     "ev_pct": 0.11,
+     "median_pct": -0.03,
+     "baseline_ev_pct": 0.04,
+     "excess_pct": 0.07
+    },
+    "ret_7d": {
+     "scored_n": 541,
+     "win_rate": 47.9,
+     "ev_pct": 0.22,
+     "median_pct": -0.36,
+     "baseline_ev_pct": 0.39,
+     "excess_pct": -0.16
+    },
+    "ret_30d": {
+     "scored_n": 528,
+     "win_rate": 50.2,
+     "ev_pct": 0.49,
+     "median_pct": 0.04,
+     "baseline_ev_pct": 2.45,
+     "excess_pct": -1.96
+    },
+    "ret_90d": {
+     "scored_n": 495,
+     "win_rate": 46.5,
+     "ev_pct": -0.29,
+     "median_pct": -2.23,
+     "baseline_ev_pct": 6.48,
+     "excess_pct": -6.77
+    }
+   }
+  },
+  {
+   "label": "髭/ローソク足",
+   "局面数": 1194,
+   "方向内訳": {
+    "long": 384,
+    "short": 216,
+    "neutral": 594
+   },
+   "精度計算可能局面": 600,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 531,
+     "win_rate": 52.5,
+     "ev_pct": 0.03,
+     "median_pct": 0.09,
+     "baseline_ev_pct": -0.12,
+     "excess_pct": 0.15
+    },
+    "ret_7d": {
+     "scored_n": 530,
+     "win_rate": 53.4,
+     "ev_pct": 0.54,
+     "median_pct": 0.49,
+     "baseline_ev_pct": 0.63,
+     "excess_pct": -0.09
+    },
+    "ret_30d": {
+     "scored_n": 519,
+     "win_rate": 51.3,
+     "ev_pct": 1.23,
+     "median_pct": 0.5,
+     "baseline_ev_pct": 2.62,
+     "excess_pct": -1.39
+    },
+    "ret_90d": {
+     "scored_n": 485,
+     "win_rate": 53.6,
+     "ev_pct": 3.19,
+     "median_pct": 2.26,
+     "baseline_ev_pct": 5.83,
+     "excess_pct": -2.64
+    }
+   }
+  },
+  {
+   "label": "OI/建玉",
+   "局面数": 1153,
+   "方向内訳": {
+    "long": 340,
+    "short": 210,
+    "neutral": 603
+   },
+   "精度計算可能局面": 550,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 479,
+     "win_rate": 47.2,
+     "ev_pct": -0.06,
+     "median_pct": -0.15,
+     "baseline_ev_pct": -0.06,
+     "excess_pct": 0.01
+    },
+    "ret_7d": {
+     "scored_n": 479,
+     "win_rate": 44.3,
+     "ev_pct": -0.35,
+     "median_pct": -0.7,
+     "baseline_ev_pct": 0.3,
+     "excess_pct": -0.66
+    },
+    "ret_30d": {
+     "scored_n": 466,
+     "win_rate": 45.5,
+     "ev_pct": -0.35,
+     "median_pct": -1.37,
+     "baseline_ev_pct": 1.93,
+     "excess_pct": -2.28
+    },
+    "ret_90d": {
+     "scored_n": 428,
+     "win_rate": 44.4,
+     "ev_pct": -1.76,
+     "median_pct": -4.07,
+     "baseline_ev_pct": 2.46,
+     "excess_pct": -4.22
+    }
+   }
+  },
+  {
+   "label": "清算/精算",
+   "局面数": 944,
+   "方向内訳": {
+    "long": 315,
+    "short": 171,
+    "neutral": 458
+   },
+   "精度計算可能局面": 486,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 390,
+     "win_rate": 45.6,
+     "ev_pct": -0.0,
+     "median_pct": -0.18,
+     "baseline_ev_pct": 0.14,
+     "excess_pct": -0.14
+    },
+    "ret_7d": {
+     "scored_n": 388,
+     "win_rate": 49.7,
+     "ev_pct": 0.25,
+     "median_pct": -0.08,
+     "baseline_ev_pct": 0.94,
+     "excess_pct": -0.7
+    },
+    "ret_30d": {
+     "scored_n": 385,
+     "win_rate": 49.9,
+     "ev_pct": 0.73,
+     "median_pct": -0.23,
+     "baseline_ev_pct": 4.11,
+     "excess_pct": -3.38
+    },
+    "ret_90d": {
+     "scored_n": 362,
+     "win_rate": 52.2,
+     "ev_pct": 2.33,
+     "median_pct": 0.93,
+     "baseline_ev_pct": 9.06,
+     "excess_pct": -6.74
+    }
+   }
+  },
+  {
+   "label": "オーダー板/出来高",
+   "局面数": 696,
+   "方向内訳": {
+    "long": 220,
+    "short": 100,
+    "neutral": 376
+   },
+   "精度計算可能局面": 320,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 262,
+     "win_rate": 45.4,
+     "ev_pct": -0.24,
+     "median_pct": -0.26,
+     "baseline_ev_pct": 0.06,
+     "excess_pct": -0.31
+    },
+    "ret_7d": {
+     "scored_n": 259,
+     "win_rate": 47.5,
+     "ev_pct": -0.27,
+     "median_pct": -0.58,
+     "baseline_ev_pct": 0.59,
+     "excess_pct": -0.86
+    },
+    "ret_30d": {
+     "scored_n": 258,
+     "win_rate": 43.4,
+     "ev_pct": 0.06,
+     "median_pct": -1.88,
+     "baseline_ev_pct": 2.0,
+     "excess_pct": -1.95
+    },
+    "ret_90d": {
+     "scored_n": 246,
+     "win_rate": 46.7,
+     "ev_pct": 1.07,
+     "median_pct": -3.78,
+     "baseline_ev_pct": -0.23,
+     "excess_pct": 1.29
+    }
+   }
+  },
+  {
+   "label": "アノマリー(時期/曜日)",
+   "局面数": 620,
+   "方向内訳": {
+    "long": 269,
+    "short": 90,
+    "neutral": 261
+   },
+   "精度計算可能局面": 359,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 312,
+     "win_rate": 52.6,
+     "ev_pct": 0.26,
+     "median_pct": 0.1,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 0.19
+    },
+    "ret_7d": {
+     "scored_n": 312,
+     "win_rate": 54.5,
+     "ev_pct": 0.91,
+     "median_pct": 0.56,
+     "baseline_ev_pct": 0.46,
+     "excess_pct": 0.45
+    },
+    "ret_30d": {
+     "scored_n": 310,
+     "win_rate": 51.0,
+     "ev_pct": 1.14,
+     "median_pct": 0.3,
+     "baseline_ev_pct": 1.71,
+     "excess_pct": -0.57
+    },
+    "ret_90d": {
+     "scored_n": 294,
+     "win_rate": 49.0,
+     "ev_pct": 2.84,
+     "median_pct": -0.94,
+     "baseline_ev_pct": 3.37,
+     "excess_pct": -0.53
+    }
+   }
+  },
+  {
+   "label": "雲/一目",
+   "局面数": 586,
+   "方向内訳": {
+    "long": 181,
+    "short": 75,
+    "neutral": 330
+   },
+   "精度計算可能局面": 256,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 210,
+     "win_rate": 51.4,
+     "ev_pct": 0.13,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.02,
+     "excess_pct": 0.11
+    },
+    "ret_7d": {
+     "scored_n": 210,
+     "win_rate": 49.5,
+     "ev_pct": 0.73,
+     "median_pct": -0.03,
+     "baseline_ev_pct": 0.67,
+     "excess_pct": 0.06
+    },
+    "ret_30d": {
+     "scored_n": 208,
+     "win_rate": 54.3,
+     "ev_pct": 1.98,
+     "median_pct": 0.74,
+     "baseline_ev_pct": 3.07,
+     "excess_pct": -1.09
+    },
+    "ret_90d": {
+     "scored_n": 192,
+     "win_rate": 47.4,
+     "ev_pct": 0.14,
+     "median_pct": -1.71,
+     "baseline_ev_pct": -0.5,
+     "excess_pct": 0.64
+    }
+   }
+  },
+  {
+   "label": "サイクル理論",
+   "局面数": 549,
+   "方向内訳": {
+    "long": 248,
+    "short": 71,
+    "neutral": 230
+   },
+   "精度計算可能局面": 319,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 261,
+     "win_rate": 51.0,
+     "ev_pct": 0.2,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.03,
+     "excess_pct": 0.17
+    },
+    "ret_7d": {
+     "scored_n": 261,
+     "win_rate": 53.6,
+     "ev_pct": 1.18,
+     "median_pct": 0.39,
+     "baseline_ev_pct": 0.92,
+     "excess_pct": 0.26
+    },
+    "ret_30d": {
+     "scored_n": 261,
+     "win_rate": 52.9,
+     "ev_pct": 2.05,
+     "median_pct": 0.5,
+     "baseline_ev_pct": 2.65,
+     "excess_pct": -0.61
+    },
+    "ret_90d": {
+     "scored_n": 241,
+     "win_rate": 50.6,
+     "ev_pct": 5.2,
+     "median_pct": 0.22,
+     "baseline_ev_pct": 7.53,
+     "excess_pct": -2.33
+    }
+   }
+  },
+  {
+   "label": "移動平均(SMA/MA)",
+   "局面数": 485,
+   "方向内訳": {
+    "long": 207,
+    "short": 86,
+    "neutral": 192
+   },
+   "精度計算可能局面": 293,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 265,
+     "win_rate": 53.2,
+     "ev_pct": 0.28,
+     "median_pct": 0.1,
+     "baseline_ev_pct": 0.2,
+     "excess_pct": 0.07
+    },
+    "ret_7d": {
+     "scored_n": 265,
+     "win_rate": 51.7,
+     "ev_pct": 0.85,
+     "median_pct": 0.49,
+     "baseline_ev_pct": 0.89,
+     "excess_pct": -0.05
+    },
+    "ret_30d": {
+     "scored_n": 263,
+     "win_rate": 63.5,
+     "ev_pct": 4.57,
+     "median_pct": 3.63,
+     "baseline_ev_pct": 5.54,
+     "excess_pct": -0.97
+    },
+    "ret_90d": {
+     "scored_n": 244,
+     "win_rate": 57.4,
+     "ev_pct": 6.96,
+     "median_pct": 8.02,
+     "baseline_ev_pct": 13.6,
+     "excess_pct": -6.64
+    }
+   }
+  },
+  {
+   "label": "ボラティリティ",
+   "局面数": 468,
+   "方向内訳": {
+    "long": 117,
+    "short": 41,
+    "neutral": 310
+   },
+   "精度計算可能局面": 158,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 132,
+     "win_rate": 56.1,
+     "ev_pct": -0.04,
+     "median_pct": 0.32,
+     "baseline_ev_pct": 0.06,
+     "excess_pct": -0.09
+    },
+    "ret_7d": {
+     "scored_n": 132,
+     "win_rate": 45.5,
+     "ev_pct": -0.38,
+     "median_pct": -1.27,
+     "baseline_ev_pct": 0.49,
+     "excess_pct": -0.87
+    },
+    "ret_30d": {
+     "scored_n": 132,
+     "win_rate": 53.8,
+     "ev_pct": 1.16,
+     "median_pct": 0.29,
+     "baseline_ev_pct": 2.06,
+     "excess_pct": -0.91
+    },
+    "ret_90d": {
+     "scored_n": 125,
+     "win_rate": 54.4,
+     "ev_pct": 3.82,
+     "median_pct": 3.49,
+     "baseline_ev_pct": 6.01,
+     "excess_pct": -2.2
+    }
+   }
+  },
+  {
+   "label": "FR/資金調達",
+   "局面数": 406,
+   "方向内訳": {
+    "long": 126,
+    "short": 74,
+    "neutral": 206
+   },
+   "精度計算可能局面": 200,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 166,
+     "win_rate": 47.0,
+     "ev_pct": 0.23,
+     "median_pct": -0.12,
+     "baseline_ev_pct": -0.03,
+     "excess_pct": 0.26
+    },
+    "ret_7d": {
+     "scored_n": 166,
+     "win_rate": 47.0,
+     "ev_pct": 0.06,
+     "median_pct": -0.68,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": -0.01
+    },
+    "ret_30d": {
+     "scored_n": 160,
+     "win_rate": 47.5,
+     "ev_pct": -0.15,
+     "median_pct": -1.03,
+     "baseline_ev_pct": 2.16,
+     "excess_pct": -2.3
+    },
+    "ret_90d": {
+     "scored_n": 150,
+     "win_rate": 52.7,
+     "ev_pct": 2.71,
+     "median_pct": 4.25,
+     "baseline_ev_pct": 4.31,
+     "excess_pct": -1.6
+    }
+   }
+  },
+  {
+   "label": "チャネル",
+   "局面数": 361,
+   "方向内訳": {
+    "long": 111,
+    "short": 64,
+    "neutral": 186
+   },
+   "精度計算可能局面": 175,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 146,
+     "win_rate": 49.3,
+     "ev_pct": 0.35,
+     "median_pct": -0.02,
+     "baseline_ev_pct": 0.32,
+     "excess_pct": 0.04
+    },
+    "ret_7d": {
+     "scored_n": 145,
+     "win_rate": 49.0,
+     "ev_pct": 0.33,
+     "median_pct": -0.52,
+     "baseline_ev_pct": 0.47,
+     "excess_pct": -0.14
+    },
+    "ret_30d": {
+     "scored_n": 139,
+     "win_rate": 56.8,
+     "ev_pct": 1.27,
+     "median_pct": 1.5,
+     "baseline_ev_pct": 2.26,
+     "excess_pct": -0.99
+    },
+    "ret_90d": {
+     "scored_n": 126,
+     "win_rate": 52.4,
+     "ev_pct": 2.46,
+     "median_pct": 2.01,
+     "baseline_ev_pct": 3.45,
+     "excess_pct": -0.99
+    }
+   }
+  },
+  {
+   "label": "ウェッジ/ペナント/三角",
+   "局面数": 337,
+   "方向内訳": {
+    "long": 101,
+    "short": 57,
+    "neutral": 179
+   },
+   "精度計算可能局面": 158,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 144,
+     "win_rate": 51.4,
+     "ev_pct": 0.21,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.23,
+     "excess_pct": -0.02
+    },
+    "ret_7d": {
+     "scored_n": 143,
+     "win_rate": 49.0,
+     "ev_pct": 0.15,
+     "median_pct": -0.36,
+     "baseline_ev_pct": 0.71,
+     "excess_pct": -0.56
+    },
+    "ret_30d": {
+     "scored_n": 143,
+     "win_rate": 60.1,
+     "ev_pct": 1.77,
+     "median_pct": 2.06,
+     "baseline_ev_pct": 3.09,
+     "excess_pct": -1.32
+    },
+    "ret_90d": {
+     "scored_n": 142,
+     "win_rate": 57.7,
+     "ev_pct": 6.04,
+     "median_pct": 6.17,
+     "baseline_ev_pct": 9.16,
+     "excess_pct": -3.11
+    }
+   }
+  },
+  {
+   "label": "ファンダ(マクロ/規制)",
+   "局面数": 337,
+   "方向内訳": {
+    "long": 110,
+    "short": 51,
+    "neutral": 176
+   },
+   "精度計算可能局面": 161,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 133,
+     "win_rate": 51.9,
+     "ev_pct": 0.36,
+     "median_pct": 0.09,
+     "baseline_ev_pct": -0.16,
+     "excess_pct": 0.51
+    },
+    "ret_7d": {
+     "scored_n": 133,
+     "win_rate": 43.6,
+     "ev_pct": -0.55,
+     "median_pct": -0.77,
+     "baseline_ev_pct": -0.89,
+     "excess_pct": 0.34
+    },
+    "ret_30d": {
+     "scored_n": 133,
+     "win_rate": 52.6,
+     "ev_pct": 0.16,
+     "median_pct": 1.03,
+     "baseline_ev_pct": -0.23,
+     "excess_pct": 0.39
+    },
+    "ret_90d": {
+     "scored_n": 125,
+     "win_rate": 48.8,
+     "ev_pct": 2.54,
+     "median_pct": -2.19,
+     "baseline_ev_pct": 3.11,
+     "excess_pct": -0.57
+    }
+   }
+  },
+  {
+   "label": "ショートカバー/踏み上げ",
+   "局面数": 336,
+   "方向内訳": {
+    "long": 107,
+    "short": 70,
+    "neutral": 159
+   },
+   "精度計算可能局面": 177,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 151,
+     "win_rate": 46.4,
+     "ev_pct": -0.08,
+     "median_pct": -0.15,
+     "baseline_ev_pct": -0.04,
+     "excess_pct": -0.05
+    },
+    "ret_7d": {
+     "scored_n": 151,
+     "win_rate": 48.3,
+     "ev_pct": 0.1,
+     "median_pct": -0.24,
+     "baseline_ev_pct": -0.18,
+     "excess_pct": 0.28
+    },
+    "ret_30d": {
+     "scored_n": 151,
+     "win_rate": 51.0,
+     "ev_pct": 1.54,
+     "median_pct": 0.3,
+     "baseline_ev_pct": -0.65,
+     "excess_pct": 2.19
+    },
+    "ret_90d": {
+     "scored_n": 147,
+     "win_rate": 51.0,
+     "ev_pct": -0.11,
+     "median_pct": 2.23,
+     "baseline_ev_pct": 0.88,
+     "excess_pct": -0.99
+    }
+   }
+  },
+  {
+   "label": "フラクタル",
+   "局面数": 299,
+   "方向内訳": {
+    "long": 95,
+    "short": 62,
+    "neutral": 142
+   },
+   "精度計算可能局面": 157,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 129,
+     "win_rate": 56.6,
+     "ev_pct": 0.51,
+     "median_pct": 0.38,
+     "baseline_ev_pct": -0.18,
+     "excess_pct": 0.69
+    },
+    "ret_7d": {
+     "scored_n": 129,
+     "win_rate": 51.9,
+     "ev_pct": 0.86,
+     "median_pct": 0.12,
+     "baseline_ev_pct": 0.16,
+     "excess_pct": 0.71
+    },
+    "ret_30d": {
+     "scored_n": 127,
+     "win_rate": 51.2,
+     "ev_pct": 1.18,
+     "median_pct": 0.19,
+     "baseline_ev_pct": 1.73,
+     "excess_pct": -0.55
+    },
+    "ret_90d": {
+     "scored_n": 126,
+     "win_rate": 51.6,
+     "ev_pct": 0.38,
+     "median_pct": 0.27,
+     "baseline_ev_pct": 1.84,
+     "excess_pct": -1.45
+    }
+   }
+  },
+  {
+   "label": "三尊/逆三尊",
+   "局面数": 254,
+   "方向内訳": {
+    "long": 100,
+    "short": 45,
+    "neutral": 109
+   },
+   "精度計算可能局面": 145,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 123,
+     "win_rate": 49.6,
+     "ev_pct": -0.14,
+     "median_pct": -0.01,
+     "baseline_ev_pct": -0.05,
+     "excess_pct": -0.09
+    },
+    "ret_7d": {
+     "scored_n": 123,
+     "win_rate": 51.2,
+     "ev_pct": 0.24,
+     "median_pct": 0.31,
+     "baseline_ev_pct": 0.09,
+     "excess_pct": 0.14
+    },
+    "ret_30d": {
+     "scored_n": 121,
+     "win_rate": 57.9,
+     "ev_pct": 0.83,
+     "median_pct": 2.03,
+     "baseline_ev_pct": 4.5,
+     "excess_pct": -3.67
+    },
+    "ret_90d": {
+     "scored_n": 117,
+     "win_rate": 51.3,
+     "ev_pct": 1.48,
+     "median_pct": 0.94,
+     "baseline_ev_pct": 5.67,
+     "excess_pct": -4.2
+    }
+   }
+  },
+  {
+   "label": "窓/CME窓",
+   "局面数": 235,
+   "方向内訳": {
+    "long": 90,
+    "short": 38,
+    "neutral": 107
+   },
+   "精度計算可能局面": 128,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 121,
+     "win_rate": 56.2,
+     "ev_pct": 0.32,
+     "median_pct": 0.29,
+     "baseline_ev_pct": 0.17,
+     "excess_pct": 0.15
+    },
+    "ret_7d": {
+     "scored_n": 121,
+     "win_rate": 49.6,
+     "ev_pct": 1.03,
+     "median_pct": -0.36,
+     "baseline_ev_pct": 0.79,
+     "excess_pct": 0.24
+    },
+    "ret_30d": {
+     "scored_n": 118,
+     "win_rate": 61.9,
+     "ev_pct": 4.67,
+     "median_pct": 1.07,
+     "baseline_ev_pct": 2.65,
+     "excess_pct": 2.03
+    },
+    "ret_90d": {
+     "scored_n": 109,
+     "win_rate": 59.6,
+     "ev_pct": 7.48,
+     "median_pct": 4.21,
+     "baseline_ev_pct": 4.04,
+     "excess_pct": 3.44
+    }
+   }
+  },
+  {
+   "label": "ネックライン",
+   "局面数": 229,
+   "方向内訳": {
+    "long": 88,
+    "short": 38,
+    "neutral": 103
+   },
+   "精度計算可能局面": 126,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 106,
+     "win_rate": 53.8,
+     "ev_pct": 0.39,
+     "median_pct": 0.2,
+     "baseline_ev_pct": 0.23,
+     "excess_pct": 0.16
+    },
+    "ret_7d": {
+     "scored_n": 106,
+     "win_rate": 58.5,
+     "ev_pct": 2.08,
+     "median_pct": 1.74,
+     "baseline_ev_pct": 2.04,
+     "excess_pct": 0.03
+    },
+    "ret_30d": {
+     "scored_n": 104,
+     "win_rate": 55.8,
+     "ev_pct": 2.98,
+     "median_pct": 2.35,
+     "baseline_ev_pct": 4.83,
+     "excess_pct": -1.85
+    },
+    "ret_90d": {
+     "scored_n": 98,
+     "win_rate": 58.2,
+     "ev_pct": 4.43,
+     "median_pct": 7.05,
+     "baseline_ev_pct": 13.38,
+     "excess_pct": -8.94
+    }
+   }
+  },
+  {
+   "label": "フィボナッチ",
+   "局面数": 214,
+   "方向内訳": {
+    "long": 70,
+    "short": 36,
+    "neutral": 108
+   },
+   "精度計算可能局面": 106,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 94,
+     "win_rate": 51.1,
+     "ev_pct": -0.13,
+     "median_pct": 0.05,
+     "baseline_ev_pct": -0.16,
+     "excess_pct": 0.02
+    },
+    "ret_7d": {
+     "scored_n": 94,
+     "win_rate": 43.6,
+     "ev_pct": -0.15,
+     "median_pct": -1.1,
+     "baseline_ev_pct": -1.09,
+     "excess_pct": 0.94
+    },
+    "ret_30d": {
+     "scored_n": 88,
+     "win_rate": 44.3,
+     "ev_pct": -1.66,
+     "median_pct": -1.64,
+     "baseline_ev_pct": -0.53,
+     "excess_pct": -1.13
+    },
+    "ret_90d": {
+     "scored_n": 77,
+     "win_rate": 49.4,
+     "ev_pct": -0.34,
+     "median_pct": -2.24,
+     "baseline_ev_pct": -1.21,
+     "excess_pct": 0.86
+    }
+   }
+  },
+  {
+   "label": "ダイアモンド",
+   "局面数": 199,
+   "方向内訳": {
+    "long": 79,
+    "short": 23,
+    "neutral": 97
+   },
+   "精度計算可能局面": 102,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 83,
+     "win_rate": 56.6,
+     "ev_pct": 0.36,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.78,
+     "excess_pct": -0.42
+    },
+    "ret_7d": {
+     "scored_n": 83,
+     "win_rate": 50.6,
+     "ev_pct": 1.09,
+     "median_pct": 0.12,
+     "baseline_ev_pct": 1.62,
+     "excess_pct": -0.53
+    },
+    "ret_30d": {
+     "scored_n": 83,
+     "win_rate": 51.8,
+     "ev_pct": 1.46,
+     "median_pct": 0.5,
+     "baseline_ev_pct": 2.74,
+     "excess_pct": -1.29
+    },
+    "ret_90d": {
+     "scored_n": 80,
+     "win_rate": 46.2,
+     "ev_pct": -0.39,
+     "median_pct": -2.85,
+     "baseline_ev_pct": 1.74,
+     "excess_pct": -2.12
+    }
+   }
+  },
+  {
+   "label": "テザー/ステーブル",
+   "局面数": 173,
+   "方向内訳": {
+    "long": 65,
+    "short": 26,
+    "neutral": 82
+   },
+   "精度計算可能局面": 91,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 88,
+     "win_rate": 47.7,
+     "ev_pct": 0.26,
+     "median_pct": -0.07,
+     "baseline_ev_pct": 0.17,
+     "excess_pct": 0.09
+    },
+    "ret_7d": {
+     "scored_n": 87,
+     "win_rate": 50.6,
+     "ev_pct": 0.5,
+     "median_pct": 0.36,
+     "baseline_ev_pct": 0.88,
+     "excess_pct": -0.38
+    },
+    "ret_30d": {
+     "scored_n": 87,
+     "win_rate": 46.0,
+     "ev_pct": 0.06,
+     "median_pct": -0.68,
+     "baseline_ev_pct": 6.59,
+     "excess_pct": -6.54
+    },
+    "ret_90d": {
+     "scored_n": 84,
+     "win_rate": 47.6,
+     "ev_pct": -2.54,
+     "median_pct": -2.6,
+     "baseline_ev_pct": 10.58,
+     "excess_pct": -13.13
+    }
+   }
+  },
+  {
+   "label": "オプション/PCR",
+   "局面数": 156,
+   "方向内訳": {
+    "long": 47,
+    "short": 21,
+    "neutral": 88
+   },
+   "精度計算可能局面": 68,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 61,
+     "win_rate": 54.1,
+     "ev_pct": 0.58,
+     "median_pct": 0.12,
+     "baseline_ev_pct": 0.82,
+     "excess_pct": -0.24
+    },
+    "ret_7d": {
+     "scored_n": 61,
+     "win_rate": 44.3,
+     "ev_pct": -0.38,
+     "median_pct": -0.79,
+     "baseline_ev_pct": 0.63,
+     "excess_pct": -1.01
+    },
+    "ret_30d": {
+     "scored_n": 59,
+     "win_rate": 54.2,
+     "ev_pct": 0.63,
+     "median_pct": 2.11,
+     "baseline_ev_pct": 3.5,
+     "excess_pct": -2.87
+    },
+    "ret_90d": {
+     "scored_n": 55,
+     "win_rate": 54.5,
+     "ev_pct": 3.15,
+     "median_pct": 4.92,
+     "baseline_ev_pct": 4.21,
+     "excess_pct": -1.06
+    }
+   }
+  },
+  {
+   "label": "MACD",
+   "局面数": 123,
+   "方向内訳": {
+    "long": 56,
+    "short": 22,
+    "neutral": 45
+   },
+   "精度計算可能局面": 78,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 63,
+     "win_rate": 46.0,
+     "ev_pct": -0.09,
+     "median_pct": -0.24,
+     "baseline_ev_pct": 0.48,
+     "excess_pct": -0.58
+    },
+    "ret_7d": {
+     "scored_n": 63,
+     "win_rate": 41.3,
+     "ev_pct": 0.02,
+     "median_pct": -0.79,
+     "baseline_ev_pct": 0.14,
+     "excess_pct": -0.12
+    },
+    "ret_30d": {
+     "scored_n": 62,
+     "win_rate": 41.9,
+     "ev_pct": -0.71,
+     "median_pct": -2.11,
+     "baseline_ev_pct": -2.73,
+     "excess_pct": 2.02
+    },
+    "ret_90d": {
+     "scored_n": 51,
+     "win_rate": 43.1,
+     "ev_pct": -1.3,
+     "median_pct": -4.59,
+     "baseline_ev_pct": -2.31,
+     "excess_pct": 1.01
+    }
+   }
+  },
+  {
+   "label": "ダイバージェンス",
+   "局面数": 90,
+   "方向内訳": {
+    "long": 46,
+    "short": 18,
+    "neutral": 26
+   },
+   "精度計算可能局面": 64,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 52,
+     "win_rate": 46.2,
+     "ev_pct": -0.46,
+     "median_pct": -0.12,
+     "baseline_ev_pct": 0.34,
+     "excess_pct": -0.8
+    },
+    "ret_7d": {
+     "scored_n": 52,
+     "win_rate": 46.2,
+     "ev_pct": -0.24,
+     "median_pct": -0.04,
+     "baseline_ev_pct": -0.36,
+     "excess_pct": 0.12
+    },
+    "ret_30d": {
+     "scored_n": 50,
+     "win_rate": 40.0,
+     "ev_pct": -1.75,
+     "median_pct": -2.56,
+     "baseline_ev_pct": -5.76,
+     "excess_pct": 4.01
+    },
+    "ret_90d": {
+     "scored_n": 50,
+     "win_rate": 48.0,
+     "ev_pct": -0.63,
+     "median_pct": -2.89,
+     "baseline_ev_pct": -2.38,
+     "excess_pct": 1.75
+    }
+   }
+  },
+  {
+   "label": "エリオット/波",
+   "局面数": 87,
+   "方向内訳": {
+    "long": 34,
+    "short": 17,
+    "neutral": 36
+   },
+   "精度計算可能局面": 51,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 38,
+     "win_rate": 57.9,
+     "ev_pct": -0.11,
+     "median_pct": 0.42,
+     "baseline_ev_pct": 0.0,
+     "excess_pct": -0.11
+    },
+    "ret_7d": {
+     "scored_n": 38,
+     "win_rate": 47.4,
+     "ev_pct": -0.15,
+     "median_pct": -0.11,
+     "baseline_ev_pct": 0.81,
+     "excess_pct": -0.96
+    },
+    "ret_30d": {
+     "scored_n": 36,
+     "win_rate": 47.2,
+     "ev_pct": 1.26,
+     "median_pct": -1.19,
+     "baseline_ev_pct": 0.19,
+     "excess_pct": 1.08
+    },
+    "ret_90d": {
+     "scored_n": 36,
+     "win_rate": 63.9,
+     "ev_pct": 10.21,
+     "median_pct": 12.47,
+     "baseline_ev_pct": 4.22,
+     "excess_pct": 5.99
+    }
+   }
+  },
+  {
+   "label": "ロング/ショート過多",
+   "局面数": 21,
+   "方向内訳": {
+    "long": 10,
+    "short": 6,
+    "neutral": 5
+   },
+   "精度計算可能局面": 16,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 13,
+     "win_rate": 38.5,
+     "ev_pct": 0.29,
+     "median_pct": -0.12,
+     "baseline_ev_pct": 0.06,
+     "excess_pct": 0.24
+    },
+    "ret_7d": {
+     "scored_n": 13,
+     "win_rate": 38.5,
+     "ev_pct": -1.42,
+     "median_pct": -1.76,
+     "baseline_ev_pct": 0.32,
+     "excess_pct": -1.74
+    },
+    "ret_30d": {
+     "scored_n": 13,
+     "win_rate": 38.5,
+     "ev_pct": -2.25,
+     "median_pct": -5.02,
+     "baseline_ev_pct": 2.47,
+     "excess_pct": -4.73
+    },
+    "ret_90d": {
+     "scored_n": 13,
+     "win_rate": 53.8,
+     "ev_pct": -0.28,
+     "median_pct": 5.73,
+     "baseline_ev_pct": 4.91,
+     "excess_pct": -5.19
+    }
+   }
+  },
+  {
+   "label": "Coinbaseプレミア/地域差",
+   "局面数": 18,
+   "方向内訳": {
+    "long": 4,
+    "short": 2,
+    "neutral": 12
+   },
+   "精度計算可能局面": 6,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 6,
+     "win_rate": 66.7,
+     "ev_pct": 0.23,
+     "median_pct": 0.42,
+     "baseline_ev_pct": 1.88,
+     "excess_pct": -1.65
+    },
+    "ret_7d": {
+     "scored_n": 6,
+     "win_rate": 50.0,
+     "ev_pct": -0.3,
+     "median_pct": 0.96,
+     "baseline_ev_pct": -3.12,
+     "excess_pct": 2.81
+    },
+    "ret_30d": {
+     "scored_n": 6,
+     "win_rate": 50.0,
+     "ev_pct": -3.85,
+     "median_pct": -4.8,
+     "baseline_ev_pct": -5.54,
+     "excess_pct": 1.69
+    },
+    "ret_90d": {
+     "scored_n": 5,
+     "win_rate": 40.0,
+     "ev_pct": -6.72,
+     "median_pct": -21.14,
+     "baseline_ev_pct": -15.82,
+     "excess_pct": 9.11
+    }
+   }
+  },
+  {
+   "label": "RSI",
+   "局面数": 8,
+   "方向内訳": {
+    "long": 4,
+    "short": 1,
+    "neutral": 3
+   },
+   "精度計算可能局面": 5,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 5,
+     "win_rate": 20.0,
+     "ev_pct": -1.39,
+     "median_pct": -0.69,
+     "baseline_ev_pct": 0.54,
+     "excess_pct": -1.93
+    },
+    "ret_7d": {
+     "scored_n": 5,
+     "win_rate": 20.0,
+     "ev_pct": -6.58,
+     "median_pct": -4.62,
+     "baseline_ev_pct": 0.67,
+     "excess_pct": -7.26
+    },
+    "ret_30d": {
+     "scored_n": 5,
+     "win_rate": 40.0,
+     "ev_pct": -2.02,
+     "median_pct": -1.32,
+     "baseline_ev_pct": 8.73,
+     "excess_pct": -10.75
+    },
+    "ret_90d": {
+     "scored_n": 5,
+     "win_rate": 60.0,
+     "ev_pct": -5.97,
+     "median_pct": 0.23,
+     "baseline_ev_pct": 4.38,
+     "excess_pct": -10.34
+    }
+   }
+  }
+ ],
+ "C_組み合わせ別": [
+  {
+   "label": "technical",
+   "局面数": 3963,
+   "方向内訳": {
+    "long": 1216,
+    "short": 606,
+    "neutral": 2141
+   },
+   "精度計算可能局面": 1822,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 1604,
+     "win_rate": 51.7,
+     "ev_pct": 0.11,
+     "median_pct": 0.09,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 0.04
+    },
+    "ret_7d": {
+     "scored_n": 1602,
+     "win_rate": 51.6,
+     "ev_pct": 0.6,
+     "median_pct": 0.28,
+     "baseline_ev_pct": 0.77,
+     "excess_pct": -0.17
+    },
+    "ret_30d": {
+     "scored_n": 1585,
+     "win_rate": 53.9,
+     "ev_pct": 1.57,
+     "median_pct": 0.76,
+     "baseline_ev_pct": 2.63,
+     "excess_pct": -1.06
+    },
+    "ret_90d": {
+     "scored_n": 1498,
+     "win_rate": 51.2,
+     "ev_pct": 2.56,
+     "median_pct": 0.9,
+     "baseline_ev_pct": 5.7,
+     "excess_pct": -3.14
+    }
+   }
+  },
+  {
+   "label": "sentiment+technical",
+   "局面数": 1258,
+   "方向内訳": {
+    "long": 422,
+    "short": 253,
+    "neutral": 583
+   },
+   "精度計算可能局面": 675,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 569,
+     "win_rate": 48.3,
+     "ev_pct": 0.08,
+     "median_pct": -0.1,
+     "baseline_ev_pct": 0.19,
+     "excess_pct": -0.11
+    },
+    "ret_7d": {
+     "scored_n": 568,
+     "win_rate": 46.7,
+     "ev_pct": 0.03,
+     "median_pct": -0.64,
+     "baseline_ev_pct": 0.52,
+     "excess_pct": -0.48
+    },
+    "ret_30d": {
+     "scored_n": 555,
+     "win_rate": 51.0,
+     "ev_pct": 1.44,
+     "median_pct": 0.51,
+     "baseline_ev_pct": 1.54,
+     "excess_pct": -0.09
+    },
+    "ret_90d": {
+     "scored_n": 517,
+     "win_rate": 52.6,
+     "ev_pct": 2.77,
+     "median_pct": 2.26,
+     "baseline_ev_pct": 2.94,
+     "excess_pct": -0.17
+    }
+   }
+  },
+  {
+   "label": "other+technical",
+   "局面数": 1015,
+   "方向内訳": {
+    "long": 358,
+    "short": 154,
+    "neutral": 503
+   },
+   "精度計算可能局面": 512,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 432,
+     "win_rate": 51.6,
+     "ev_pct": 0.14,
+     "median_pct": 0.04,
+     "baseline_ev_pct": -0.2,
+     "excess_pct": 0.34
+    },
+    "ret_7d": {
+     "scored_n": 432,
+     "win_rate": 50.7,
+     "ev_pct": 0.67,
+     "median_pct": 0.19,
+     "baseline_ev_pct": 0.9,
+     "excess_pct": -0.22
+    },
+    "ret_30d": {
+     "scored_n": 428,
+     "win_rate": 52.6,
+     "ev_pct": 1.57,
+     "median_pct": 0.46,
+     "baseline_ev_pct": 2.17,
+     "excess_pct": -0.6
+    },
+    "ret_90d": {
+     "scored_n": 411,
+     "win_rate": 53.5,
+     "ev_pct": 5.08,
+     "median_pct": 3.87,
+     "baseline_ev_pct": 6.83,
+     "excess_pct": -1.75
+    }
+   }
+  },
+  {
+   "label": "other",
+   "局面数": 653,
+   "方向内訳": {
+    "long": 240,
+    "short": 97,
+    "neutral": 316
+   },
+   "精度計算可能局面": 337,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 294,
+     "win_rate": 54.4,
+     "ev_pct": 0.4,
+     "median_pct": 0.36,
+     "baseline_ev_pct": 0.21,
+     "excess_pct": 0.19
+    },
+    "ret_7d": {
+     "scored_n": 294,
+     "win_rate": 46.3,
+     "ev_pct": 0.4,
+     "median_pct": -0.51,
+     "baseline_ev_pct": 0.46,
+     "excess_pct": -0.06
+    },
+    "ret_30d": {
+     "scored_n": 294,
+     "win_rate": 53.4,
+     "ev_pct": 1.01,
+     "median_pct": 1.18,
+     "baseline_ev_pct": 0.86,
+     "excess_pct": 0.15
+    },
+    "ret_90d": {
+     "scored_n": 284,
+     "win_rate": 50.4,
+     "ev_pct": 4.27,
+     "median_pct": 0.37,
+     "baseline_ev_pct": 3.14,
+     "excess_pct": 1.13
+    }
+   }
+  },
+  {
+   "label": "other+sentiment+technical",
+   "局面数": 366,
+   "方向内訳": {
+    "long": 119,
+    "short": 71,
+    "neutral": 176
+   },
+   "精度計算可能局面": 190,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 156,
+     "win_rate": 50.0,
+     "ev_pct": 0.24,
+     "median_pct": -0.04,
+     "baseline_ev_pct": 0.45,
+     "excess_pct": -0.22
+    },
+    "ret_7d": {
+     "scored_n": 156,
+     "win_rate": 58.3,
+     "ev_pct": 1.23,
+     "median_pct": 0.99,
+     "baseline_ev_pct": 1.44,
+     "excess_pct": -0.21
+    },
+    "ret_30d": {
+     "scored_n": 156,
+     "win_rate": 48.1,
+     "ev_pct": 1.7,
+     "median_pct": -0.5,
+     "baseline_ev_pct": 3.72,
+     "excess_pct": -2.02
+    },
+    "ret_90d": {
+     "scored_n": 145,
+     "win_rate": 52.4,
+     "ev_pct": 2.29,
+     "median_pct": 1.6,
+     "baseline_ev_pct": 8.16,
+     "excess_pct": -5.87
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+other",
+   "局面数": 302,
+   "方向内訳": {
+    "long": 134,
+    "short": 41,
+    "neutral": 127
+   },
+   "精度計算可能局面": 175,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 155,
+     "win_rate": 48.4,
+     "ev_pct": -0.09,
+     "median_pct": -0.11,
+     "baseline_ev_pct": -0.2,
+     "excess_pct": 0.1
+    },
+    "ret_7d": {
+     "scored_n": 155,
+     "win_rate": 45.8,
+     "ev_pct": 0.21,
+     "median_pct": -0.7,
+     "baseline_ev_pct": 0.03,
+     "excess_pct": 0.18
+    },
+    "ret_30d": {
+     "scored_n": 153,
+     "win_rate": 53.6,
+     "ev_pct": 1.06,
+     "median_pct": 0.88,
+     "baseline_ev_pct": -1.06,
+     "excess_pct": 2.12
+    },
+    "ret_90d": {
+     "scored_n": 137,
+     "win_rate": 51.8,
+     "ev_pct": 3.42,
+     "median_pct": 0.31,
+     "baseline_ev_pct": 3.44,
+     "excess_pct": -0.02
+    }
+   }
+  },
+  {
+   "label": "other+sentiment",
+   "局面数": 262,
+   "方向内訳": {
+    "long": 100,
+    "short": 60,
+    "neutral": 102
+   },
+   "精度計算可能局面": 160,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 148,
+     "win_rate": 50.7,
+     "ev_pct": 0.41,
+     "median_pct": 0.1,
+     "baseline_ev_pct": -0.19,
+     "excess_pct": 0.6
+    },
+    "ret_7d": {
+     "scored_n": 148,
+     "win_rate": 54.7,
+     "ev_pct": 1.43,
+     "median_pct": 0.55,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 1.36
+    },
+    "ret_30d": {
+     "scored_n": 146,
+     "win_rate": 57.5,
+     "ev_pct": 1.91,
+     "median_pct": 1.47,
+     "baseline_ev_pct": 1.75,
+     "excess_pct": 0.16
+    },
+    "ret_90d": {
+     "scored_n": 140,
+     "win_rate": 57.1,
+     "ev_pct": 3.78,
+     "median_pct": 5.1,
+     "baseline_ev_pct": 5.57,
+     "excess_pct": -1.79
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+other+technical",
+   "局面数": 260,
+   "方向内訳": {
+    "long": 125,
+    "short": 56,
+    "neutral": 79
+   },
+   "精度計算可能局面": 181,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 158,
+     "win_rate": 50.6,
+     "ev_pct": 0.46,
+     "median_pct": 0.03,
+     "baseline_ev_pct": 0.56,
+     "excess_pct": -0.1
+    },
+    "ret_7d": {
+     "scored_n": 158,
+     "win_rate": 46.8,
+     "ev_pct": -0.37,
+     "median_pct": -0.54,
+     "baseline_ev_pct": 0.99,
+     "excess_pct": -1.36
+    },
+    "ret_30d": {
+     "scored_n": 154,
+     "win_rate": 48.1,
+     "ev_pct": 0.66,
+     "median_pct": -0.41,
+     "baseline_ev_pct": 4.46,
+     "excess_pct": -3.81
+    },
+    "ret_90d": {
+     "scored_n": 145,
+     "win_rate": 46.2,
+     "ev_pct": -1.79,
+     "median_pct": -1.62,
+     "baseline_ev_pct": 6.86,
+     "excess_pct": -8.65
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+technical",
+   "局面数": 238,
+   "方向内訳": {
+    "long": 119,
+    "short": 51,
+    "neutral": 68
+   },
+   "精度計算可能局面": 170,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 145,
+     "win_rate": 42.8,
+     "ev_pct": -0.13,
+     "median_pct": -0.29,
+     "baseline_ev_pct": 0.34,
+     "excess_pct": -0.47
+    },
+    "ret_7d": {
+     "scored_n": 144,
+     "win_rate": 43.1,
+     "ev_pct": 0.28,
+     "median_pct": -0.55,
+     "baseline_ev_pct": 0.9,
+     "excess_pct": -0.62
+    },
+    "ret_30d": {
+     "scored_n": 139,
+     "win_rate": 43.2,
+     "ev_pct": 0.11,
+     "median_pct": -1.83,
+     "baseline_ev_pct": 2.42,
+     "excess_pct": -2.31
+    },
+    "ret_90d": {
+     "scored_n": 123,
+     "win_rate": 49.6,
+     "ev_pct": 1.61,
+     "median_pct": -0.22,
+     "baseline_ev_pct": 3.3,
+     "excess_pct": -1.69
+    }
+   }
+  },
+  {
+   "label": "fundamental+technical",
+   "局面数": 206,
+   "方向内訳": {
+    "long": 72,
+    "short": 30,
+    "neutral": 104
+   },
+   "精度計算可能局面": 102,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 89,
+     "win_rate": 50.6,
+     "ev_pct": 0.47,
+     "median_pct": 0.09,
+     "baseline_ev_pct": -0.45,
+     "excess_pct": 0.92
+    },
+    "ret_7d": {
+     "scored_n": 89,
+     "win_rate": 56.2,
+     "ev_pct": 0.92,
+     "median_pct": 1.19,
+     "baseline_ev_pct": 0.29,
+     "excess_pct": 0.63
+    },
+    "ret_30d": {
+     "scored_n": 89,
+     "win_rate": 52.8,
+     "ev_pct": 1.63,
+     "median_pct": 1.43,
+     "baseline_ev_pct": 3.79,
+     "excess_pct": -2.16
+    },
+    "ret_90d": {
+     "scored_n": 84,
+     "win_rate": 41.7,
+     "ev_pct": 0.77,
+     "median_pct": -7.13,
+     "baseline_ev_pct": 4.56,
+     "excess_pct": -3.79
+    }
+   }
+  },
+  {
+   "label": "anomaly+technical",
+   "局面数": 181,
+   "方向内訳": {
+    "long": 68,
+    "short": 36,
+    "neutral": 77
+   },
+   "精度計算可能局面": 104,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 91,
+     "win_rate": 41.8,
+     "ev_pct": -0.34,
+     "median_pct": -0.37,
+     "baseline_ev_pct": -0.64,
+     "excess_pct": 0.3
+    },
+    "ret_7d": {
+     "scored_n": 91,
+     "win_rate": 54.9,
+     "ev_pct": 0.72,
+     "median_pct": 0.49,
+     "baseline_ev_pct": -0.85,
+     "excess_pct": 1.56
+    },
+    "ret_30d": {
+     "scored_n": 91,
+     "win_rate": 48.4,
+     "ev_pct": -0.24,
+     "median_pct": -0.27,
+     "baseline_ev_pct": -0.17,
+     "excess_pct": -0.06
+    },
+    "ret_90d": {
+     "scored_n": 83,
+     "win_rate": 50.6,
+     "ev_pct": 2.32,
+     "median_pct": 0.22,
+     "baseline_ev_pct": 3.01,
+     "excess_pct": -0.69
+    }
+   }
+  },
+  {
+   "label": "sentiment",
+   "局面数": 174,
+   "方向内訳": {
+    "long": 51,
+    "short": 44,
+    "neutral": 79
+   },
+   "精度計算可能局面": 95,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 88,
+     "win_rate": 52.3,
+     "ev_pct": -0.07,
+     "median_pct": 0.16,
+     "baseline_ev_pct": -0.19,
+     "excess_pct": 0.12
+    },
+    "ret_7d": {
+     "scored_n": 88,
+     "win_rate": 58.0,
+     "ev_pct": -0.49,
+     "median_pct": 0.58,
+     "baseline_ev_pct": 0.09,
+     "excess_pct": -0.58
+    },
+    "ret_30d": {
+     "scored_n": 88,
+     "win_rate": 48.9,
+     "ev_pct": -0.22,
+     "median_pct": -0.32,
+     "baseline_ev_pct": 0.73,
+     "excess_pct": -0.95
+    },
+    "ret_90d": {
+     "scored_n": 87,
+     "win_rate": 50.6,
+     "ev_pct": 1.17,
+     "median_pct": 1.02,
+     "baseline_ev_pct": 3.3,
+     "excess_pct": -2.13
+    }
+   }
+  },
+  {
+   "label": "fundamental",
+   "局面数": 107,
+   "方向内訳": {
+    "long": 30,
+    "short": 11,
+    "neutral": 66
+   },
+   "精度計算可能局面": 41,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 40,
+     "win_rate": 57.5,
+     "ev_pct": 0.92,
+     "median_pct": 0.65,
+     "baseline_ev_pct": 0.7,
+     "excess_pct": 0.23
+    },
+    "ret_7d": {
+     "scored_n": 40,
+     "win_rate": 37.5,
+     "ev_pct": 0.43,
+     "median_pct": -0.79,
+     "baseline_ev_pct": 1.17,
+     "excess_pct": -0.74
+    },
+    "ret_30d": {
+     "scored_n": 39,
+     "win_rate": 43.6,
+     "ev_pct": -1.05,
+     "median_pct": -2.05,
+     "baseline_ev_pct": -0.08,
+     "excess_pct": -0.97
+    },
+    "ret_90d": {
+     "scored_n": 39,
+     "win_rate": 43.6,
+     "ev_pct": -2.0,
+     "median_pct": -2.19,
+     "baseline_ev_pct": 3.98,
+     "excess_pct": -5.98
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+sentiment+technical",
+   "局面数": 106,
+   "方向内訳": {
+    "long": 46,
+    "short": 17,
+    "neutral": 43
+   },
+   "精度計算可能局面": 63,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 52,
+     "win_rate": 57.7,
+     "ev_pct": 0.41,
+     "median_pct": 0.41,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 0.34
+    },
+    "ret_7d": {
+     "scored_n": 52,
+     "win_rate": 51.9,
+     "ev_pct": 0.41,
+     "median_pct": 0.76,
+     "baseline_ev_pct": 0.08,
+     "excess_pct": 0.33
+    },
+    "ret_30d": {
+     "scored_n": 52,
+     "win_rate": 50.0,
+     "ev_pct": 2.55,
+     "median_pct": 0.14,
+     "baseline_ev_pct": 3.85,
+     "excess_pct": -1.3
+    },
+    "ret_90d": {
+     "scored_n": 49,
+     "win_rate": 55.1,
+     "ev_pct": 4.91,
+     "median_pct": 7.87,
+     "baseline_ev_pct": 1.73,
+     "excess_pct": 3.18
+    }
+   }
+  },
+  {
+   "label": "leverage_risk",
+   "局面数": 82,
+   "方向内訳": {
+    "long": 14,
+    "short": 3,
+    "neutral": 65
+   },
+   "精度計算可能局面": 17,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 17,
+     "win_rate": 52.9,
+     "ev_pct": 0.52,
+     "median_pct": 0.38,
+     "baseline_ev_pct": 0.84,
+     "excess_pct": -0.32
+    },
+    "ret_7d": {
+     "scored_n": 17,
+     "win_rate": 35.3,
+     "ev_pct": 0.36,
+     "median_pct": -0.82,
+     "baseline_ev_pct": 0.69,
+     "excess_pct": -0.32
+    },
+    "ret_30d": {
+     "scored_n": 16,
+     "win_rate": 50.0,
+     "ev_pct": -0.53,
+     "median_pct": 1.01,
+     "baseline_ev_pct": 1.91,
+     "excess_pct": -2.43
+    },
+    "ret_90d": {
+     "scored_n": 13,
+     "win_rate": 38.5,
+     "ev_pct": -4.82,
+     "median_pct": -5.19,
+     "baseline_ev_pct": -5.69,
+     "excess_pct": 0.87
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+other+sentiment",
+   "局面数": 82,
+   "方向内訳": {
+    "long": 32,
+    "short": 13,
+    "neutral": 37
+   },
+   "精度計算可能局面": 45,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 32,
+     "win_rate": 65.6,
+     "ev_pct": 0.64,
+     "median_pct": 0.36,
+     "baseline_ev_pct": 0.07,
+     "excess_pct": 0.57
+    },
+    "ret_7d": {
+     "scored_n": 32,
+     "win_rate": 50.0,
+     "ev_pct": 0.83,
+     "median_pct": 0.05,
+     "baseline_ev_pct": 0.28,
+     "excess_pct": 0.55
+    },
+    "ret_30d": {
+     "scored_n": 32,
+     "win_rate": 50.0,
+     "ev_pct": 1.61,
+     "median_pct": -0.11,
+     "baseline_ev_pct": -0.05,
+     "excess_pct": 1.66
+    },
+    "ret_90d": {
+     "scored_n": 31,
+     "win_rate": 58.1,
+     "ev_pct": 6.08,
+     "median_pct": 7.12,
+     "baseline_ev_pct": 0.76,
+     "excess_pct": 5.31
+    }
+   }
+  },
+  {
+   "label": "fundamental+sentiment+technical",
+   "局面数": 80,
+   "方向内訳": {
+    "long": 31,
+    "short": 13,
+    "neutral": 36
+   },
+   "精度計算可能局面": 44,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 40,
+     "win_rate": 47.5,
+     "ev_pct": -0.08,
+     "median_pct": -0.21,
+     "baseline_ev_pct": 0.39,
+     "excess_pct": -0.47
+    },
+    "ret_7d": {
+     "scored_n": 40,
+     "win_rate": 52.5,
+     "ev_pct": 0.22,
+     "median_pct": 0.37,
+     "baseline_ev_pct": 0.82,
+     "excess_pct": -0.6
+    },
+    "ret_30d": {
+     "scored_n": 40,
+     "win_rate": 52.5,
+     "ev_pct": 1.49,
+     "median_pct": 0.87,
+     "baseline_ev_pct": 5.12,
+     "excess_pct": -3.62
+    },
+    "ret_90d": {
+     "scored_n": 38,
+     "win_rate": 42.1,
+     "ev_pct": 1.47,
+     "median_pct": -5.61,
+     "baseline_ev_pct": 6.61,
+     "excess_pct": -5.14
+    }
+   }
+  },
+  {
+   "label": "anomaly",
+   "局面数": 74,
+   "方向内訳": {
+    "long": 27,
+    "short": 14,
+    "neutral": 33
+   },
+   "精度計算可能局面": 41,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 36,
+     "win_rate": 44.4,
+     "ev_pct": 0.15,
+     "median_pct": -0.38,
+     "baseline_ev_pct": 0.21,
+     "excess_pct": -0.06
+    },
+    "ret_7d": {
+     "scored_n": 36,
+     "win_rate": 52.8,
+     "ev_pct": 0.74,
+     "median_pct": 0.3,
+     "baseline_ev_pct": 0.29,
+     "excess_pct": 0.46
+    },
+    "ret_30d": {
+     "scored_n": 36,
+     "win_rate": 58.3,
+     "ev_pct": 4.06,
+     "median_pct": 2.61,
+     "baseline_ev_pct": 2.23,
+     "excess_pct": 1.83
+    },
+    "ret_90d": {
+     "scored_n": 36,
+     "win_rate": 66.7,
+     "ev_pct": 9.75,
+     "median_pct": 8.71,
+     "baseline_ev_pct": 1.49,
+     "excess_pct": 8.27
+    }
+   }
+  },
+  {
+   "label": "fundamental+other",
+   "局面数": 66,
+   "方向内訳": {
+    "long": 12,
+    "short": 7,
+    "neutral": 47
+   },
+   "精度計算可能局面": 19,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 15,
+     "win_rate": 46.7,
+     "ev_pct": 0.71,
+     "median_pct": -0.0,
+     "baseline_ev_pct": 1.72,
+     "excess_pct": -1.01
+    },
+    "ret_7d": {
+     "scored_n": 15,
+     "win_rate": 40.0,
+     "ev_pct": -1.99,
+     "median_pct": -1.91,
+     "baseline_ev_pct": 2.21,
+     "excess_pct": -4.2
+    },
+    "ret_30d": {
+     "scored_n": 15,
+     "win_rate": 26.7,
+     "ev_pct": -4.92,
+     "median_pct": -3.24,
+     "baseline_ev_pct": 4.75,
+     "excess_pct": -9.67
+    },
+    "ret_90d": {
+     "scored_n": 15,
+     "win_rate": 53.3,
+     "ev_pct": -1.94,
+     "median_pct": 1.04,
+     "baseline_ev_pct": 17.75,
+     "excess_pct": -19.69
+    }
+   }
+  },
+  {
+   "label": "anomaly+other+technical",
+   "局面数": 61,
+   "方向内訳": {
+    "long": 35,
+    "short": 9,
+    "neutral": 17
+   },
+   "精度計算可能局面": 44,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 40,
+     "win_rate": 55.0,
+     "ev_pct": -0.05,
+     "median_pct": 0.36,
+     "baseline_ev_pct": 0.19,
+     "excess_pct": -0.24
+    },
+    "ret_7d": {
+     "scored_n": 40,
+     "win_rate": 45.0,
+     "ev_pct": 0.35,
+     "median_pct": -0.67,
+     "baseline_ev_pct": 0.14,
+     "excess_pct": 0.21
+    },
+    "ret_30d": {
+     "scored_n": 40,
+     "win_rate": 55.0,
+     "ev_pct": 2.61,
+     "median_pct": 2.46,
+     "baseline_ev_pct": 1.55,
+     "excess_pct": 1.07
+    },
+    "ret_90d": {
+     "scored_n": 34,
+     "win_rate": 52.9,
+     "ev_pct": 2.36,
+     "median_pct": 1.39,
+     "baseline_ev_pct": 1.29,
+     "excess_pct": 1.07
+    }
+   }
+  },
+  {
+   "label": "fundamental+other+technical",
+   "局面数": 58,
+   "方向内訳": {
+    "long": 19,
+    "short": 4,
+    "neutral": 35
+   },
+   "精度計算可能局面": 23,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 18,
+     "win_rate": 50.0,
+     "ev_pct": 0.3,
+     "median_pct": -0.13,
+     "baseline_ev_pct": 0.12,
+     "excess_pct": 0.18
+    },
+    "ret_7d": {
+     "scored_n": 18,
+     "win_rate": 44.4,
+     "ev_pct": 1.96,
+     "median_pct": -0.38,
+     "baseline_ev_pct": -0.32,
+     "excess_pct": 2.27
+    },
+    "ret_30d": {
+     "scored_n": 18,
+     "win_rate": 44.4,
+     "ev_pct": 2.88,
+     "median_pct": -1.45,
+     "baseline_ev_pct": 1.93,
+     "excess_pct": 0.94
+    },
+    "ret_90d": {
+     "scored_n": 17,
+     "win_rate": 47.1,
+     "ev_pct": 2.53,
+     "median_pct": -2.56,
+     "baseline_ev_pct": -4.43,
+     "excess_pct": 6.97
+    }
+   }
+  },
+  {
+   "label": "anomaly+sentiment+technical",
+   "局面数": 58,
+   "方向内訳": {
+    "long": 20,
+    "short": 7,
+    "neutral": 31
+   },
+   "精度計算可能局面": 27,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 23,
+     "win_rate": 56.5,
+     "ev_pct": 0.14,
+     "median_pct": 0.07,
+     "baseline_ev_pct": -0.53,
+     "excess_pct": 0.67
+    },
+    "ret_7d": {
+     "scored_n": 23,
+     "win_rate": 47.8,
+     "ev_pct": -0.79,
+     "median_pct": -0.65,
+     "baseline_ev_pct": 0.8,
+     "excess_pct": -1.6
+    },
+    "ret_30d": {
+     "scored_n": 23,
+     "win_rate": 47.8,
+     "ev_pct": -1.86,
+     "median_pct": -1.3,
+     "baseline_ev_pct": 3.38,
+     "excess_pct": -5.24
+    },
+    "ret_90d": {
+     "scored_n": 22,
+     "win_rate": 50.0,
+     "ev_pct": -0.88,
+     "median_pct": -0.2,
+     "baseline_ev_pct": 7.69,
+     "excess_pct": -8.56
+    }
+   }
+  },
+  {
+   "label": "fundamental+sentiment",
+   "局面数": 54,
+   "方向内訳": {
+    "long": 13,
+    "short": 13,
+    "neutral": 28
+   },
+   "精度計算可能局面": 26,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 25,
+     "win_rate": 44.0,
+     "ev_pct": 1.15,
+     "median_pct": -0.21,
+     "baseline_ev_pct": 0.53,
+     "excess_pct": 0.62
+    },
+    "ret_7d": {
+     "scored_n": 25,
+     "win_rate": 72.0,
+     "ev_pct": 0.75,
+     "median_pct": 2.24,
+     "baseline_ev_pct": 3.05,
+     "excess_pct": -2.3
+    },
+    "ret_30d": {
+     "scored_n": 25,
+     "win_rate": 60.0,
+     "ev_pct": 2.54,
+     "median_pct": 2.69,
+     "baseline_ev_pct": 6.08,
+     "excess_pct": -3.54
+    },
+    "ret_90d": {
+     "scored_n": 25,
+     "win_rate": 60.0,
+     "ev_pct": 2.21,
+     "median_pct": 9.27,
+     "baseline_ev_pct": 12.46,
+     "excess_pct": -10.25
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+other+sentiment+technical",
+   "局面数": 51,
+   "方向内訳": {
+    "long": 24,
+    "short": 8,
+    "neutral": 19
+   },
+   "精度計算可能局面": 32,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 24,
+     "win_rate": 66.7,
+     "ev_pct": 0.55,
+     "median_pct": 0.4,
+     "baseline_ev_pct": 0.35,
+     "excess_pct": 0.2
+    },
+    "ret_7d": {
+     "scored_n": 24,
+     "win_rate": 54.2,
+     "ev_pct": 1.1,
+     "median_pct": 1.85,
+     "baseline_ev_pct": 0.18,
+     "excess_pct": 0.93
+    },
+    "ret_30d": {
+     "scored_n": 24,
+     "win_rate": 62.5,
+     "ev_pct": 2.15,
+     "median_pct": 2.91,
+     "baseline_ev_pct": 3.43,
+     "excess_pct": -1.28
+    },
+    "ret_90d": {
+     "scored_n": 23,
+     "win_rate": 47.8,
+     "ev_pct": 0.3,
+     "median_pct": -0.7,
+     "baseline_ev_pct": 2.83,
+     "excess_pct": -2.53
+    }
+   }
+  },
+  {
+   "label": "anomaly+other",
+   "局面数": 44,
+   "方向内訳": {
+    "long": 20,
+    "short": 8,
+    "neutral": 16
+   },
+   "精度計算可能局面": 28,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 27,
+     "win_rate": 70.4,
+     "ev_pct": 1.82,
+     "median_pct": 1.41,
+     "baseline_ev_pct": 0.69,
+     "excess_pct": 1.13
+    },
+    "ret_7d": {
+     "scored_n": 27,
+     "win_rate": 51.9,
+     "ev_pct": 0.91,
+     "median_pct": 0.41,
+     "baseline_ev_pct": 2.37,
+     "excess_pct": -1.46
+    },
+    "ret_30d": {
+     "scored_n": 27,
+     "win_rate": 33.3,
+     "ev_pct": -0.6,
+     "median_pct": -2.1,
+     "baseline_ev_pct": -1.14,
+     "excess_pct": 0.53
+    },
+    "ret_90d": {
+     "scored_n": 26,
+     "win_rate": 46.2,
+     "ev_pct": 2.58,
+     "median_pct": -4.23,
+     "baseline_ev_pct": -4.19,
+     "excess_pct": 6.76
+    }
+   }
+  },
+  {
+   "label": "leverage_risk+sentiment",
+   "局面数": 38,
+   "方向内訳": {
+    "long": 10,
+    "short": 6,
+    "neutral": 22
+   },
+   "精度計算可能局面": 16,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 13,
+     "win_rate": 69.2,
+     "ev_pct": 0.56,
+     "median_pct": 0.45,
+     "baseline_ev_pct": 0.65,
+     "excess_pct": -0.09
+    },
+    "ret_7d": {
+     "scored_n": 13,
+     "win_rate": 53.8,
+     "ev_pct": 0.47,
+     "median_pct": 0.04,
+     "baseline_ev_pct": 3.15,
+     "excess_pct": -2.67
+    },
+    "ret_30d": {
+     "scored_n": 13,
+     "win_rate": 30.8,
+     "ev_pct": -0.68,
+     "median_pct": -3.87,
+     "baseline_ev_pct": 4.7,
+     "excess_pct": -5.37
+    },
+    "ret_90d": {
+     "scored_n": 12,
+     "win_rate": 33.3,
+     "ev_pct": -7.55,
+     "median_pct": -20.99,
+     "baseline_ev_pct": -0.24,
+     "excess_pct": -7.31
+    }
+   }
+  },
+  {
+   "label": "fundamental+other+sentiment",
+   "局面数": 23,
+   "方向内訳": {
+    "long": 8,
+    "short": 3,
+    "neutral": 12
+   },
+   "精度計算可能局面": 11,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 11,
+     "win_rate": 63.6,
+     "ev_pct": 1.84,
+     "median_pct": 0.87,
+     "baseline_ev_pct": 0.4,
+     "excess_pct": 1.44
+    },
+    "ret_7d": {
+     "scored_n": 11,
+     "win_rate": 81.8,
+     "ev_pct": 2.27,
+     "median_pct": 3.87,
+     "baseline_ev_pct": -0.02,
+     "excess_pct": 2.29
+    },
+    "ret_30d": {
+     "scored_n": 11,
+     "win_rate": 72.7,
+     "ev_pct": 11.02,
+     "median_pct": 7.48,
+     "baseline_ev_pct": 5.14,
+     "excess_pct": 5.88
+    },
+    "ret_90d": {
+     "scored_n": 11,
+     "win_rate": 63.6,
+     "ev_pct": 14.08,
+     "median_pct": 7.29,
+     "baseline_ev_pct": 7.38,
+     "excess_pct": 6.69
+    }
+   }
+  },
+  {
+   "label": "anomaly+fundamental+technical",
+   "局面数": 22,
+   "方向内訳": {
+    "long": 12,
+    "short": 2,
+    "neutral": 8
+   },
+   "精度計算可能局面": 14,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 9,
+     "win_rate": 66.7,
+     "ev_pct": 0.28,
+     "median_pct": 0.07,
+     "baseline_ev_pct": 0.43,
+     "excess_pct": -0.16
+    },
+    "ret_7d": {
+     "scored_n": 9,
+     "win_rate": 22.2,
+     "ev_pct": -2.47,
+     "median_pct": -3.51,
+     "baseline_ev_pct": 0.19,
+     "excess_pct": -2.66
+    },
+    "ret_30d": {
+     "scored_n": 9,
+     "win_rate": 33.3,
+     "ev_pct": -4.64,
+     "median_pct": -1.94,
+     "baseline_ev_pct": 3.93,
+     "excess_pct": -8.57
+    },
+    "ret_90d": {
+     "scored_n": 9,
+     "win_rate": 22.2,
+     "ev_pct": -9.52,
+     "median_pct": -21.71,
+     "baseline_ev_pct": 5.45,
+     "excess_pct": -14.97
+    }
+   }
+  },
+  {
+   "label": "anomaly+sentiment",
+   "局面数": 20,
+   "方向内訳": {
+    "long": 10,
+    "short": 4,
+    "neutral": 6
+   },
+   "精度計算可能局面": 14,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 11,
+     "win_rate": 36.4,
+     "ev_pct": -0.81,
+     "median_pct": -1.12,
+     "baseline_ev_pct": -0.13,
+     "excess_pct": -0.69
+    },
+    "ret_7d": {
+     "scored_n": 11,
+     "win_rate": 45.5,
+     "ev_pct": -0.12,
+     "median_pct": -1.41,
+     "baseline_ev_pct": -1.6,
+     "excess_pct": 1.47
+    },
+    "ret_30d": {
+     "scored_n": 11,
+     "win_rate": 63.6,
+     "ev_pct": 5.58,
+     "median_pct": 2.75,
+     "baseline_ev_pct": 4.71,
+     "excess_pct": 0.87
+    },
+    "ret_90d": {
+     "scored_n": 11,
+     "win_rate": 63.6,
+     "ev_pct": 13.06,
+     "median_pct": 7.08,
+     "baseline_ev_pct": 11.28,
+     "excess_pct": 1.77
+    }
+   }
+  },
+  {
+   "label": "fundamental+other+sentiment+technical",
+   "局面数": 17,
+   "方向内訳": {
+    "long": 7,
+    "short": 4,
+    "neutral": 6
+   },
+   "精度計算可能局面": 11,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 10,
+     "win_rate": 80.0,
+     "ev_pct": 1.2,
+     "median_pct": 0.81,
+     "baseline_ev_pct": -0.39,
+     "excess_pct": 1.59
+    },
+    "ret_7d": {
+     "scored_n": 10,
+     "win_rate": 80.0,
+     "ev_pct": 4.45,
+     "median_pct": 4.13,
+     "baseline_ev_pct": 3.61,
+     "excess_pct": 0.85
+    },
+    "ret_30d": {
+     "scored_n": 10,
+     "win_rate": 60.0,
+     "ev_pct": 6.07,
+     "median_pct": 1.46,
+     "baseline_ev_pct": 6.76,
+     "excess_pct": -0.69
+    },
+    "ret_90d": {
+     "scored_n": 10,
+     "win_rate": 70.0,
+     "ev_pct": 15.98,
+     "median_pct": 18.45,
+     "baseline_ev_pct": 7.21,
+     "excess_pct": 8.77
+    }
+   }
+  },
+  {
+   "label": "fundamental+leverage_risk+technical",
+   "局面数": 14,
+   "方向内訳": {
+    "long": 7,
+    "short": 1,
+    "neutral": 6
+   },
+   "精度計算可能局面": 8,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 5,
+     "win_rate": 20.0,
+     "ev_pct": -1.02,
+     "median_pct": -1.55,
+     "baseline_ev_pct": -1.02,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 5,
+     "win_rate": 40.0,
+     "ev_pct": -1.31,
+     "median_pct": -0.43,
+     "baseline_ev_pct": -1.31,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 5,
+     "win_rate": 80.0,
+     "ev_pct": 13.26,
+     "median_pct": 8.81,
+     "baseline_ev_pct": 13.26,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 5,
+     "win_rate": 40.0,
+     "ev_pct": 5.29,
+     "median_pct": -12.12,
+     "baseline_ev_pct": 5.29,
+     "excess_pct": 0.0
+    }
+   }
+  },
+  {
+   "label": "anomaly+fundamental",
+   "局面数": 13,
+   "方向内訳": {
+    "long": 3,
+    "short": 4,
+    "neutral": 6
+   },
+   "精度計算可能局面": 7,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 7,
+     "win_rate": 71.4,
+     "ev_pct": 1.78,
+     "median_pct": 1.41,
+     "baseline_ev_pct": 0.93,
+     "excess_pct": 0.85
+    },
+    "ret_7d": {
+     "scored_n": 7,
+     "win_rate": 85.7,
+     "ev_pct": 2.26,
+     "median_pct": 2.36,
+     "baseline_ev_pct": -1.28,
+     "excess_pct": 3.54
+    },
+    "ret_30d": {
+     "scored_n": 7,
+     "win_rate": 42.9,
+     "ev_pct": -2.28,
+     "median_pct": -0.87,
+     "baseline_ev_pct": -2.19,
+     "excess_pct": -0.09
+    },
+    "ret_90d": {
+     "scored_n": 6,
+     "win_rate": 66.7,
+     "ev_pct": 2.09,
+     "median_pct": 14.14,
+     "baseline_ev_pct": 2.05,
+     "excess_pct": 0.04
+    }
+   }
+  },
+  {
+   "label": "anomaly+leverage_risk+technical",
+   "局面数": 11,
+   "方向内訳": {
+    "long": 9,
+    "short": 2,
+    "neutral": 0
+   },
+   "精度計算可能局面": 11,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 9,
+     "win_rate": 44.4,
+     "ev_pct": 0.95,
+     "median_pct": -0.19,
+     "baseline_ev_pct": 1.16,
+     "excess_pct": -0.21
+    },
+    "ret_7d": {
+     "scored_n": 9,
+     "win_rate": 55.6,
+     "ev_pct": 0.81,
+     "median_pct": 1.78,
+     "baseline_ev_pct": 0.91,
+     "excess_pct": -0.1
+    },
+    "ret_30d": {
+     "scored_n": 9,
+     "win_rate": 44.4,
+     "ev_pct": 0.15,
+     "median_pct": -2.02,
+     "baseline_ev_pct": 1.2,
+     "excess_pct": -1.05
+    },
+    "ret_90d": {
+     "scored_n": 9,
+     "win_rate": 66.7,
+     "ev_pct": 19.28,
+     "median_pct": 6.61,
+     "baseline_ev_pct": 16.97,
+     "excess_pct": 2.3
+    }
+   }
+  },
+  {
+   "label": "anomaly+other+sentiment+technical",
+   "局面数": 10,
+   "方向内訳": {
+    "long": 7,
+    "short": 0,
+    "neutral": 3
+   },
+   "精度計算可能局面": 7,
+   "精度": {
+    "ret_1d": {
+     "scored_n": 5,
+     "win_rate": 80.0,
+     "ev_pct": 1.7,
+     "median_pct": 0.36,
+     "baseline_ev_pct": 1.7,
+     "excess_pct": 0.0
+    },
+    "ret_7d": {
+     "scored_n": 5,
+     "win_rate": 20.0,
+     "ev_pct": -6.33,
+     "median_pct": -9.22,
+     "baseline_ev_pct": -6.33,
+     "excess_pct": 0.0
+    },
+    "ret_30d": {
+     "scored_n": 5,
+     "win_rate": 40.0,
+     "ev_pct": -4.02,
+     "median_pct": -2.1,
+     "baseline_ev_pct": -4.02,
+     "excess_pct": 0.0
+    },
+    "ret_90d": {
+     "scored_n": 4,
+     "win_rate": 25.0,
+     "ev_pct": -8.71,
+     "median_pct": -8.21,
+     "baseline_ev_pct": -8.71,
+     "excess_pct": 0.0
+    }
+   }
+  }
+ ]
+}
