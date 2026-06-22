@@ -36,8 +36,58 @@ btc-trading/danjer_gaia/batch_input/
 # Env / secrets
 .env
 *.db
+*.db-shm
+*.db-wal
 accounts.db
+
+# Chrome profiles (Claude in Chrome の per-room user data)
+.chrome-profiles/
+
+# Wayback URL scrape results (regenerable)
+*_wayback_urls.json
 
 # Logs (議事録の .md は track、 .log と一時ファイルのみ除外)
 *.log
 logs/*.log
+logs/state_backups/
+logs/dry_run/
+logs/clean_restart_payloads/
+logs/raw_gpt_*.txt
+logs/claude_round*.txt
+logs/x_captured_requests.json
+logs/abnormal_notifications.jsonl
+
+# Tmp / scratch
+tmp/
+tmp_claude/
+
+# Scraped media / browser profile
+gallery-dl/
+btc-trading/media/
+btc-trading/x-profile/
+btc-trading/x-storage.json
+
+# Office / generated docs
+*.pptx
+
+# Node lock (per-subdir lock can be regen'd by npm i)
+package-lock.json
+
+# X tweet dumps (regenerable from collectors)
+x_tweets_collected.json
+
+# Analysis result dumps (regenerable)
+btc-trading/backtest_*.json
+btc-trading/deep_analysis_*.json
+btc-trading/full_analysis_*.json
+btc-trading/image_analysis_*.json
+btc-trading/danjer_triplet/production_run_report.json
+btc-trading/danjer_triplet/production_full_report.json
+btc-trading/danjer_triplet/retest_noimg_report.json
+btc-trading/danjer_triplet/final_report_*.json
+btc-trading/danjer_triplet/proto_v3_report.json
+btc-trading/danjer_triplet/prototype_report.json
+btc-trading/danjer_triplet/prototype_v2_report.json
+btc-trading/danjer_triplet/model_bench_result.json
+btc-trading/danjer_triplet/inspect_result.json
+btc-trading/danjer_triplet/edge_report_*.json

@@ -31,6 +31,11 @@ TABLE = "danjer_reading_prod"
 FLASH = "gemini-2.5-flash"
 PRO = "gemini-2.5-pro"
 
+
+def mb_time():
+    return time.time()
+
+
 # 本番プロンプト v2 (₿部屋 3者合意 2026-06-16 の修正5点反映)
 # ①画像なし→画像読取は空 ②市場/価格を画像読取に混ぜない ③根拠の出どころを分離
 # ④未断定→neutral正規化 ⑤雑談/皮肉は trade_signal=false
@@ -125,8 +130,20 @@ def call_gemini_prod(model, user_text, imgs3, key):
     ctx = _ssl.create_default_context(cafile=__import__("certifi").where())
     req = _u.Request(url, data=_j.dumps(payload).encode(),
                      headers={"Content-Type": "application/json"}, method="POST")
-    with _u.urlopen(req, timeout=120, context=ctx) as r:
-        d = _j.loads(r.read().decode())
+    # 429/5xx は指数バックオフで最大5回リトライ (全件runのレート制限対策)
+    d = None
+    for attempt in range(5):
+        try:
+            with _u.urlopen(req, timeout=120, context=ctx) as r:
+                d = _j.loads(r.read().decode())
+            break
+        except _u.HTTPError as e:
+            if e.code in (429, 500, 503) and attempt < 4:
+                time.sleep(min(2 ** attempt * 3, 40))
+                continue
+            raise
+    if d is None:
+        raise RuntimeError("retry exhausted")
     cand = (d.get("candidates") or [{}])[0]
     txt = "".join(p.get("text", "")
                   for p in (cand.get("content", {}).get("parts") or []))
@@ -202,6 +219,9 @@ def main():
     ap.add_argument("--all", action="store_true", help="本番全件")
     ap.add_argument("--retest-noimg", action="store_true",
                     help="確認バッチの画像なし15件を再テスト(捏造ゼロ確認)")
+    ap.add_argument("--workers", type=int, default=8, help="並列数")
+    ap.add_argument("--resume", action="store_true",
+                    help="既処理tweet_idをスキップ(再開)")
     ap.add_argument("--out", default=str(HERE / "production_run_report.json"))
     args = ap.parse_args()
 
@@ -246,65 +266,91 @@ def main():
         targets = spread(with_img, half) + spread(no_img, args.limit - half)
     else:
         targets = enriched[:args.limit]
-    v2.log(f"処理対象: {len(targets)}件")
-
     con = sqlite3.connect(AI_DB)
     ensure_table(con)
+    # resume: 既処理tweet_idはスキップ (全件runの再開用)
+    if args.all or args.resume:
+        done_ids = {r[0] for r in con.execute(
+            f"SELECT tweet_id FROM {TABLE}")}
+        before = len(targets)
+        targets = [t for t in targets if t["tweet_id"] not in done_ids]
+        v2.log(f"resume: 既処理{len(done_ids)}件スキップ → 残り{len(targets)}/{before}件")
+    v2.log(f"処理対象: {len(targets)}件 (並列{args.workers}本)")
 
-    n_pro = 0
-    total_flash = total_pro = 0.0
-    done = 0
-    for tw in targets:
-        cd, oi, oi24, fr = tw["candle"], tw["oi"], tw["oi24"], tw["fr"]
-        ut = build_user_text(tw, cd, oi, oi24, fr)
+    def process_one(tw):
+        """1件をAPI処理 (DBアクセスなし=スレッド安全)。結果dictを返す"""
+        cd = tw["candle"]
+        ut = build_user_text(tw, cd, tw["oi"], tw["oi24"], tw["fr"])
         imgs = find_images(tw["tweet_id"])
-        imgs_for_api = [(m, b) for m, b, _ in imgs]
-        # call_gemini は (mime,b64,_) 3要素を期待 → 合わせる
-        imgs3 = [(m, b, "") for m, b in imgs_for_api]
+        imgs3 = [(m, b, "") for m, b, _ in imgs]
         try:
             txt, tin, tout = call_gemini_prod(FLASH, ut, imgs3, key)
         except Exception as e:
-            v2.log(f"  ✗ {tw['tweet_id']} flash失敗: {str(e)[:80]}")
-            continue
+            return {"tweet_id": tw["tweet_id"], "error": str(e)[:100]}
         fcost = cost_jpy(FLASH, tin, tout)
-        total_flash += fcost
         parsed, perr = parse_reading(txt)
         if parsed:
             parsed = enforce_rules(parsed, bool(imgs))
         reason = is_hard_case(parsed, perr)
         model_used, pcost, routed = FLASH, 0.0, 0
-        raw_out, final_tin, final_tout = txt, tin, tout
+        raw_out, fin_tin, fin_tout = txt, tin, tout
         if reason:
             try:
                 ptxt, ptin, ptout = call_gemini_prod(PRO, ut, imgs3, key)
-                pparsed, pperr = parse_reading(ptxt)
+                pparsed, _ = parse_reading(ptxt)
                 if pparsed:
                     pparsed = enforce_rules(pparsed, bool(imgs))
                 pcost = cost_jpy(PRO, ptin, ptout)
-                total_pro += pcost
-                n_pro += 1
-                routed = 1
-                model_used = PRO
+                routed, model_used = 1, PRO
                 if pparsed:
                     parsed, raw_out = pparsed, ptxt
-                final_tin, final_tout = ptin, ptout
-            except Exception as e:
-                v2.log(f"  ⚠ {tw['tweet_id']} pro失敗(flash結果保持): {str(e)[:60]}")
-        con.execute(
-            f"INSERT OR REPLACE INTO {TABLE} (tweet_id, posted_at_utc, regime, "
-            "has_images, model_used, routed_to_pro, route_reason, "
-            "flash_cost_jpy, pro_cost_jpy, reading_json, raw_output, "
-            "tokens_in, tokens_out) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (tw["tweet_id"], tw["dt_utc"].strftime("%Y-%m-%d %H:%M:%S"),
-             cd["regime"], 1 if imgs else 0, model_used, routed, reason or "",
-             round(fcost, 4), round(pcost, 4),
-             json.dumps(parsed, ensure_ascii=False) if parsed else None,
-             raw_out[:4000], final_tin, final_tout))
-        done += 1
-        if done % 10 == 0:
-            con.commit()
-            v2.log(f"  ...{done}/{len(targets)} pro率{n_pro/done*100:.0f}% "
-                   f"累計¥{total_flash+total_pro:.1f}")
+                fin_tin, fin_tout = ptin, ptout
+            except Exception:
+                pass
+        return {
+            "tweet_id": tw["tweet_id"],
+            "posted": tw["dt_utc"].strftime("%Y-%m-%d %H:%M:%S"),
+            "regime": cd["regime"], "has_images": 1 if imgs else 0,
+            "model_used": model_used, "routed": routed, "reason": reason or "",
+            "fcost": round(fcost, 4), "pcost": round(pcost, 4),
+            "parsed": parsed, "raw": raw_out[:4000],
+            "tin": fin_tin, "tout": fin_tout,
+        }
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    n_pro = 0
+    total_flash = total_pro = 0.0
+    done = errs = 0
+    t0 = mb_time()
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = {ex.submit(process_one, tw): tw for tw in targets}
+        for fut in as_completed(futs):
+            r = fut.result()
+            if r.get("error"):
+                errs += 1
+                continue
+            total_flash += r["fcost"]
+            total_pro += r["pcost"]
+            if r["routed"]:
+                n_pro += 1
+            con.execute(
+                f"INSERT OR REPLACE INTO {TABLE} (tweet_id, posted_at_utc, regime, "
+                "has_images, model_used, routed_to_pro, route_reason, "
+                "flash_cost_jpy, pro_cost_jpy, reading_json, raw_output, "
+                "tokens_in, tokens_out) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (r["tweet_id"], r["posted"], r["regime"], r["has_images"],
+                 r["model_used"], r["routed"], r["reason"], r["fcost"],
+                 r["pcost"], json.dumps(r["parsed"], ensure_ascii=False)
+                 if r["parsed"] else None, r["raw"], r["tin"], r["tout"]))
+            done += 1
+            if done % 50 == 0:
+                con.commit()
+                el = mb_time() - t0
+                rate = done / el if el else 0
+                eta = (len(targets) - done) / rate / 60 if rate else 0
+                v2.log(f"  ...{done}/{len(targets)} pro率{n_pro/done*100:.0f}% "
+                       f"err{errs} ¥{total_flash+total_pro:.0f} "
+                       f"{rate*60:.0f}件/分 ETA{eta:.0f}分")
     con.commit()
     con.close()
 

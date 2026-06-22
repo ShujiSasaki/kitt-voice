@@ -129,6 +129,48 @@ def _recent_actor_bodies(base: Path, room_id: str,
     return bodies[-lookback:]
 
 
+def _room_msgs(base: Path, room_id: str) -> list[dict]:
+    path = base / "data" / "timeline.jsonl"
+    if not path.exists():
+        return []
+    out = []
+    for line in path.read_text(encoding=ENC).splitlines():
+        if not line.strip():
+            continue
+        try:
+            m = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if m.get("room_id") == room_id:
+            out.append(m)
+    return out
+
+
+def latest_consensus_body(base: Path, room_id: str,
+                          after_last_shuji_only: bool = True) -> str:
+    """直近の合意まとめ(validator '📋 合意まとめ')本文を返す。
+
+    ボタン押下時のfallback用。マーカー依頼が無くても、最新の合意を依頼として運ぶ。
+    after_last_shuji_only=True なら最後のShuji発言より後の合意のみ(現ラウンド)。
+    """
+    msgs = _room_msgs(base, room_id)
+    if not msgs:
+        return ""
+    start = 0
+    if after_last_shuji_only:
+        last_shuji = max((i for i, m in enumerate(msgs)
+                          if m.get("actor") == "shuji"), default=-1)
+        start = last_shuji + 1
+    # 自動生成の合意まとめは絵文字付きヘッダ「📋 合意まとめ」で始まる。
+    # validatorの完了報告等(「合意」を本文に含むだけ)を誤検出しないため、
+    # このヘッダを持つメッセージのみを合意まとめとみなす。
+    for m in reversed(msgs[start:]):
+        body = (m.get("body") or "")
+        if m.get("actor") == "validator" and "📋 合意まとめ" in body:
+            return body.strip()[:MAX_REQUEST_CHARS]
+    return ""
+
+
 def pending_dir(base: Path = DEFAULT_BASE) -> Path:
     return base / "data" / "clerk_requests" / "pending"
 
@@ -188,10 +230,19 @@ def dispatch_for_room(room_id: str, base: Path = DEFAULT_BASE,
     bodies = _recent_actor_bodies(base, room_id, loop=loop)
     req = extract_clerk_request(bodies)
     reason = "marker"
-    if not req and fallback_full_text and bodies:
-        # ボタン押下時: マーカー無しでも直近発言全文を依頼として運ぶ
-        req = bodies[-1].strip()[:MAX_REQUEST_CHARS]
-        reason = "fallback_last_msg"
+    if not req and fallback_full_text:
+        # ボタン押下時のfallback連鎖 (無言失敗の防止):
+        # 1) 現ラウンドの合意まとめ(validator) 2) 現ラウンド最後のAI発言
+        # 3) 部屋全体の最新合意まとめ(Shuji発言が最後でも拾う)
+        cons = latest_consensus_body(base, room_id, after_last_shuji_only=True)
+        if cons:
+            req, reason = cons, "fallback_consensus"
+        elif bodies:
+            req, reason = bodies[-1].strip()[:MAX_REQUEST_CHARS], "fallback_last_msg"
+        else:
+            cons_any = latest_consensus_body(base, room_id, after_last_shuji_only=False)
+            if cons_any:
+                req, reason = cons_any, "fallback_consensus_any"
     if not req:
         return {"dispatched": False, "path": None, "preview": "",
                 "reason": "no_request_found"}
