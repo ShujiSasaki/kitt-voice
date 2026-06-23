@@ -91,3 +91,12 @@ btc-trading/danjer_triplet/prototype_v2_report.json
 btc-trading/danjer_triplet/model_bench_result.json
 btc-trading/danjer_triplet/inspect_result.json
 btc-trading/danjer_triplet/edge_report_*.json
+
+# AI 育成環境 v6 adapter (Kaggle CLI DLで取得、 巨大バイナリは git除外)
+btc-trading/ai_growth/adapter/
+btc-trading/ai_growth/__pycache__/
+btc-trading/ai_growth/eval/__pycache__/
+btc-trading/ai_growth/teacher/__pycache__/
+btc-trading/ai_growth/training/__pycache__/
+btc-trading/ai_growth/tests/__pycache__/
+btc-trading/ai_growth/logs/*.jsonl
