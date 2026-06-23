@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Mac launchd plist: ai_growth/runner.py を 8時間ごとに自動実行
+  3者合意 (2026-06-24) の 1日2-3判定 / 3週間で50-100件 を満たす自動化。
+
+  install:
+    cp launchd/com.kitt-voice.ai_growth.runner.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.kitt-voice.ai_growth.runner.plist
+
+  uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.kitt-voice.ai_growth.runner.plist
+    rm ~/Library/LaunchAgents/com.kitt-voice.ai_growth.runner.plist
+
+  status:
+    launchctl list | grep ai_growth
+    tail -f ~/Library/Logs/ai_growth_runner.log
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kitt-voice.ai_growth.runner</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/tmp/kaggle_venv/bin/python3</string>
+        <string>/Users/shuji/Desktop/kitt-voice/btc-trading/ai_growth/runner.py</string>
+        <string>--once</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/shuji/Desktop/kitt-voice/btc-trading/ai_growth</string>
+
+    <!-- 8時間ごと (= 1日3回判定) -->
+    <key>StartInterval</key>
+    <integer>28800</integer>
+
+    <!-- Mac起動時にも1回実行 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/shuji/Library/Logs/ai_growth_runner.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/shuji/Library/Logs/ai_growth_runner.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/tmp/kaggle_venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
