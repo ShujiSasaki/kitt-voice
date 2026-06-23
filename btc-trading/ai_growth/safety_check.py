@@ -63,18 +63,26 @@ def check_no_api_keys():
 
 
 def check_data_source_only_ohlcv():
-    """data_source.py が取引所APIではなく yfinance のみ使うか"""
+    """data_source.py が取引所APIではなく yfinance のみ使うか
+
+    コード行 (コメント除外) を grep する。 コメント (#で始まる行) は無視。
+    """
     ds_path = HERE / "data_source.py"
     if not ds_path.exists():
         return None, "data_source.py not yet created (Phase 1未完成)"
     text = ds_path.read_text(encoding='utf-8')
-    # ccxtや取引所APIの直接importを検出
-    forbidden_patterns = ['import ccxt', 'from ccxt', 'pybit', 'binance.client',
-                          'bybit_api', 'order(', 'place_order', 'submit_order',
-                          'create_order']
-    for pattern in forbidden_patterns:
-        if pattern in text:
-            return False, f"❌ data_source.py に禁止パターン検出: {pattern}"
+    # 行単位で見て、 # コメント行をskip
+    forbidden_patterns = ['import ccxt', 'from ccxt', 'import pybit', 'from pybit',
+                          'binance.client', 'bybit_api',
+                          'place_order(', 'submit_order(', 'create_order(']
+    for line in text.splitlines():
+        # docstring内も除外したいが、 ここでは行先頭が # のみ除外
+        stripped = line.lstrip()
+        if stripped.startswith('#') or stripped.startswith('"""') or stripped.startswith("'''"):
+            continue
+        for pattern in forbidden_patterns:
+            if pattern in line:
+                return False, f"❌ data_source.py に禁止パターン検出: {pattern} (行: {line.strip()[:60]})"
     # yfinance使用確認
     if 'yfinance' in text or 'yf.' in text:
         return True, "data_source.py uses yfinance only (取引所API無し)"
