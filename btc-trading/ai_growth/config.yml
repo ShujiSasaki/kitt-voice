@@ -1,0 +1,56 @@
+# danjerクローンAI 育成環境 設定
+# 3者合意 (2026-06-24 06:41 btc部屋) に従う
+# !!! paper_mode は絶対に true から変更しないこと !!!
+# safety_check.py で確認可能
+
+# ===== 本番発注遮断 (絶対変更禁止) =====
+paper_mode: true       # 本番遮断、 絶対変更しない (合意必須)
+
+# ===== モデル =====
+model_version: v6
+model_adapter_local: "/tmp/kaggle_v6_output/danjer_lora_planA_adapter"
+base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+
+# ===== データソース (取引所API触らない) =====
+data_source: yfinance
+btc_symbol: "BTC-USD"
+timeframe: "1h"
+
+# ===== 判定頻度 (合意: 1日2-3回 = 3週間で50-100件) =====
+judgement_interval_hours: 8
+
+# ===== 強制ストップ7条件 (合意) =====
+stop_rules_enabled: true
+stop_rules:
+  rule_1_no_stop_loss: true        # 損切り不明
+  rule_2_sl_too_close: true        # 損切り近すぎ (SL距離 < ATR×0.5)
+  rule_3_unfounded_rally: true     # 根拠なし急騰 (rally + OI急増なし)
+  rule_4_insufficient_grounds: true # 根拠不足 (材料2点未満)
+  rule_5_thin_counter: true        # 薄い逆張り
+  rule_6_thin_or_extreme: true     # 板薄/急変
+  rule_7_model_ambiguous: true     # モデル曖昧 (20文字未満等)
+
+# ===== ログ =====
+log_dir: "./logs"
+signals_file: "signals_v6.jsonl"
+
+# ===== 育成期間 (合意) =====
+cycle_weeks: 3
+cycle_target_count_min: 50
+cycle_target_count_max: 100
+
+# ===== 攻め指標: 仮想損益測定 (合意の3本時間軸) =====
+pnl_horizons_hours: [1, 4, 24]
+
+# ===== 臆病警告閾値 (合意) =====
+caution_thresholds:
+  no_trade_rate_max: 0.95     # 95%超で警告
+  force_stop_rate_max: 0.70   # 70%超で警告
+  avg_response_length_min: 30 # 30文字未満で警告
+
+# ===== 実弾¥10万 移行条件 (合意、 ただしShuji自身が最終判断) =====
+real_money_entry:
+  min_cycles_completed: 3
+  caution_warnings_required: 0
+  yen_amount: 100000
+  final_approval: "shuji_self"  # AI多数決外
