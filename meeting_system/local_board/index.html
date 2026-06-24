@@ -67,14 +67,15 @@ tailwind.config = {
       <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
       <!-- AI育成リング モーダル (🤖 ボタンで開閉、 JSで強制スタイル適用) -->
       <div id="ai-growth-modal" class="hidden" onclick="if(event.target===this)closeAiGrowthModal()">
-        <div class="bg-dm-bg border border-dm-border rounded-lg w-full p-3 self-stretch min-h-full" onclick="event.stopPropagation()">
-          <div class="flex justify-between items-center mb-3 sticky top-0 bg-dm-bg pb-2 border-b border-dm-border">
+        <div class="bg-dm-bg border border-dm-border rounded-lg w-full p-3 self-stretch min-h-full" onclick="event.stopPropagation()" style="padding-bottom: calc(env(safe-area-inset-bottom) + 120px);">
+          <div class="flex justify-between items-center mb-3 sticky top-0 bg-dm-bg pb-2 border-b border-dm-border" style="z-index:1;">
             <h2 class="text-lg font-bold text-dm-text">🤖 AI育成リング</h2>
             <button onclick="closeAiGrowthModal()" class="text-dm-text-dim hover:text-dm-text text-2xl px-3 py-1">✕</button>
           </div>
           <div id="ai-growth-content" class="text-base text-dm-text space-y-3">読み込み中…</div>
-          <button id="ai-growth-refresh" class="mt-3 w-full py-3 bg-dm-header border border-dm-border rounded text-sm text-dm-text-dim hover:text-dm-text">🔄 再読み込み</button>
         </div>
+        <!-- 再読み込みボタンを floating bottom-right (iOS safe-area対応) -->
+        <button id="ai-growth-refresh" style="position:fixed; right:16px; bottom:calc(env(safe-area-inset-bottom) + 90px); z-index:100000; background:#3b82f6; color:white; padding:14px 20px; border-radius:9999px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.4); border:none;">🔄 再読み込み</button>
       </div>
       <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate flex items-center gap-1.5" id="global-relay-status">
         <span id="grs-dot" class="inline-block w-2 h-2 rounded-full bg-dm-text-dim flex-shrink-0"></span>
