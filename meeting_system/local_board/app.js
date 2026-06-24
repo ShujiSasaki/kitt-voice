@@ -1471,7 +1471,19 @@ function closeAiGrowthModal() {
   }
   document.body.style.overflow = '';
 }
+// グローバル展開 (onclick属性経由・iOS Safari対策)
+window.openAiGrowthModal = openAiGrowthModal;
+window.closeAiGrowthModal = closeAiGrowthModal;
+window.loadAiGrowthStatus = loadAiGrowthStatus;
+
 document.getElementById('ai-growth-btn')?.addEventListener('click', openAiGrowthModal);
+// ✕ボタン (floating) を click + touchend 両方で 確実にバインド
+const _closeBtn = document.getElementById('ai-growth-close');
+if (_closeBtn) {
+  const _close = (e) => { e.preventDefault(); e.stopPropagation(); closeAiGrowthModal(); };
+  _closeBtn.addEventListener('click', _close);
+  _closeBtn.addEventListener('touchend', _close, {passive: false});
+}
 document.getElementById('ai-growth-refresh')?.addEventListener('click', () => {
   loadAiGrowthStatus();
 });

@@ -66,16 +66,17 @@ tailwind.config = {
       </div>
       <div class="px-3 pb-1 text-xs text-dm-text-dim truncate" id="header-status-summary">— 待機中</div>
       <!-- AI育成リング モーダル (🤖 ボタンで開閉、 JSで強制スタイル適用) -->
-      <div id="ai-growth-modal" class="hidden" onclick="if(event.target===this)closeAiGrowthModal()">
-        <div class="bg-dm-bg border border-dm-border rounded-lg w-full p-3 self-stretch min-h-full" onclick="event.stopPropagation()" style="padding-bottom: calc(env(safe-area-inset-bottom) + 240px);">
-          <div class="flex justify-between items-center mb-3 sticky top-0 bg-dm-bg pb-2 border-b border-dm-border" style="z-index:1;">
+      <div id="ai-growth-modal" class="hidden">
+        <div class="bg-dm-bg border border-dm-border rounded-lg w-full p-3 self-stretch min-h-full" style="padding-bottom: calc(env(safe-area-inset-bottom) + 240px);">
+          <div class="flex justify-between items-center mb-3 pb-2 border-b border-dm-border" style="padding-right: 56px;">
             <h2 class="text-lg font-bold text-dm-text">🤖 AI育成リング</h2>
-            <button onclick="closeAiGrowthModal()" class="text-dm-text-dim hover:text-dm-text text-2xl px-3 py-1">✕</button>
           </div>
           <div id="ai-growth-content" class="text-base text-dm-text space-y-3">読み込み中…</div>
         </div>
+        <!-- ✕ボタンを floating top-right (確実にタップできる位置) -->
+        <button id="ai-growth-close" type="button" aria-label="閉じる" style="position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:100001; background:rgba(40,40,40,0.95); color:white; width:44px; height:44px; border-radius:9999px; font-size:22px; line-height:1; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:1px solid #555; cursor:pointer; -webkit-tap-highlight-color:rgba(255,255,255,0.2);">✕</button>
         <!-- 再読み込みボタンを floating bottom-right (iOS safe-area対応) -->
-        <button id="ai-growth-refresh" style="position:fixed; right:16px; bottom:calc(env(safe-area-inset-bottom) + 90px); z-index:100000; background:#3b82f6; color:white; padding:14px 20px; border-radius:9999px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.4); border:none;">🔄 再読み込み</button>
+        <button id="ai-growth-refresh" type="button" style="position:fixed; right:16px; bottom:calc(env(safe-area-inset-bottom) + 90px); z-index:100000; background:#3b82f6; color:white; padding:14px 20px; border-radius:9999px; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.4); border:none; cursor:pointer; -webkit-tap-highlight-color:rgba(255,255,255,0.2);">🔄 再読み込み</button>
       </div>
       <div class="px-3 pb-1 text-[11px] text-dm-text-dim truncate flex items-center gap-1.5" id="global-relay-status">
         <span id="grs-dot" class="inline-block w-2 h-2 rounded-full bg-dm-text-dim flex-shrink-0"></span>
@@ -256,6 +257,6 @@ tailwind.config = {
   </div>
 </template>
 
-<script src="/app.js?v=r77"></script>
+<script src="/app.js?v=r78"></script>
 </body>
 </html>
