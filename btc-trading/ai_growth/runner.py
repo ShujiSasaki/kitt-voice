@@ -74,7 +74,13 @@ def run_single_judgement():
     candles = get_recent_candles(df, n=240)  # 10日分
     latest = get_latest_candle(df)
 
-    # 1a-bis. マルチTF取得 (2026-06-24 16:08 合意 段階追加 — 日足/4h/8h/3d/週/月)
+    # 1a-bis. マルチTF取得 (16:08合意 + 17:20合意で 5分足追加)
+    # 17:20合意: 5分足は スキャ/エントリータイミング/短期失速確認に限定、 大局を覆さない
+    try:
+        df_5m = fetch_btc_ohlcv(period="30d", interval="5m")
+        candles_5m = get_recent_candles(df_5m, n=500)  # 約42時間分
+    except Exception:
+        candles_5m = []
     candles_4h = resample_candles(candles, factor=4)        # 1h ×4
     candles_8h = resample_candles(candles, factor=8)        # 1h ×8
     try:
@@ -119,13 +125,15 @@ def run_single_judgement():
     tech_3d_mats  = extract_technical_materials_tf(candles_3d, '3日足') if candles_3d else []
     tech_8h_mats  = extract_technical_materials_tf(candles_8h, '8時間足') if candles_8h else []
     tech_4h_mats  = extract_technical_materials_tf(candles_4h, '4時間足') if candles_4h else []
-    mtf_mats = tech_1mo_mats + tech_1w_mats + tech_1d_mats + tech_3d_mats + tech_8h_mats + tech_4h_mats
+    # 17:20合意: 5分足 (スキャ/タイミング限定、 大局を覆さない)
+    tech_5m_mats  = extract_technical_materials_tf(candles_5m, '5分足(スキャ/タイミング限定、大局非依存)') if candles_5m else []
+    mtf_mats = tech_1mo_mats + tech_1w_mats + tech_1d_mats + tech_3d_mats + tech_8h_mats + tech_4h_mats + tech_5m_mats
     vision_mats = extract_chart_vision_materials(vision_result)
     materials = base_mats + tech_mats + mtf_mats + vision_mats + live_mats
     print(f"  regime={regime}")
     print(f"  OHLCV由来 materials={base_mats}")
     print(f"  テクニカル(1時間) materials={tech_mats}")
-    print(f"  マルチTF materials({len(mtf_mats)}件): 月{len(tech_1mo_mats)}+週{len(tech_1w_mats)}+日{len(tech_1d_mats)}+3日{len(tech_3d_mats)}+8h{len(tech_8h_mats)}+4h{len(tech_4h_mats)}")
+    print(f"  マルチTF materials({len(mtf_mats)}件): 月{len(tech_1mo_mats)}+週{len(tech_1w_mats)}+日{len(tech_1d_mats)}+3日{len(tech_3d_mats)}+8h{len(tech_8h_mats)}+4h{len(tech_4h_mats)}+5m{len(tech_5m_mats)}")
     print(f"  vision materials={vision_mats}")
     print(f"  ライブ snapshot materials({len(live_mats)}件)")
     print(f"  latest close=${latest['close']:.2f}")

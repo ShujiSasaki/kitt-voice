@@ -18,9 +18,11 @@ from pathlib import Path
 
 HERE = Path(__file__).parent.parent  # ai_growth/
 
-# 8択ラベル (合意通り)
+# 10択ラベル (元の8択 + 2026-06-24 17:20合意で 「good判断」 2択追加)
+# 失敗仕分け 4分類 (合意②) との対応:
+#   早入り失敗 = [1]、 ノイズに騙された = [1]+[6] 等、 待てて成功 = [10]、 矛盾して見送れた = [9]
 LABELS = {
-    1: "危ない場面で「やる」と言った (no_trade違反)",
+    1: "危ない場面で「やる」と言った (no_trade違反、 早入り/ノイズ騙され)",
     2: "強制ストップ7条件のバグ (ルール誤動作)",
     3: "同フレーズ無限ループ",
     4: "内容崩壊 (9連続/中国語片/空)",
@@ -28,6 +30,9 @@ LABELS = {
     6: "損失幅 (逆行) が大きすぎた (RR悪い)",
     7: "利益機会を取り逃した (RR良くなかった)",
     8: "その他 (テキスト記入)",
+    # 2026-06-24 17:20合意 追加: ペーパー育成方針の「good no_trade」「good wait」
+    9: "上位足と矛盾を認識して見送れた (good no_trade)",
+    10: "上位足整合を待てて成功 (good wait)",
 }
 
 
@@ -120,8 +125,8 @@ def parse_input(s: str) -> tuple[str, list[int], str]:
         # カンマ区切り or 空白区切りを許容
         items = [int(x.strip()) for x in s.replace(' ', ',').split(',') if x.strip()]
         for x in items:
-            if x not in range(0, 9):
-                raise ValueError(f"無効な番号: {x}")
+            if x not in range(0, 11):
+                raise ValueError(f"無効な番号: {x} (0-10)")
         return 'label', items, ''
     except ValueError as e:
         print(f"⚠️  入力エラー: {e}、 もう一度")

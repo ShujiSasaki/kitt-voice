@@ -115,6 +115,58 @@ def rule_7_model_ambiguous(response: str) -> bool:
     return any(kw in response for kw in ambiguous_words)
 
 
+def rule_8_against_higher_tf(response: str, materials: list[str]) -> bool:
+    """ルール8 (2026-06-24 17:20合意): 上位足に逆らう ポジは 原則 no_trade
+
+    5分足ノイズに 騙されて 日足/4時間 の 大局に 逆らう ポジを 取らない。
+    判定:
+    - AI応答 stance から 方向 (long/short) を 抽出
+    - materials から 日足/4時間 の SMA方向 (上/下) を 抽出
+    - 日足 SMA下 + 4時間 SMA下 で long → 違反
+    - 日足 SMA上 + 4時間 SMA上 で short → 違反
+
+    no_trade/様子見 や 上位足整合 なら 発火しない (safe-fail)。
+    """
+    text = response.lower()
+    # AI が ロングを 取ろうとしているか
+    long_indicators = ['ロング', 'long', '買い', '買う', '上抜け', 'ブレイクアップ']
+    short_indicators = ['ショート', 'short', '売り', '売る', '下抜け', 'ブレイクダウン']
+    no_trade_indicators = ['no_trade', '様子見', '見送り', '見送る', 'パス', '入らない']
+
+    has_long = any(kw in text for kw in long_indicators)
+    has_short = any(kw in text for kw in short_indicators)
+    has_no_trade = any(kw in text for kw in no_trade_indicators)
+
+    # 様子見 / 見送り 明示なら 発火しない
+    if has_no_trade and not (has_long or has_short):
+        return False
+    if not (has_long or has_short):
+        return False  # 方向不明 (rule_7で別途検出)
+
+    # 上位足 (日足/4時間) の SMA方向 を materials から抽出
+    daily_up = daily_down = False
+    h4_up = h4_down = False
+    for m in materials:
+        if '日足 SMA' in m or '日足SMA' in m:
+            if 'SMA上' in m:
+                daily_up = True
+            elif 'SMA下' in m:
+                daily_down = True
+        if '4時間足 SMA' in m or '4時間足SMA' in m:
+            if 'SMA上' in m:
+                h4_up = True
+            elif 'SMA下' in m:
+                h4_down = True
+
+    # 日足+4時間 両方下 で ロング → 違反
+    if daily_down and h4_down and has_long and not has_short:
+        return True
+    # 日足+4時間 両方上 で ショート → 違反
+    if daily_up and h4_up and has_short and not has_long:
+        return True
+    return False
+
+
 # ===== 統合判定 =====
 
 def force_stop_check(
@@ -148,6 +200,8 @@ def force_stop_check(
         triggers.append('rule_6_thin_or_extreme')
     if rule_7_model_ambiguous(response):
         triggers.append('rule_7_model_ambiguous')
+    if rule_8_against_higher_tf(response, materials):
+        triggers.append('rule_8_against_higher_tf')
 
     rule_descriptions = {
         'rule_1_no_stop_loss': '損切り不明',
@@ -157,6 +211,7 @@ def force_stop_check(
         'rule_5_thin_counter': '薄い逆張り',
         'rule_6_thin_or_extreme': '板薄/急変',
         'rule_7_model_ambiguous': 'モデル曖昧',
+        'rule_8_against_higher_tf': '上位足逆らい(17:20合意)',
     }
     reason = '; '.join(rule_descriptions[r] for r in triggers) if triggers else ''
 
