@@ -151,13 +151,126 @@ def analyze_chart_pattern(png_bytes: bytes, timeout: float = 20.0) -> dict:
         return {'error': 'parse_failed', 'raw': raw[:500]}
 
 
-def fetch_chart_vision_materials(candles: list[dict]) -> dict:
-    """runner.py から呼ぶ エントリ — Phase 3-② vision snapshot
+def render_multi_tf_chart_png(tf_candles: dict, n_per_tf: int = 80) -> bytes:
+    """16:08合意 vision 4枚版: 1時間/4時間/日足/週足 を 2x2 サブプロットで 1枚PNG
 
-    1. 直近100本のチャート画像 描画
-    2. Gemini Flash で パターン認識
-    3. dict返却 (extract_chart_vision_materials で 言語化)
+    tf_candles: {'1時間': [...], '4時間': [...], '日足': [...], '週足': [...]}
+    月足は 合意 で 除外 (背景専用テキストサマリのみ)
     """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    order = ['1時間', '4時間', '日足', '週足']
+    for ax, label in zip(axes.flat, order):
+        candles = tf_candles.get(label, [])
+        if not candles:
+            ax.set_title(f'{label}: no data', fontsize=10)
+            ax.axis('off')
+            continue
+        use = candles[-n_per_tf:] if len(candles) > n_per_tf else candles
+        # ローソク
+        for i, c in enumerate(use):
+            body_low = min(c['open'], c['close'])
+            body_h = abs(c['close'] - c['open'])
+            color = '#26a69a' if c['close'] >= c['open'] else '#ef5350'
+            ax.add_patch(Rectangle((i - 0.4, body_low), 0.8, body_h, color=color, alpha=0.95))
+            ax.plot([i, i], [c['low'], c['high']], color=color, linewidth=0.7)
+        # SMA50
+        closes = [c['close'] for c in use]
+        if len(closes) >= 20:
+            sma = []
+            for i in range(len(closes)):
+                window = closes[max(0, i - 49): i + 1]
+                sma.append(sum(window) / len(window))
+            ax.plot(range(len(closes)), sma, color='#ffa500', linewidth=1.0, label='SMA50')
+        ax.set_title(f'{label} ({len(use)} candles)', fontsize=10)
+        ax.set_xlim(-1, len(use))
+        ax.grid(True, alpha=0.25)
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=82)
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def analyze_multi_tf_pattern(png_bytes: bytes, timeout: float = 25.0) -> dict:
+    """vision 4枚版 → Gemini Flash で TF別 パターン認識"""
+    key = _load_env_key()
+    if not key:
+        return {'error': 'GEMINI_API_KEY not found'}
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError:
+        return {'error': 'google-genai not installed'}
+
+    prompt = (
+        "添付の画像は BTC/USD の 4つのTF (左上=1時間、 右上=4時間、 左下=日足、 右下=週足) を "
+        "並べた チャート。 各TFごとに danjer風 (サイクル/フラクタル/OI意識) で 観察し、 JSONで出力:\n"
+        '{\n'
+        '  "tf_1h":  {"patterns": [短い日本語0-3個], "direction": "up|down|sideways", "summary_jp": "30字以内"},\n'
+        '  "tf_4h":  {同形式},\n'
+        '  "tf_1d":  {同形式},\n'
+        '  "tf_1w":  {同形式},\n'
+        '  "alignment": "all_up|all_down|mixed|sideways" (全TFが揃ってるか),\n'
+        '  "overall_jp": "全TF総合60字以内"\n'
+        '}\n'
+        'JSONのみ。 markdownなし。'
+    )
+    try:
+        client = genai.Client(api_key=key)
+        resp = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=png_bytes, mime_type='image/png'),
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                max_output_tokens=1500,
+                response_mime_type='application/json',
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
+        )
+        raw = (resp.text or '').strip()
+    except Exception as e:
+        return {'error': f'{type(e).__name__}: {e}'}
+
+    import json as _json
+    try:
+        o = _json.loads(raw)
+        return {
+            'tf_1h': o.get('tf_1h', {}),
+            'tf_4h': o.get('tf_4h', {}),
+            'tf_1d': o.get('tf_1d', {}),
+            'tf_1w': o.get('tf_1w', {}),
+            'alignment': o.get('alignment', ''),
+            'overall_jp': o.get('overall_jp', ''),
+            'raw': raw,
+        }
+    except Exception:
+        return {'error': 'parse_failed', 'raw': raw[:500]}
+
+
+def fetch_chart_vision_materials_multi(tf_candles: dict) -> dict:
+    """16:08合意 vision 4枚版 エントリポイント
+
+    tf_candles: {'1時間': candles, '4時間': candles, '日足': candles, '週足': candles}
+    月足は除外 (合意通り)
+    """
+    try:
+        png = render_multi_tf_chart_png(tf_candles, n_per_tf=80)
+        return analyze_multi_tf_pattern(png, timeout=25.0)
+    except Exception as e:
+        return {'error': f'{type(e).__name__}: {e}'}
+
+
+def fetch_chart_vision_materials(candles: list[dict]) -> dict:
+    """旧 シングルTF vision (1時間100本)、 互換のため残置"""
     try:
         png = render_btc_chart_png(candles, n=100)
         return analyze_chart_pattern(png, timeout=20.0)

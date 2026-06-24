@@ -259,13 +259,37 @@ def extract_technical_materials_tf(candles: list[dict], tf_label: str) -> list[s
 
 
 def extract_chart_vision_materials(vision_result: dict) -> list[str]:
-    """Phase 3-② vision結果 → materials 言語化"""
+    """vision結果 → materials 言語化 (シングル or 4枚版 対応)"""
     mats: list[str] = []
     if not vision_result:
         return mats
     if 'error' in vision_result:
         mats.append(f'チャートvision 取得失敗: {vision_result.get("error", "")[:60]}')
         return mats
+    # 4枚版 (16:08合意): tf_1h / tf_4h / tf_1d / tf_1w / alignment / overall_jp
+    if any(k in vision_result for k in ('tf_1h', 'tf_4h', 'tf_1d', 'tf_1w')):
+        dir_jp = {'up': '上昇', 'down': '下降', 'sideways': '横ばい'}
+        label_map = [('tf_1w', '週足'), ('tf_1d', '日足'), ('tf_4h', '4時間'), ('tf_1h', '1時間')]
+        for k, lbl in label_map:
+            t = vision_result.get(k) or {}
+            patterns = t.get('patterns', []) or []
+            d = dir_jp.get(t.get('direction', ''), t.get('direction', ''))
+            s = t.get('summary_jp', '')
+            if patterns or s:
+                pat_str = '/'.join(patterns) if patterns else '-'
+                mats.append(f'vision[{lbl}] パターン={pat_str} 方向={d} {s}')
+        alignment = vision_result.get('alignment', '')
+        overall = vision_result.get('overall_jp', '')
+        align_jp = {
+            'all_up': '全TF上昇揃い(強気)',
+            'all_down': '全TF下降揃い(弱気)',
+            'mixed': 'TF間で 方向不一致',
+            'sideways': '全TF横ばい(レンジ)',
+        }.get(alignment, alignment)
+        if overall:
+            mats.append(f'vision総合: {overall} (TF整合={align_jp})')
+        return mats
+    # 旧 シングルTF
     patterns = vision_result.get('patterns', []) or []
     direction = vision_result.get('trend_direction', '')
     summary = vision_result.get('summary_jp', '')

@@ -9,6 +9,32 @@ from pathlib import Path
 from typing import Optional
 
 
+def resample_candles(candles: list[dict], factor: int) -> list[dict]:
+    """N本まとめて1本のローソク足にリサンプリング (4h=1h×4、 8h=1h×8、 3d=1d×3)
+
+    factor 本ごとに [open=最初、 high=最大、 low=最小、 close=最後、 volume=合計]
+    """
+    if factor <= 1 or len(candles) < factor:
+        return list(candles)
+    result = []
+    # 古い端を 切り捨て (新しい端 を 必ず1本目に含めるため)
+    n_full = len(candles) // factor
+    start = len(candles) - n_full * factor
+    for i in range(start, len(candles), factor):
+        group = candles[i: i + factor]
+        if len(group) < factor:
+            continue
+        result.append({
+            'ts': group[0].get('ts', ''),
+            'open': group[0]['open'],
+            'high': max(c['high'] for c in group),
+            'low': min(c['low'] for c in group),
+            'close': group[-1]['close'],
+            'volume': sum(c['volume'] for c in group),
+        })
+    return result
+
+
 def fetch_btc_ohlcv(period: str = "30d", interval: str = "1h"):
     """BTC-USD のOHLCV取得 (yfinance public)
 

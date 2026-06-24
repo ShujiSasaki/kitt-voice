@@ -56,14 +56,14 @@ def run_single_judgement():
     """1回の判定 (fetch → regime → predict → stop_rules → signal → log)"""
     from data_source import (
         fetch_btc_ohlcv, get_recent_candles, get_latest_candle,
-        fetch_market_snapshot,
+        fetch_market_snapshot, resample_candles,
     )
     from regime_detector import (
         detect_regime, extract_materials, extract_market_materials,
         extract_technical_materials, extract_chart_vision_materials,
         extract_technical_materials_tf,
     )
-    from chart_vision import fetch_chart_vision_materials
+    from chart_vision import fetch_chart_vision_materials, fetch_chart_vision_materials_multi
     from inference import predict
     from stop_rules import force_stop_check
     from signal_generator import generate_signal
@@ -74,36 +74,60 @@ def run_single_judgement():
     candles = get_recent_candles(df, n=240)  # 10日分
     latest = get_latest_candle(df)
 
-    # 1a-bis. 日足取得 (Phase MTF-1段目 2026-06-24 16:08 合意 第1段目)
+    # 1a-bis. マルチTF取得 (2026-06-24 16:08 合意 段階追加 — 日足/4h/8h/3d/週/月)
+    candles_4h = resample_candles(candles, factor=4)        # 1h ×4
+    candles_8h = resample_candles(candles, factor=8)        # 1h ×8
     try:
         df_1d = fetch_btc_ohlcv(period="2y", interval="1d")
-        candles_1d = get_recent_candles(df_1d, n=300)
-    except Exception as e:
-        print(f"  日足取得失敗: {e}")
+        candles_1d = get_recent_candles(df_1d, n=400)
+    except Exception:
         candles_1d = []
+    candles_3d = resample_candles(candles_1d, factor=3) if candles_1d else []
+    try:
+        df_1w = fetch_btc_ohlcv(period="5y", interval="1wk")
+        candles_1w = get_recent_candles(df_1w, n=200)
+    except Exception:
+        candles_1w = []
+    try:
+        df_1mo = fetch_btc_ohlcv(period="max", interval="1mo")
+        candles_1mo = get_recent_candles(df_1mo, n=100)
+    except Exception:
+        candles_1mo = []
 
     # 1b. loop2合意: 判定直前にライブ public市場データ取得 (OI/FR/L:S/板)
     print(f"  fetching market snapshot (OI/FR/L:S/orderbook)...")
     market_snapshot = fetch_market_snapshot("BTCUSDT")
 
-    # 1c. Phase 3-② チャート画像 vision (Gemini Flash)
-    print(f"  rendering chart + Gemini Flash vision...")
-    vision_result = fetch_chart_vision_materials(candles)
+    # 1c. vision 4枚版 (16:08合意: 1h/4h/日/週、 月足除外)
+    print(f"  rendering 4-TF chart + Gemini Flash vision...")
+    vision_result = fetch_chart_vision_materials_multi({
+        '1時間': candles,
+        '4時間': candles_4h,
+        '日足':  candles_1d,
+        '週足':  candles_1w,
+    })
 
     # 2. regime + materials (OHLCV由来 + ライブ snapshot + テクニカル + vision を マージ)
     regime = detect_regime(candles)
     base_mats = extract_materials(candles, regime)
     live_mats = extract_market_materials(market_snapshot, candles)
     tech_mats = extract_technical_materials(candles)  # 1時間足
-    tech_1d_mats = extract_technical_materials_tf(candles_1d, '日足') if candles_1d else []
+    # マルチTF (16:08合意通り 月足→週足→日足→3日/8時間→4時間→1時間、 上が大局)
+    tech_1mo_mats = extract_technical_materials_tf(candles_1mo, '月足') if candles_1mo else []
+    tech_1w_mats  = extract_technical_materials_tf(candles_1w, '週足') if candles_1w else []
+    tech_1d_mats  = extract_technical_materials_tf(candles_1d, '日足') if candles_1d else []
+    tech_3d_mats  = extract_technical_materials_tf(candles_3d, '3日足') if candles_3d else []
+    tech_8h_mats  = extract_technical_materials_tf(candles_8h, '8時間足') if candles_8h else []
+    tech_4h_mats  = extract_technical_materials_tf(candles_4h, '4時間足') if candles_4h else []
+    mtf_mats = tech_1mo_mats + tech_1w_mats + tech_1d_mats + tech_3d_mats + tech_8h_mats + tech_4h_mats
     vision_mats = extract_chart_vision_materials(vision_result)
-    materials = base_mats + tech_mats + tech_1d_mats + vision_mats + live_mats
+    materials = base_mats + tech_mats + mtf_mats + vision_mats + live_mats
     print(f"  regime={regime}")
     print(f"  OHLCV由来 materials={base_mats}")
     print(f"  テクニカル(1時間) materials={tech_mats}")
-    print(f"  テクニカル(日足) materials={tech_1d_mats}")
+    print(f"  マルチTF materials({len(mtf_mats)}件): 月{len(tech_1mo_mats)}+週{len(tech_1w_mats)}+日{len(tech_1d_mats)}+3日{len(tech_3d_mats)}+8h{len(tech_8h_mats)}+4h{len(tech_4h_mats)}")
     print(f"  vision materials={vision_mats}")
-    print(f"  ライブ snapshot materials={live_mats}")
+    print(f"  ライブ snapshot materials({len(live_mats)}件)")
     print(f"  latest close=${latest['close']:.2f}")
 
     # 3. predict (v6 LoRA、 dry_run可)
