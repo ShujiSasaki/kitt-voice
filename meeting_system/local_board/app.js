@@ -1284,60 +1284,76 @@ async function loadAiGrowthStatus() {
     const verdict = (v) => v ? '✅' : '❌';
     const cautionVerdict = cau.caution_passed ? '✅' : '⚠️';
 
-    let pnl = '';
-    [1, 4, 24].forEach(h => {
+    // ⚔ 攻め層: 仮想損益を行で
+    const pnlRow = (h) => {
       const p = off[`pnl_${h}h`] || {};
       const evald = p.evaluated || 0;
       if (evald > 0) {
         const avg = p.sum / evald;
-        pnl += `<div class="text-xs">${h}h後: $${avg >= 0 ? '+' : ''}${avg.toFixed(2)} (${p.wins}勝/${p.losses}負/${evald}件)</div>`;
+        const cls = avg >= 0 ? 'text-green-400' : 'text-red-400';
+        return `<div class="flex justify-between gap-2 py-0.5"><span class="text-dm-text-dim text-sm">${h}h後 平均</span><span class="text-sm ${cls}">$${avg >= 0 ? '+' : ''}${avg.toFixed(2)} <span class="text-dm-text-dim">(${p.wins}/${p.losses})</span></span></div>`;
       } else {
-        pnl += `<div class="text-xs text-dm-text-dim">${h}h後: 未到達</div>`;
+        return `<div class="flex justify-between gap-2 py-0.5"><span class="text-dm-text-dim text-sm">${h}h後 平均</span><span class="text-sm text-dm-text-dim">未到達</span></div>`;
       }
-    });
+    };
+    let pnl = pnlRow(1) + pnlRow(4) + pnlRow(24);
 
     let warns = '';
     if ((cau.warnings || []).length > 0) {
-      warns = `<div class="mt-1 text-xs text-yellow-400">⚠️ ${cau.warnings.join(', ')}</div>`;
+      warns = `<div class="mt-2 text-sm text-yellow-400">⚠️ ${cau.warnings.join('<br>⚠️ ')}</div>`;
     }
 
     let recentList = '';
     if (recent.length > 0) {
-      recentList = '<div class="mt-3 pt-2 border-t border-dm-border">'
-        + '<div class="text-xs text-dm-text-dim mb-1">直近判定 (新しい順):</div>'
+      recentList = '<div class="p-3 bg-dm-header rounded">'
+        + '<div class="text-sm font-bold mb-2">📜 直近判定 (新しい順)</div>'
         + recent.slice().reverse().map(r => {
           const ts = (r.ts || '').slice(11, 16);
           const sig = r.signal || '';
           const sigEmoji = sig === 'long' ? '⬆️' : sig === 'short' ? '⬇️' : sig === 'force_stopped' ? '🛑' : '⏸️';
-          return `<div class="text-xs py-0.5">${ts} ${sigEmoji} ${r.regime} → ${r.signal} <span class="text-dm-text-dim">$${(r.btc_price || 0).toFixed(0)}</span></div>`;
+          return `<div class="flex justify-between gap-2 py-1 border-b border-dm-border last:border-0">
+            <span class="text-sm">${ts} ${sigEmoji} ${r.regime}</span>
+            <span class="text-sm text-dm-text-dim">$${(r.btc_price || 0).toFixed(0)}</span>
+          </div>`;
         }).join('')
         + '</div>';
     }
 
+    // 行: ラベル + 値 を flex で 確実に並べる (折り返し回避)
+    const row = (label, value, valueClass = '') =>
+      `<div class="flex justify-between gap-2 py-0.5"><span class="text-dm-text-dim text-sm">${label}</span><span class="text-sm ${valueClass}">${value}</span></div>`;
+
     content.innerHTML = `
       <div class="text-xs text-dm-text-dim">更新: ${(s.updated_at || '').slice(11, 19)} (model ${s.model_version})</div>
-      <div class="mt-2">
-        <div class="text-xs">サイクル進捗: ${cycle.total}/${cycle.target_max}件 (${cycle.progress_pct}%)</div>
-        <div class="text-xs font-mono text-dm-text-dim">${barStr}</div>
+
+      <div class="mt-2 p-3 bg-dm-header rounded">
+        <div class="text-sm font-bold mb-1">📊 サイクル進捗</div>
+        <div class="text-base">${cycle.total} / ${cycle.target_max}件 <span class="text-dm-text-dim">(${cycle.progress_pct}%)</span></div>
+        <div class="text-xs font-mono text-dm-text-dim mt-1 overflow-hidden whitespace-nowrap">${barStr}</div>
       </div>
-      <div class="mt-2 pt-2 border-t border-dm-border">
-        <div class="text-xs font-bold">🛡 守り層 ${verdict(def.defense_passed)}</div>
-        <div class="text-xs">危ない場面でやる: ${def.dangerous_yarei_count}件</div>
-        <div class="text-xs">ストップバグ: ${def.stop_rule_bugs}件</div>
-        <div class="text-xs">自動ループ: ${def.auto_loop_detected}件 / 崩壊: ${def.auto_collapse_detected}件</div>
+
+      <div class="p-3 bg-dm-header rounded">
+        <div class="text-sm font-bold mb-2">🛡 守り層 ${verdict(def.defense_passed)}</div>
+        ${row('危ない場面でやる', def.dangerous_yarei_count + '件', def.dangerous_yarei_count > 0 ? 'text-red-400' : '')}
+        ${row('ストップバグ', def.stop_rule_bugs + '件', def.stop_rule_bugs > 0 ? 'text-red-400' : '')}
+        ${row('自動ループ', def.auto_loop_detected + '件')}
+        ${row('内容崩壊', def.auto_collapse_detected + '件')}
       </div>
-      <div class="mt-2 pt-2 border-t border-dm-border">
-        <div class="text-xs font-bold">⚔ 攻め層</div>
+
+      <div class="p-3 bg-dm-header rounded">
+        <div class="text-sm font-bold mb-2">⚔ 攻め層</div>
         ${pnl}
-        <div class="text-xs">勝率(24h): ${((off.win_rate_24h || 0) * 100).toFixed(1)}%</div>
+        ${row('勝率(24h)', ((off.win_rate_24h || 0) * 100).toFixed(1) + '%')}
       </div>
-      <div class="mt-2 pt-2 border-t border-dm-border">
-        <div class="text-xs font-bold">😨 臆病チェック ${cautionVerdict}</div>
-        <div class="text-xs">no_trade率: ${((cau.no_trade_rate || 0) * 100).toFixed(1)}%</div>
-        <div class="text-xs">stop率: ${((cau.force_stopped_rate || 0) * 100).toFixed(1)}%</div>
-        <div class="text-xs">応答長: ${(cau.avg_response_length || 0).toFixed(0)}字</div>
+
+      <div class="p-3 bg-dm-header rounded">
+        <div class="text-sm font-bold mb-2">😨 臆病チェック ${cautionVerdict}</div>
+        ${row('no_trade率', ((cau.no_trade_rate || 0) * 100).toFixed(1) + '%')}
+        ${row('強制ストップ率', ((cau.force_stopped_rate || 0) * 100).toFixed(1) + '%')}
+        ${row('応答長', (cau.avg_response_length || 0).toFixed(0) + '字')}
         ${warns}
       </div>
+
       ${recentList}
     `;
   } catch (e) {
