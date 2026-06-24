@@ -1392,8 +1392,14 @@ function openAiGrowthModal() {
     document.body.appendChild(m);
   }
   m.classList.remove('hidden');
-  // 強制スタイル: 画面全体を確実に覆う (iOS 動的viewport=dvh使用、 bounce伝播抑制)
-  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;min-height:100vh;z-index:99999;background:rgba(0,0,0,0.98);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;';
+  // 強制スタイル: 画面全体を覆い、 通常block レイアウト で スクロール可能に
+  // (flexだと子のmin-h-fullで子=container高に固定されscroll不可になる iOS Safariバグ回避)
+  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;z-index:99999;background:rgba(0,0,0,0.98);overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;';
+  // 内側コンテナから flex依存class を除去 (self-stretch min-h-full は flex前提)
+  const inner = m.querySelector('.bg-dm-bg');
+  if (inner) {
+    inner.classList.remove('self-stretch', 'min-h-full');
+  }
   // サイドバー(左の48px縦並び)を強制非表示
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
