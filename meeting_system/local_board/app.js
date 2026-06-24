@@ -1363,10 +1363,19 @@ async function loadAiGrowthStatus() {
 
 function openAiGrowthModal() {
   const m = document.getElementById('ai-growth-modal');
+  // モーダルを<body>直下に移動 (親<header sticky>のstacking context回避)
+  if (m.parentNode !== document.body) {
+    document.body.appendChild(m);
+  }
   m.classList.remove('hidden');
-  // 強制スタイル: 画面全体を確実に覆う (CSS class依存しない)
-  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:9999;background:rgba(0,0,0,0.97);display:flex;flex-direction:column;overflow-y:auto;';
-  // サイドバーが残ってたら強制非表示
+  // 強制スタイル: 画面全体を確実に覆う (viewport基準で position:fixed)
+  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:99999;background:rgba(0,0,0,0.98);display:flex;flex-direction:column;overflow-y:auto;padding:0;';
+  // サイドバー(左の48px縦並び)を強制非表示
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.dataset.savedDisplay = sidebar.style.display || '';
+    sidebar.style.display = 'none';
+  }
   document.getElementById('room-list-panel')?.classList.add('hidden');
   document.body.style.overflow = 'hidden';
   loadAiGrowthStatus();
@@ -1375,6 +1384,11 @@ function closeAiGrowthModal() {
   const m = document.getElementById('ai-growth-modal');
   m.classList.add('hidden');
   m.style.display = 'none';
+  // サイドバー復活
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.style.display = sidebar.dataset.savedDisplay || '';
+  }
   document.body.style.overflow = '';
 }
 document.getElementById('ai-growth-btn')?.addEventListener('click', openAiGrowthModal);
