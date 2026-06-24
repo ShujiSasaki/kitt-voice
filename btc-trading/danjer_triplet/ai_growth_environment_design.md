@@ -272,3 +272,66 @@ $ python3 safety_check.py
 ## 着工承認確認
 
 設計書に合意の3点追記完了。 Step 1 (Phase 1育成リング実装) から着工していい?
+
+---
+
+## ★合意追記 (2026-06-24 14:29 3者true×2巡): 市場データ段階追加プラン
+
+議題 「他の市場データは入れないの?」 で 確定した 段階追加方針。
+
+### 大原則
+- danjer が見ている可能性のあるデータは **最終的に全部入れる**
+- ただし **Phase 0 → 1 → 2 → 3 の 順で 1段ずつ追加**、 一括投入 NG
+- 取得は最大化 OK、 ただし AI に渡す materials は **日本語サマリで圧縮**、 LoRA input 32k に収める
+- **次 Phase 着手 = 前 Phase 検収 OK が前提** (順番を飛ばさない、 問題発生時の原因切り分けが速くなる)
+
+### Phase 0 — OI / FR / L:S / 板 (実装済 commit eb0cad4 / f5057a0)
+- 取得経路: Binance public API (発注権限不要、 認証なし、 SSL自動フォールバック)
+- 取得項目: openInterest / premiumIndex(FR) / topLongShortAccountRatio / topLongShortPositionRatio / globalLongShortAccountRatio / depth (上位20階層)
+- materials 言語化例: `OI = 98,252BTC` / `FR -0.001% (中立)` / `L:S top_pos=1.14 global=2.01 (トップ建玉中立)` / `板imbalance +0.62 (板買い厚め) spread=$0.10`
+- 検収基準 (合意): ①materials に OI/FR が 入った ②force_stop が 前より減った
+- 検収結果 (2026-06-24): ①✅入った ②✅3件 → 1件 に減少 (rule_6/rule_7 消失、 rule_1 のみ残)
+- Phase 0 検収 PASS → Phase 1 着手可能
+
+### Phase 1 — 清算 / CVD / ドミナンス / DXY・SPX / Fear & Greed
+- 清算 (Liquidations):
+  - Binance public `/fapi/v1/forceOrders` (近1000件)、 Bybit/Hyperliquid 同等あり
+  - 集計: 直近1h / 4h / 24h の long清算累計 / short清算累計、 1件最大、 大口閾値超 件数
+  - 言語化例: `清算 直近1h: ロング$120M / ショート$45M (ロング多)`
+- CVD (Cumulative Volume Delta):
+  - Binance public `/fapi/v1/aggTrades` を ロング/ショート 振り分け 集計
+  - 言語化例: `CVD 直近4h +$8.3M (買い優勢)`
+- ドミナンス (BTC.D / Stable.D):
+  - CoinGecko 無認証 `/global` (totalMarketCap内訳)、 TradingView mcp
+  - 言語化例: `BTC.D 54.2% (前日比+0.3%、 アルト弱含み)`
+- DXY / SPX / Gold / 金利:
+  - yfinance (`^DXY`, `^GSPC`, `GC=F`, `^TNX`)、 全部 無認証
+  - 言語化例: `DXY 104.3 (BTC逆相関、 直近24h DXY+0.4% で BTC逆風)`
+- Fear & Greed Index:
+  - alternative.me 無認証 `/fng/`
+  - 言語化例: `Fear & Greed 42 (Fear、 5日前 55 から悪化)`
+- 検収基準 (Phase 0 と 同じ枠): ①追加された Phase 1 materials が 入ってる ②AI 応答に Phase 1 材料が 参照されてる ③force_stop さらに減るか 維持
+- 不足アカウント: なし (全 既存 or 無認証)
+
+### Phase 2 — IV (オプション) / ETF / 経済指標距離
+- IV (Implied Volatility / Skew / Put-Call Ratio):
+  - Deribit public `/public/get_book_summary_by_currency?currency=BTC&kind=option`
+  - 言語化例: `BTC IV 30d 52% (前日比+3pt、 上昇方向への警戒)`
+- ETF 資金フロー (スポット BTC ETF):
+  - Farside Investors API / Coinglass無料tier、 yfinance (`IBIT`/`FBTC` 等の出来高)
+  - 言語化例: `ETF 流入 直近5日 +$1.2B (機関買い継続)`
+- 経済指標 距離 (FOMC / CPI / 雇用統計 までの 営業日):
+  - TradingEconomics API 無料tier / Investing.com calendar スクレイプ
+  - 言語化例: `次FOMC まで 3営業日 (政策金利 据置予想だが ボラ上昇懸念)`
+- 検収基準: 同上
+- 不足アカウント: Deribit (無料登録のみ)、 TradingEconomics 無料 API key
+
+### Phase 3 — TradingView 指標値 / チャート画像解析 (重い、 後回し)
+- TradingView mcp (既存接続) で 一目雲 / SMA200 / RSI / MACD / フィボ の **数値** を 取得
+- チャート画像 を 取得 → vision モデル (Gemini Flash) で パターン認識 (三尊 / ダイア / ネックライン)
+- 言語化例: `日足 SMA200 上、 4h 一目雲下抜け、 RSI日足 38 (オーバーソールド気配)`
+- 検収基準: 同上 + 推論時間 が 許容内 (1判定 30秒以内)
+- 不足アカウント: なし (TradingView 既存有料サブスク)
+
+### 設計書追記の完了基準
+この章 (★合意追記 段階追加プラン) の 各 Phase に 「取得経路 / 言語化例 / 検収基準 / 不足アカウント」 が 揃ったら 「設計書追記」 タスク 完了。 ← 本コミットで 達成 (2026-06-24)。
