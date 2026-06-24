@@ -1361,10 +1361,23 @@ async function loadAiGrowthStatus() {
   }
 }
 
-document.getElementById('ai-growth-btn')?.addEventListener('click', () => {
-  document.getElementById('ai-growth-modal').classList.remove('hidden');
+function openAiGrowthModal() {
+  const m = document.getElementById('ai-growth-modal');
+  m.classList.remove('hidden');
+  // 強制スタイル: 画面全体を確実に覆う (CSS class依存しない)
+  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:9999;background:rgba(0,0,0,0.97);display:flex;flex-direction:column;overflow-y:auto;';
+  // サイドバーが残ってたら強制非表示
+  document.getElementById('room-list-panel')?.classList.add('hidden');
+  document.body.style.overflow = 'hidden';
   loadAiGrowthStatus();
-});
+}
+function closeAiGrowthModal() {
+  const m = document.getElementById('ai-growth-modal');
+  m.classList.add('hidden');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('ai-growth-btn')?.addEventListener('click', openAiGrowthModal);
 document.getElementById('ai-growth-refresh')?.addEventListener('click', () => {
   loadAiGrowthStatus();
 });
