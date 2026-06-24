@@ -145,6 +145,25 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === Dominance (Phase 1-③ 2026-06-24) ===
+    dom = snapshot.get('dominance') or {}
+    if dom and 'error' not in dom:
+        btc_d = dom.get('btc_d', 0)
+        eth_d = dom.get('eth_d', 0)
+        stable_d = dom.get('stable_d', 0)
+        # BTC.D の 水準感
+        if btc_d >= 60:
+            jp = 'BTC優位(アルト弱含み)'
+        elif btc_d <= 45:
+            jp = 'アルト優位(BTC弱含み)'
+        else:
+            jp = '中立'
+        mats.append(
+            f'ドミナンス BTC.D={btc_d:.1f}% / ETH.D={eth_d:.1f}% / Stable.D={stable_d:.1f}% ({jp})'
+        )
+    elif dom:
+        mats.append('ドミナンス 取得失敗')
+
     # === CVD (Phase 1-② 2026-06-24) ===
     cvd = snapshot.get('cvd') or {}
     if cvd and 'error' not in cvd:

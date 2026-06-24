@@ -195,6 +195,35 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_dominance_coingecko() -> dict:
+    """Phase 1-③ ドミナンス (BTC.D / ETH.D / Stable.D)
+
+    CoinGecko 無認証 `/api/v3/global` から 時価総額シェア を 取得。
+    Returns:
+        {'btc_d': float, 'eth_d': float, 'stable_d': float (USDT+USDC+DAI),
+         'total_mcap_usd': float, 'total_volume_24h_usd': float}
+    """
+    o = _http_get_json("https://api.coingecko.com/api/v3/global")
+    d = (o or {}).get('data', {}) or {}
+    mcap_pct = d.get('market_cap_percentage', {}) or {}
+    btc_d = float(mcap_pct.get('btc', 0))
+    eth_d = float(mcap_pct.get('eth', 0))
+    stable_d = (
+        float(mcap_pct.get('usdt', 0))
+        + float(mcap_pct.get('usdc', 0))
+        + float(mcap_pct.get('dai', 0))
+    )
+    total_mcap = (d.get('total_market_cap', {}) or {}).get('usd', 0) or 0
+    total_vol = (d.get('total_volume', {}) or {}).get('usd', 0) or 0
+    return {
+        'btc_d': btc_d,
+        'eth_d': eth_d,
+        'stable_d': stable_d,
+        'total_mcap_usd': float(total_mcap),
+        'total_volume_24h_usd': float(total_vol),
+    }
+
+
 def fetch_binance_cvd(symbol: str = "BTCUSDT", limit: int = 1000) -> dict:
     """Phase 1-② CVD (Cumulative Volume Delta)
 
@@ -395,6 +424,11 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
         snap['cvd'] = fetch_binance_cvd(symbol, limit=1000)
     except Exception as e:
         snap['cvd'] = {'error': f'{type(e).__name__}: {e}'}
+    # ③ ドミナンス (CoinGecko global)
+    try:
+        snap['dominance'] = fetch_dominance_coingecko()
+    except Exception as e:
+        snap['dominance'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 
