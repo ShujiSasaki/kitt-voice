@@ -23,7 +23,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/tmp/kaggle_venv/bin/python3</string>
+        <string>/tmp/lora_venv311/bin/python3</string>
         <string>/Users/shuji/Desktop/kitt-voice/btc-trading/ai_growth/runner.py</string>
         <string>--once</string>
     </array>
@@ -48,7 +48,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/tmp/kaggle_venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/tmp/lora_venv311/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
 </dict>
 </plist>
