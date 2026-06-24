@@ -195,6 +195,43 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_macro_yfinance() -> dict:
+    """Phase 1-④ マクロ (DXY / SPX / Gold / 10年米国債金利)
+
+    yfinance 無認証 で 主要マクロ tickers を 1日分取得し、 直近終値 + 前日比% を返す。
+    BTC と 相関 (DXY逆相関 / SPX順相関 / Gold 競合資産 / 金利逆相関) を 判断材料に。
+
+    Returns:
+        {
+          'dxy': {'last': float, 'change_pct': float},
+          'spx': {'last': float, 'change_pct': float},
+          'gold': {'last': float, 'change_pct': float},
+          'us10y': {'last': float, 'change_pct': float}
+        }
+    """
+    import yfinance as yf
+    tickers = {
+        'dxy':   'DX-Y.NYB',  # US Dollar Index
+        'spx':   '^GSPC',     # S&P 500
+        'gold':  'GC=F',      # Gold Futures
+        'us10y': '^TNX',      # 10-Year Treasury Yield
+    }
+    out = {}
+    for key, sym in tickers.items():
+        try:
+            df = yf.Ticker(sym).history(period='5d', interval='1d')
+            if df.empty or len(df) < 2:
+                out[key] = {'error': 'insufficient_data'}
+                continue
+            last = float(df['Close'].iloc[-1])
+            prev = float(df['Close'].iloc[-2])
+            change_pct = (last - prev) / prev * 100 if prev else 0.0
+            out[key] = {'last': last, 'change_pct': change_pct}
+        except Exception as e:
+            out[key] = {'error': f'{type(e).__name__}: {e}'}
+    return out
+
+
 def fetch_dominance_coingecko() -> dict:
     """Phase 1-③ ドミナンス (BTC.D / ETH.D / Stable.D)
 
@@ -429,6 +466,11 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
         snap['dominance'] = fetch_dominance_coingecko()
     except Exception as e:
         snap['dominance'] = {'error': f'{type(e).__name__}: {e}'}
+    # ④ マクロ (DXY / SPX / Gold / US10Y) — yfinance
+    try:
+        snap['macro'] = fetch_macro_yfinance()
+    except Exception as e:
+        snap['macro'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 

@@ -145,6 +145,40 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === Macro (Phase 1-④ 2026-06-24) ===
+    macro = snapshot.get('macro') or {}
+    if macro and 'error' not in macro:
+        def _row(key, label):
+            d = macro.get(key) or {}
+            if 'error' in d or not d:
+                return None
+            last = d.get('last', 0)
+            chg = d.get('change_pct', 0)
+            sign = '+' if chg >= 0 else ''
+            return f'{label}={last:.2f}({sign}{chg:.2f}%)'
+        parts = [s for s in (
+            _row('dxy', 'DXY'),
+            _row('spx', 'SPX'),
+            _row('gold', 'Gold'),
+            _row('us10y', '米10年金利'),
+        ) if s]
+        if parts:
+            # BTC との 含意
+            dxy_chg = (macro.get('dxy') or {}).get('change_pct', 0)
+            us10y_chg = (macro.get('us10y') or {}).get('change_pct', 0)
+            spx_chg = (macro.get('spx') or {}).get('change_pct', 0)
+            risk_on = (spx_chg > 0.3) and (dxy_chg < 0)
+            risk_off = (spx_chg < -0.3) or (dxy_chg > 0.5)
+            if risk_on:
+                jp = 'リスクオン環境 (BTC追い風)'
+            elif risk_off:
+                jp = 'リスクオフ環境 (BTC逆風)'
+            else:
+                jp = 'マクロ中立'
+            mats.append('マクロ ' + ' / '.join(parts) + f' ({jp})')
+    elif macro:
+        mats.append('マクロ 取得失敗')
+
     # === Dominance (Phase 1-③ 2026-06-24) ===
     dom = snapshot.get('dominance') or {}
     if dom and 'error' not in dom:
