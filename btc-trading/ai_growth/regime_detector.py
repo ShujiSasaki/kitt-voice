@@ -145,6 +145,68 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === Econ Calendar (Phase 2-③ 2026-06-24) ===
+    cal = snapshot.get('econ_calendar') or {}
+    if cal and 'error' not in cal:
+        nearest = cal.get('nearest_event', '')
+        days = cal.get('nearest_business_days', 999)
+        fomc_d = (cal.get('next_fomc') or {}).get('business_days', 999)
+        cpi_d = (cal.get('next_cpi') or {}).get('business_days', 999)
+        nfp_d = (cal.get('next_nfp') or {}).get('business_days', 999)
+        # ボラ警戒
+        if days <= 1:
+            jp = '直前(ボラ警戒、 ポジ抑制)'
+        elif days <= 3:
+            jp = '近い(週内警戒)'
+        elif days <= 5:
+            jp = '今週中'
+        else:
+            jp = '当面なし'
+        mats.append(
+            f'経済指標 直近={nearest}({days}営業日後)、 '
+            f'FOMC={fomc_d}日 / CPI={cpi_d}日 / NFP={nfp_d}日 ({jp})'
+        )
+    elif cal:
+        mats.append('経済指標カレンダー 取得失敗')
+
+    # === ETF Flow (Phase 2-② 2026-06-24) ===
+    etf = snapshot.get('etf_flow') or {}
+    if etf and 'error' not in etf and etf.get('tickers'):
+        total_usd = etf.get('total_usd_volume_5d', 0)
+        avg_chg = etf.get('price_change_avg_pct', 0)
+        # 5日平均 価格変化で 機関 需要 を 推測
+        if avg_chg >= 2.0:
+            jp = '機関買い増し示唆'
+        elif avg_chg <= -2.0:
+            jp = '機関売り示唆'
+        else:
+            jp = '中立'
+        # 主要ETF (IBIT) を 代表表示
+        ibit = (etf.get('tickers') or {}).get('IBIT') or {}
+        ibit_str = ''
+        if ibit:
+            ibit_str = f'IBIT終値=${ibit.get("last", 0):.2f}'
+        mats.append(
+            f'BTC ETF 5d出来高合計=${total_usd/1e9:.2f}B 価格5d平均{avg_chg:+.2f}% '
+            f'{ibit_str} ({jp})'
+        )
+    elif etf:
+        mats.append('ETF 取得失敗')
+
+    # === IV (Phase 2-① 2026-06-24) ===
+    iv = snapshot.get('iv') or {}
+    if iv and 'error' not in iv:
+        dvol = iv.get('dvol_now', 0)
+        chg = iv.get('change_pct', 0)
+        level = iv.get('level', '')
+        level_jp = {'low': '低ボラ(慎重なブレイク警戒)', 'high': '高ボラ(動意過熱)', 'mid': '中ボラ'}.get(level, level)
+        sign = '+' if chg >= 0 else ''
+        mats.append(
+            f'IV (DVOL) {dvol:.1f}% (24h {sign}{chg:.2f}%、 {level_jp})'
+        )
+    elif iv:
+        mats.append('IV 取得失敗')
+
     # === Fear & Greed (Phase 1-⑤ 2026-06-24) ===
     fg = snapshot.get('fear_greed') or {}
     if fg and 'error' not in fg:

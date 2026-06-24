@@ -195,6 +195,182 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_econ_calendar_distance() -> dict:
+    """Phase 2-③ 経済指標距離 (FOMC / CPI / NFP)
+
+    主要イベント を hard-code して 「今日から 次の発表まで 何営業日」 を 計算。
+    認証なし、 ネット不要。
+
+    対象:
+    - FOMC: 2026年8回 (公式FRB schedule、 2026/1/28, 3/18, 4/29, 6/17, 7/29, 9/16, 11/4, 12/16)
+    - CPI: 毎月 第2火曜日 (例外あり、 おおよそ)
+    - NFP (雇用統計): 毎月 第1金曜日
+
+    Returns:
+        {'next_fomc': {'date': 'YYYY-MM-DD', 'business_days': int},
+         'next_cpi':  {'date': 'YYYY-MM-DD', 'business_days': int},
+         'next_nfp':  {'date': 'YYYY-MM-DD', 'business_days': int},
+         'nearest_event': str, 'nearest_business_days': int}
+    """
+    from datetime import date, timedelta
+    today = date.today()
+
+    # FOMC 2026 (FRB 公式)
+    fomc_2026 = [
+        date(2026, 1, 28), date(2026, 3, 18), date(2026, 4, 29),
+        date(2026, 6, 17), date(2026, 7, 29), date(2026, 9, 16),
+        date(2026, 11, 4), date(2026, 12, 16),
+    ]
+    fomc_2027 = [date(2027, 1, 27)]  # 来年最初 だけ 念のため
+    fomc_all = sorted(fomc_2026 + fomc_2027)
+
+    def _next_after(today: date, candidates: list) -> date:
+        for d in candidates:
+            if d >= today:
+                return d
+        return candidates[-1]
+
+    def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+        """n番目の weekday (Mon=0 ... Sun=6) の date を返す"""
+        d = date(year, month, 1)
+        # 月の1日が weekday より 後 なら そこから
+        offset = (weekday - d.weekday()) % 7
+        first = d + timedelta(days=offset)
+        return first + timedelta(weeks=n - 1)
+
+    def _next_monthly(today: date, weekday: int, nth: int) -> date:
+        """今日以降で 次の 「第nth weekday」 の date"""
+        y, m = today.year, today.month
+        for _ in range(3):
+            d = _nth_weekday(y, m, weekday, nth)
+            if d >= today:
+                return d
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+        return d
+
+    next_fomc = _next_after(today, fomc_all)
+    next_cpi = _next_monthly(today, weekday=1, nth=2)  # 第2火曜
+    next_nfp = _next_monthly(today, weekday=4, nth=1)  # 第1金曜
+
+    def _business_days_between(start: date, end: date) -> int:
+        days = 0
+        cur = start
+        while cur < end:
+            cur += timedelta(days=1)
+            if cur.weekday() < 5:  # Mon-Fri
+                days += 1
+        return days
+
+    events = {
+        'next_fomc': {'date': next_fomc.isoformat(), 'business_days': _business_days_between(today, next_fomc)},
+        'next_cpi':  {'date': next_cpi.isoformat(),  'business_days': _business_days_between(today, next_cpi)},
+        'next_nfp':  {'date': next_nfp.isoformat(),  'business_days': _business_days_between(today, next_nfp)},
+    }
+    nearest_name, nearest_days = min(
+        [('FOMC', events['next_fomc']['business_days']),
+         ('CPI',  events['next_cpi']['business_days']),
+         ('NFP',  events['next_nfp']['business_days'])],
+        key=lambda x: x[1]
+    )
+    events['nearest_event'] = nearest_name
+    events['nearest_business_days'] = nearest_days
+    return events
+
+
+def fetch_btc_etf_flow_yfinance() -> dict:
+    """Phase 2-② BTCスポット ETF 流入 (yfinance 出来高 近似)
+
+    主要 BTC現物 ETF (IBIT BlackRock, FBTC Fidelity, ARKB Ark, BITB Bitwise, GBTC Grayscale)
+    の 直近5日出来高 + 終値 を 取得し、 「機関買い/売り」 の代理指標 として 集計。
+
+    厳密な 純流入 (creation/redemption) は SEC EDGAR / Farside 等が必要だが、
+    出来高 (USD換算) は 強い 相関を 持ち、 認証なし で 取れる。
+
+    Returns:
+        {'tickers': {ticker: {'last': float, 'volume_5d': int, 'usd_volume_5d': float,
+                              'change_pct_5d': float}},
+         'total_usd_volume_5d': float, 'price_change_avg_pct': float}
+    """
+    import yfinance as yf
+    tickers_sym = ['IBIT', 'FBTC', 'ARKB', 'BITB', 'GBTC']
+    out = {'tickers': {}}
+    total_usd_vol = 0.0
+    price_changes = []
+    for sym in tickers_sym:
+        try:
+            df = yf.Ticker(sym).history(period='7d', interval='1d')
+            if df.empty or len(df) < 2:
+                continue
+            last_close = float(df['Close'].iloc[-1])
+            prev_close = float(df['Close'].iloc[-2])
+            volumes = df['Volume'].tail(5)
+            closes = df['Close'].tail(5)
+            usd_vol = float((volumes * closes).sum())
+            volume_5d = int(volumes.sum())
+            change_pct_5d = (last_close - float(closes.iloc[0])) / float(closes.iloc[0]) * 100 if len(closes) >= 2 else 0.0
+            out['tickers'][sym] = {
+                'last': last_close,
+                'volume_5d': volume_5d,
+                'usd_volume_5d': usd_vol,
+                'change_pct_5d': change_pct_5d,
+            }
+            total_usd_vol += usd_vol
+            price_changes.append(change_pct_5d)
+        except Exception:
+            continue
+    out['total_usd_volume_5d'] = total_usd_vol
+    out['price_change_avg_pct'] = sum(price_changes) / len(price_changes) if price_changes else 0.0
+    return out
+
+
+def fetch_deribit_dvol(currency: str = "BTC") -> dict:
+    """Phase 2-① IV (Implied Volatility) — Deribit DVOL index
+
+    Deribit public `/api/v2/public/get_volatility_index_data` で
+    直近24h の DVOL (Deribit Volatility Index、 年率%) を 取得し、
+    現値・24h前比較・水準感 を 返す。 認証なし、 発注経路ゼロ。
+
+    Returns:
+        {'dvol_now': float, 'dvol_24h_ago': float, 'change_pct': float,
+         'level': 'low'|'mid'|'high'}
+    """
+    import time as _time
+    now_ms = int(_time.time() * 1000)
+    start_ms = now_ms - 26 * 3600 * 1000  # 26h 余裕で
+    url = (
+        f"https://www.deribit.com/api/v2/public/get_volatility_index_data"
+        f"?currency={currency}&start_timestamp={start_ms}&end_timestamp={now_ms}&resolution=3600"
+    )
+    o = _http_get_json(url)
+    result = (o or {}).get('result') or {}
+    data = result.get('data') or []
+    if not data:
+        return {'error': 'no_data'}
+    # 各row: [ts, open, high, low, close]
+    closes = [float(row[4]) for row in data if len(row) >= 5]
+    if not closes:
+        return {'error': 'no_close'}
+    dvol_now = closes[-1]
+    dvol_24h_ago = closes[0]
+    change_pct = (dvol_now - dvol_24h_ago) / dvol_24h_ago * 100 if dvol_24h_ago else 0.0
+    # 水準感 (BTC DVOL は 概ね 30-80%、 低<40 / 中40-60 / 高>60)
+    if dvol_now < 40:
+        level = 'low'
+    elif dvol_now > 60:
+        level = 'high'
+    else:
+        level = 'mid'
+    return {
+        'dvol_now': dvol_now,
+        'dvol_24h_ago': dvol_24h_ago,
+        'change_pct': change_pct,
+        'level': level,
+    }
+
+
 def fetch_fear_greed() -> dict:
     """Phase 1-⑤ Fear & Greed Index
 
@@ -508,6 +684,22 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
         snap['fear_greed'] = fetch_fear_greed()
     except Exception as e:
         snap['fear_greed'] = {'error': f'{type(e).__name__}: {e}'}
+    # === Phase 2 (2026-06-24 14:29 合意: IV/ETF/経済指標距離) ===
+    # ⑥ IV (Deribit DVOL public)
+    try:
+        snap['iv'] = fetch_deribit_dvol("BTC")
+    except Exception as e:
+        snap['iv'] = {'error': f'{type(e).__name__}: {e}'}
+    # ⑦ BTC ETF 出来高近似 (yfinance IBIT/FBTC/ARKB/BITB/GBTC)
+    try:
+        snap['etf_flow'] = fetch_btc_etf_flow_yfinance()
+    except Exception as e:
+        snap['etf_flow'] = {'error': f'{type(e).__name__}: {e}'}
+    # ⑧ 経済指標距離 (FOMC/CPI/NFP hard-code calendar)
+    try:
+        snap['econ_calendar'] = fetch_econ_calendar_distance()
+    except Exception as e:
+        snap['econ_calendar'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 
