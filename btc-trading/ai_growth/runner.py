@@ -60,6 +60,7 @@ def run_single_judgement():
     )
     from regime_detector import (
         detect_regime, extract_materials, extract_market_materials,
+        extract_technical_materials,
     )
     from inference import predict
     from stop_rules import force_stop_check
@@ -75,13 +76,15 @@ def run_single_judgement():
     print(f"  fetching market snapshot (OI/FR/L:S/orderbook)...")
     market_snapshot = fetch_market_snapshot("BTCUSDT")
 
-    # 2. regime + materials (OHLCV由来 + ライブ snapshot由来 を マージ)
+    # 2. regime + materials (OHLCV由来 + ライブ snapshot由来 + テクニカル自前計算 を マージ)
     regime = detect_regime(candles)
     base_mats = extract_materials(candles, regime)
     live_mats = extract_market_materials(market_snapshot, candles)
-    materials = base_mats + live_mats
+    tech_mats = extract_technical_materials(candles)
+    materials = base_mats + tech_mats + live_mats
     print(f"  regime={regime}")
     print(f"  OHLCV由来 materials={base_mats}")
+    print(f"  テクニカル自前計算 materials={tech_mats}")
     print(f"  ライブ snapshot materials={live_mats}")
     print(f"  latest close=${latest['close']:.2f}")
 

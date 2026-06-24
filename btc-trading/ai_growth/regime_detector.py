@@ -88,6 +88,181 @@ def detect_regime(candles: list[dict]) -> str:
     return 'range'
 
 
+def _rsi(closes: list[float], period: int = 14) -> float:
+    """Wilder's RSI"""
+    if len(closes) < period + 1:
+        return 50.0
+    gains = []
+    losses = []
+    for i in range(1, len(closes)):
+        diff = closes[i] - closes[i-1]
+        gains.append(max(0, diff))
+        losses.append(max(0, -diff))
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100 - 100 / (1 + rs)
+
+
+def _macd(closes: list[float], fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
+    """MACD = EMA(fast) - EMA(slow), Signal = EMA(MACD, signal)"""
+    def _ema_series(values, period):
+        if not values:
+            return []
+        alpha = 2.0 / (period + 1)
+        result = [values[0]]
+        for v in values[1:]:
+            result.append(alpha * v + (1 - alpha) * result[-1])
+        return result
+    if len(closes) < slow + signal:
+        return {'macd': 0.0, 'signal': 0.0, 'hist': 0.0}
+    ema_fast = _ema_series(closes, fast)
+    ema_slow = _ema_series(closes, slow)
+    macd_line = [f - s for f, s in zip(ema_fast, ema_slow)]
+    sig_line = _ema_series(macd_line, signal)
+    return {
+        'macd': macd_line[-1],
+        'signal': sig_line[-1],
+        'hist': macd_line[-1] - sig_line[-1],
+    }
+
+
+def _ichimoku(candles: list[dict]) -> dict:
+    """一目均衡表 (転換線 / 基準線 / 先行スパンA/B / 遅行スパン)"""
+    if len(candles) < 52:
+        return {}
+    def hl_avg(cs, n):
+        if len(cs) < n:
+            return 0.0
+        recent = cs[-n:]
+        return (max(c['high'] for c in recent) + min(c['low'] for c in recent)) / 2
+    tenkan = hl_avg(candles, 9)
+    kijun = hl_avg(candles, 26)
+    senkou_a = (tenkan + kijun) / 2
+    senkou_b = hl_avg(candles, 52)
+    chikou = candles[-26]['close'] if len(candles) >= 26 else 0.0
+    return {
+        'tenkan': tenkan,
+        'kijun': kijun,
+        'senkou_a': senkou_a,
+        'senkou_b': senkou_b,
+        'chikou': chikou,
+    }
+
+
+def _fibonacci_levels(candles: list[dict], lookback: int = 100) -> dict:
+    """直近 lookback本 の スイング高値/安値 から フィボ retracement"""
+    if len(candles) < 2:
+        return {}
+    window = candles[-min(lookback, len(candles)):]
+    high = max(c['high'] for c in window)
+    low = min(c['low'] for c in window)
+    diff = high - low
+    return {
+        'swing_high': high,
+        'swing_low': low,
+        'fib_0_382': high - diff * 0.382,
+        'fib_0_5':   high - diff * 0.5,
+        'fib_0_618': high - diff * 0.618,
+    }
+
+
+def extract_technical_materials(candles: list[dict]) -> list[str]:
+    """Phase 3-① テクニカル指標 (SMA200/RSI/MACD/一目雲/フィボ) を 自前計算+言語化
+
+    danjer 言及材料 TOP30 で カバーすべき: 一目雲(87) / SMA200(61) / RSI / MACD / フィボ(276カテゴリ) /
+    高値更新(76) / 安値切り上げ(44) / レジサポ転換(80) / ボラティリティ(53)
+    """
+    mats: list[str] = []
+    if len(candles) < 50:
+        return mats
+
+    closes = [c['close'] for c in candles]
+    last_close = closes[-1]
+
+    # SMA200
+    sma_window = min(200, len(closes))
+    sma200 = sum(closes[-sma_window:]) / sma_window
+    diff_pct = (last_close - sma200) / sma200 * 100
+    sma_jp = '上' if last_close >= sma200 else '下'
+    mats.append(f'SMA{sma_window} ${sma200:.0f} (現値{last_close:.0f}、 SMA{sma_jp} {diff_pct:+.2f}%)')
+
+    # RSI 14
+    rsi14 = _rsi(closes, 14)
+    if rsi14 >= 70:
+        rsi_jp = '過熱(オーバーボート)'
+    elif rsi14 <= 30:
+        rsi_jp = 'オーバーソールド(押し目候補)'
+    elif rsi14 >= 55:
+        rsi_jp = '強気寄り'
+    elif rsi14 <= 45:
+        rsi_jp = '弱気寄り'
+    else:
+        rsi_jp = '中立'
+    mats.append(f'RSI14 {rsi14:.1f} ({rsi_jp})')
+
+    # MACD
+    macd = _macd(closes)
+    macd_v = macd.get('macd', 0)
+    sig_v = macd.get('signal', 0)
+    hist = macd.get('hist', 0)
+    if hist > 0 and macd_v > sig_v:
+        macd_jp = 'ゴールデンクロス側(強気)'
+    elif hist < 0 and macd_v < sig_v:
+        macd_jp = 'デッドクロス側(弱気)'
+    else:
+        macd_jp = '中立'
+    mats.append(f'MACD={macd_v:+.1f} Signal={sig_v:+.1f} Hist={hist:+.1f} ({macd_jp})')
+
+    # 一目均衡表
+    ichi = _ichimoku(candles)
+    if ichi:
+        tenkan = ichi.get('tenkan', 0)
+        kijun = ichi.get('kijun', 0)
+        senkou_a = ichi.get('senkou_a', 0)
+        senkou_b = ichi.get('senkou_b', 0)
+        cloud_top = max(senkou_a, senkou_b)
+        cloud_bottom = min(senkou_a, senkou_b)
+        if last_close > cloud_top:
+            ichi_jp = '雲上(強気)'
+        elif last_close < cloud_bottom:
+            ichi_jp = '雲下(弱気)'
+        else:
+            ichi_jp = '雲中(レンジ)'
+        tk_jp = '上' if tenkan >= kijun else '下'
+        mats.append(
+            f'一目均衡表 転換{tenkan:.0f}/基準{kijun:.0f}/雲(A{senkou_a:.0f},B{senkou_b:.0f}) '
+            f'(価格{ichi_jp}、 転換線基準線の{tk_jp})'
+        )
+
+    # フィボ retracement
+    fib = _fibonacci_levels(candles, lookback=100)
+    if fib:
+        f382 = fib.get('fib_0_382', 0)
+        f50 = fib.get('fib_0_5', 0)
+        f618 = fib.get('fib_0_618', 0)
+        sh = fib.get('swing_high', 0)
+        sl = fib.get('swing_low', 0)
+        # 現値が どの レベル に 一番近い か
+        levels = [
+            ('スイング高値', sh), ('0.382', f382),
+            ('0.5', f50), ('0.618', f618), ('スイング安値', sl),
+        ]
+        nearest = min(levels, key=lambda x: abs(last_close - x[1]))
+        dist_pct = (last_close - nearest[1]) / nearest[1] * 100 if nearest[1] else 0
+        mats.append(
+            f'フィボ100本: 高{sh:.0f}/0.382=${f382:.0f}/0.5=${f50:.0f}/0.618=${f618:.0f}/安{sl:.0f} '
+            f'(現値は{nearest[0]}に最近、 {dist_pct:+.2f}%)'
+        )
+
+    return mats
+
+
 def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) -> list[str]:
     """loop2合意: public市場データ snapshot を materials 文字列に言語化
 
