@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AI育成 status JSON 定期生成 (5分ごと)
+  meeting_system PWA がこれを読んで iPhone で表示する。
+
+  install:
+    cp launchd/com.kitt-voice.ai_growth.status_export.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.kitt-voice.ai_growth.status_export.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kitt-voice.ai_growth.status_export</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/tmp/kaggle_venv/bin/python3</string>
+        <string>/Users/shuji/Desktop/kitt-voice/btc-trading/ai_growth/eval/export_status_json.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/shuji/Desktop/kitt-voice/btc-trading/ai_growth</string>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/shuji/Library/Logs/ai_growth_status_export.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shuji/Library/Logs/ai_growth_status_export.err.log</string>
+</dict>
+</plist>

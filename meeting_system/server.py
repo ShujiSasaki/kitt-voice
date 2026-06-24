@@ -640,6 +640,17 @@ def create_app(base: Path = DEFAULT_BASE):
         notification_controller.write_config(cur, base)
         return {"ok": True, "config": cur}
 
+    # AI育成リング status (2026-06-24追加、 PWA iPhone から見れるよう)
+    @app.get("/api/ai_growth/status")
+    async def get_ai_growth_status(user=Depends(verify_basic)):
+        status_path = base / "data" / "ai_growth_status.json"
+        if not status_path.exists():
+            return {"error": "status未生成 (ai_growth/eval/export_status_json.py 未実行)"}
+        try:
+            return json.loads(status_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            return {"error": f"read failed: {type(e).__name__}: {e}"}
+
     # R60 ②: projects list / register / autolink
     @app.get("/api/projects")
     async def get_projects(user=Depends(verify_basic)):

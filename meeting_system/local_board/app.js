@@ -1262,6 +1262,97 @@ document.addEventListener('change', (e) => {
   inp.value = '';  // reset so same file can be re-selected
 });
 
+// ===== AI育成リング (2026-06-24 PWA統合) =====
+async function loadAiGrowthStatus() {
+  const content = document.getElementById('ai-growth-content');
+  if (!content) return;
+  try {
+    const s = await fetchJSON(`${API}/ai_growth/status`);
+    if (s.error) {
+      content.innerHTML = `<div class="text-red-400">エラー: ${s.error}</div>`;
+      return;
+    }
+    const cycle = s.cycle || {};
+    const def = s.defense || {};
+    const off = s.offense || {};
+    const cau = s.caution || {};
+    const recent = s.recent_signals || [];
+
+    const bar = Math.floor((cycle.progress_pct || 0) / 5);
+    const barStr = '█'.repeat(Math.min(bar, 20)) + '░'.repeat(Math.max(20 - bar, 0));
+
+    const verdict = (v) => v ? '✅' : '❌';
+    const cautionVerdict = cau.caution_passed ? '✅' : '⚠️';
+
+    let pnl = '';
+    [1, 4, 24].forEach(h => {
+      const p = off[`pnl_${h}h`] || {};
+      const evald = p.evaluated || 0;
+      if (evald > 0) {
+        const avg = p.sum / evald;
+        pnl += `<div class="text-xs">${h}h後: $${avg >= 0 ? '+' : ''}${avg.toFixed(2)} (${p.wins}勝/${p.losses}負/${evald}件)</div>`;
+      } else {
+        pnl += `<div class="text-xs text-dm-text-dim">${h}h後: 未到達</div>`;
+      }
+    });
+
+    let warns = '';
+    if ((cau.warnings || []).length > 0) {
+      warns = `<div class="mt-1 text-xs text-yellow-400">⚠️ ${cau.warnings.join(', ')}</div>`;
+    }
+
+    let recentList = '';
+    if (recent.length > 0) {
+      recentList = '<div class="mt-3 pt-2 border-t border-dm-border">'
+        + '<div class="text-xs text-dm-text-dim mb-1">直近判定 (新しい順):</div>'
+        + recent.slice().reverse().map(r => {
+          const ts = (r.ts || '').slice(11, 16);
+          const sig = r.signal || '';
+          const sigEmoji = sig === 'long' ? '⬆️' : sig === 'short' ? '⬇️' : sig === 'force_stopped' ? '🛑' : '⏸️';
+          return `<div class="text-xs py-0.5">${ts} ${sigEmoji} ${r.regime} → ${r.signal} <span class="text-dm-text-dim">$${(r.btc_price || 0).toFixed(0)}</span></div>`;
+        }).join('')
+        + '</div>';
+    }
+
+    content.innerHTML = `
+      <div class="text-xs text-dm-text-dim">更新: ${(s.updated_at || '').slice(11, 19)} (model ${s.model_version})</div>
+      <div class="mt-2">
+        <div class="text-xs">サイクル進捗: ${cycle.total}/${cycle.target_max}件 (${cycle.progress_pct}%)</div>
+        <div class="text-xs font-mono text-dm-text-dim">${barStr}</div>
+      </div>
+      <div class="mt-2 pt-2 border-t border-dm-border">
+        <div class="text-xs font-bold">🛡 守り層 ${verdict(def.defense_passed)}</div>
+        <div class="text-xs">危ない場面でやる: ${def.dangerous_yarei_count}件</div>
+        <div class="text-xs">ストップバグ: ${def.stop_rule_bugs}件</div>
+        <div class="text-xs">自動ループ: ${def.auto_loop_detected}件 / 崩壊: ${def.auto_collapse_detected}件</div>
+      </div>
+      <div class="mt-2 pt-2 border-t border-dm-border">
+        <div class="text-xs font-bold">⚔ 攻め層</div>
+        ${pnl}
+        <div class="text-xs">勝率(24h): ${((off.win_rate_24h || 0) * 100).toFixed(1)}%</div>
+      </div>
+      <div class="mt-2 pt-2 border-t border-dm-border">
+        <div class="text-xs font-bold">😨 臆病チェック ${cautionVerdict}</div>
+        <div class="text-xs">no_trade率: ${((cau.no_trade_rate || 0) * 100).toFixed(1)}%</div>
+        <div class="text-xs">stop率: ${((cau.force_stopped_rate || 0) * 100).toFixed(1)}%</div>
+        <div class="text-xs">応答長: ${(cau.avg_response_length || 0).toFixed(0)}字</div>
+        ${warns}
+      </div>
+      ${recentList}
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="text-red-400">取得失敗: ${e.message}</div>`;
+  }
+}
+
+document.getElementById('ai-growth-btn')?.addEventListener('click', () => {
+  document.getElementById('ai-growth-modal').classList.remove('hidden');
+  loadAiGrowthStatus();
+});
+document.getElementById('ai-growth-refresh')?.addEventListener('click', () => {
+  loadAiGrowthStatus();
+});
+
 // ===== Init =====
 (async () => {
   const ok = await initAuth();
