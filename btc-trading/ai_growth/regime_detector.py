@@ -172,6 +172,25 @@ def _fibonacci_levels(candles: list[dict], lookback: int = 100) -> dict:
     }
 
 
+def extract_chart_vision_materials(vision_result: dict) -> list[str]:
+    """Phase 3-② vision結果 → materials 言語化"""
+    mats: list[str] = []
+    if not vision_result:
+        return mats
+    if 'error' in vision_result:
+        mats.append(f'チャートvision 取得失敗: {vision_result.get("error", "")[:60]}')
+        return mats
+    patterns = vision_result.get('patterns', []) or []
+    direction = vision_result.get('trend_direction', '')
+    summary = vision_result.get('summary_jp', '')
+    dir_jp = {'up': '上昇', 'down': '下降', 'sideways': '横ばい'}.get(direction, direction)
+    if patterns:
+        mats.append(f'チャートパターン: {" / ".join(patterns)} (トレンド={dir_jp})')
+    if summary:
+        mats.append(f'チャートvision: {summary}')
+    return mats
+
+
 def extract_technical_materials(candles: list[dict]) -> list[str]:
     """Phase 3-① テクニカル指標 (SMA200/RSI/MACD/一目雲/フィボ) を 自前計算+言語化
 

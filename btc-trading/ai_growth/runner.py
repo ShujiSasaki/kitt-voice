@@ -60,8 +60,9 @@ def run_single_judgement():
     )
     from regime_detector import (
         detect_regime, extract_materials, extract_market_materials,
-        extract_technical_materials,
+        extract_technical_materials, extract_chart_vision_materials,
     )
+    from chart_vision import fetch_chart_vision_materials
     from inference import predict
     from stop_rules import force_stop_check
     from signal_generator import generate_signal
@@ -76,15 +77,21 @@ def run_single_judgement():
     print(f"  fetching market snapshot (OI/FR/L:S/orderbook)...")
     market_snapshot = fetch_market_snapshot("BTCUSDT")
 
-    # 2. regime + materials (OHLCV由来 + ライブ snapshot由来 + テクニカル自前計算 を マージ)
+    # 1c. Phase 3-② チャート画像 vision (Gemini Flash)
+    print(f"  rendering chart + Gemini Flash vision...")
+    vision_result = fetch_chart_vision_materials(candles)
+
+    # 2. regime + materials (OHLCV由来 + ライブ snapshot + テクニカル + vision を マージ)
     regime = detect_regime(candles)
     base_mats = extract_materials(candles, regime)
     live_mats = extract_market_materials(market_snapshot, candles)
     tech_mats = extract_technical_materials(candles)
-    materials = base_mats + tech_mats + live_mats
+    vision_mats = extract_chart_vision_materials(vision_result)
+    materials = base_mats + tech_mats + vision_mats + live_mats
     print(f"  regime={regime}")
     print(f"  OHLCV由来 materials={base_mats}")
     print(f"  テクニカル自前計算 materials={tech_mats}")
+    print(f"  vision materials={vision_mats}")
     print(f"  ライブ snapshot materials={live_mats}")
     print(f"  latest close=${latest['close']:.2f}")
 
@@ -108,6 +115,7 @@ def run_single_judgement():
         'regime': regime,
         'materials': materials,
         'market_snapshot': market_snapshot,
+        'chart_vision': vision_result,
         'response': response,
         'force_stop': fs_result,
         'signal': signal,
