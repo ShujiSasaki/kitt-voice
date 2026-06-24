@@ -195,6 +195,38 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_fear_greed() -> dict:
+    """Phase 1-⑤ Fear & Greed Index
+
+    Alternative.me 無認証 `/fng/?limit=7` で 直近7日分の F&G を 取得。
+    Returns:
+        {'value': int (0-100), 'classification': str,
+         'value_5d_ago': int, 'change_5d': int, 'history': [{ts, value, class}, ...]}
+    """
+    o = _http_get_json("https://api.alternative.me/fng/?limit=7&format=json")
+    data = (o or {}).get('data') or []
+    if not data:
+        return {'error': 'no_data'}
+    latest = data[0]
+    value = int(latest.get('value', 0))
+    classification = latest.get('value_classification', '')
+    val_5d = int(data[5].get('value', value)) if len(data) >= 6 else value
+    history = []
+    for d in data:
+        history.append({
+            'ts': d.get('timestamp', ''),
+            'value': int(d.get('value', 0)),
+            'classification': d.get('value_classification', ''),
+        })
+    return {
+        'value': value,
+        'classification': classification,
+        'value_5d_ago': val_5d,
+        'change_5d': value - val_5d,
+        'history': history,
+    }
+
+
 def fetch_macro_yfinance() -> dict:
     """Phase 1-④ マクロ (DXY / SPX / Gold / 10年米国債金利)
 
@@ -471,6 +503,11 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
         snap['macro'] = fetch_macro_yfinance()
     except Exception as e:
         snap['macro'] = {'error': f'{type(e).__name__}: {e}'}
+    # ⑤ Fear & Greed Index — alternative.me
+    try:
+        snap['fear_greed'] = fetch_fear_greed()
+    except Exception as e:
+        snap['fear_greed'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 

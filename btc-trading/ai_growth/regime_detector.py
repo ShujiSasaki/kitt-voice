@@ -145,6 +145,34 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === Fear & Greed (Phase 1-⑤ 2026-06-24) ===
+    fg = snapshot.get('fear_greed') or {}
+    if fg and 'error' not in fg:
+        value = fg.get('value', 50)
+        cls = fg.get('classification', '')
+        val_5d = fg.get('value_5d_ago', value)
+        chg = fg.get('change_5d', 0)
+        # 日本語化
+        cls_jp = {
+            'Extreme Fear': '極度の恐怖',
+            'Fear': '恐怖',
+            'Neutral': '中立',
+            'Greed': '貪欲',
+            'Extreme Greed': '極度の貪欲',
+        }.get(cls, cls)
+        sign = '+' if chg >= 0 else ''
+        if value <= 25:
+            jp = 'BTC押し目候補(逆張り検討)'
+        elif value >= 75:
+            jp = 'BTC過熱(利確検討)'
+        else:
+            jp = '中立水準'
+        mats.append(
+            f'Fear & Greed {value} ({cls_jp}、 5日前{val_5d}→{sign}{chg}、 {jp})'
+        )
+    elif fg:
+        mats.append('Fear & Greed 取得失敗')
+
     # === Macro (Phase 1-④ 2026-06-24) ===
     macro = snapshot.get('macro') or {}
     if macro and 'error' not in macro:
