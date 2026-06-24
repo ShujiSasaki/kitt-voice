@@ -74,6 +74,148 @@ def get_recent_candles(df, n: int = 24) -> list[dict]:
 
 # 取引所API library (ccxt, pybit, binance.client 等) は絶対に import しない。
 # safety_check.py が このファイル内の禁止 import パターンを grep で検出する。
+# ただし 「読み取り専用 public endpoint を urllib で 叩く」 のは Read only で
+# 注文経路を持たない。 これは btc部屋 loop2 合意 (2026-06-24): 「ライブの市場データは
+# public API で安全に渡せる、 発注権限キーは不要」 に沿う。
+
+
+# ===== loop2合意 (2026-06-24): public市場データ取得 =====
+
+def _http_get_json(url: str, timeout: float = 5.0):
+    """無認証 GET → JSON (urllib のみ、 取引所SDK不使用)
+
+    SSL証明書チェーン: certifi (あれば) > システム既定 > 検証スキップ (最後の砦)。
+    Read only public endpoint なので 検証スキップしても 注文経路は持たない。
+    """
+    import json as _json
+    import ssl as _ssl
+    import urllib.request as _req
+    request = _req.Request(url, headers={'User-Agent': 'kitt-ai-growth/loop2'})
+    ctx = None
+    try:
+        import certifi as _certifi
+        ctx = _ssl.create_default_context(cafile=_certifi.where())
+    except ImportError:
+        try:
+            ctx = _ssl.create_default_context()
+        except Exception:
+            ctx = None
+    if ctx is None:
+        # 最後の砦: 検証スキップ。 Read only public endpoint なので OK
+        ctx = _ssl._create_unverified_context()
+    try:
+        with _req.urlopen(request, timeout=timeout, context=ctx) as r:
+            return _json.loads(r.read().decode('utf-8'))
+    except _ssl.SSLError:
+        # 証明書失敗時 は 検証スキップで リトライ (public read のみ)
+        ctx = _ssl._create_unverified_context()
+        with _req.urlopen(request, timeout=timeout, context=ctx) as r:
+            return _json.loads(r.read().decode('utf-8'))
+
+
+def fetch_binance_oi(symbol: str = "BTCUSDT") -> dict:
+    """オープンインタレスト (現在値)
+
+    Returns:
+        {'oi_btc': float, 'oi_usd': float}
+    """
+    url = f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol}"
+    o = _http_get_json(url)
+    oi_btc = float(o.get('openInterest', 0))
+    # mark price を別途取得して USD 換算
+    mp = _http_get_json(
+        f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol}"
+    )
+    mark = float(mp.get('markPrice', 0))
+    return {'oi_btc': oi_btc, 'oi_usd': oi_btc * mark, 'mark_price': mark}
+
+
+def fetch_binance_funding(symbol: str = "BTCUSDT") -> dict:
+    """ファンディングレート (現在)
+
+    Returns:
+        {'funding_rate': float (例: 0.0001 = 0.01%), 'next_funding_ts': str}
+    """
+    url = f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol}"
+    o = _http_get_json(url)
+    return {
+        'funding_rate': float(o.get('lastFundingRate', 0)),
+        'next_funding_ts': str(o.get('nextFundingTime', '')),
+        'mark_price': float(o.get('markPrice', 0)),
+    }
+
+
+def fetch_binance_top_ls(symbol: str = "BTCUSDT", period: str = "1h") -> dict:
+    """トップトレーダー Long/Short 比 (1h)
+
+    period: 5m / 15m / 30m / 1h / 2h / 4h / 6h / 12h / 1d
+    Returns:
+        {'top_account_ls': float, 'top_position_ls': float, 'global_ls': float}
+    """
+    base = "https://fapi.binance.com/futures/data"
+    try:
+        acc = _http_get_json(
+            f"{base}/topLongShortAccountRatio?symbol={symbol}&period={period}&limit=1"
+        )
+        pos = _http_get_json(
+            f"{base}/topLongShortPositionRatio?symbol={symbol}&period={period}&limit=1"
+        )
+        glb = _http_get_json(
+            f"{base}/globalLongShortAccountRatio?symbol={symbol}&period={period}&limit=1"
+        )
+        return {
+            'top_account_ls': float(acc[-1]['longShortRatio']) if acc else 1.0,
+            'top_position_ls': float(pos[-1]['longShortRatio']) if pos else 1.0,
+            'global_ls': float(glb[-1]['longShortRatio']) if glb else 1.0,
+        }
+    except Exception:
+        return {'top_account_ls': 1.0, 'top_position_ls': 1.0, 'global_ls': 1.0}
+
+
+def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
+    """板情報サマリ (上位N階層)
+
+    Returns:
+        {'bid_qty_top20': float, 'ask_qty_top20': float, 'imbalance': float (-1〜+1)}
+    """
+    url = f"https://fapi.binance.com/fapi/v1/depth?symbol={symbol}&limit={depth}"
+    o = _http_get_json(url)
+    bids = o.get('bids', [])[:depth]
+    asks = o.get('asks', [])[:depth]
+    bid_qty = sum(float(b[1]) for b in bids)
+    ask_qty = sum(float(a[1]) for a in asks)
+    total = bid_qty + ask_qty
+    imbalance = (bid_qty - ask_qty) / total if total > 0 else 0.0
+    return {
+        'bid_qty_top20': bid_qty,
+        'ask_qty_top20': ask_qty,
+        'imbalance': imbalance,
+        'best_bid': float(bids[0][0]) if bids else 0.0,
+        'best_ask': float(asks[0][0]) if asks else 0.0,
+    }
+
+
+def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
+    """loop2 合意: 「AIが判断する直前にその瞬間のOI/FR/板/出来高などを取りに行く」
+
+    全 public エンドポイント を 1回 で 取得。 例外は サブ辞書 ごと スキップ
+    (1つ失敗しても他は活かす)。
+
+    Returns:
+        {'oi': {...}, 'funding': {...}, 'ls': {...}, 'orderbook': {...}}
+    """
+    snap = {}
+    for key, fn in (
+        ('oi', fetch_binance_oi),
+        ('funding', fetch_binance_funding),
+        ('ls', fetch_binance_top_ls),
+        ('orderbook', fetch_binance_orderbook),
+    ):
+        try:
+            snap[key] = fn(symbol)
+        except Exception as e:
+            snap[key] = {'error': f'{type(e).__name__}: {e}'}
+    return snap
 
 
 if __name__ == "__main__":

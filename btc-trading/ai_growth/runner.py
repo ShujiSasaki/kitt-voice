@@ -54,8 +54,13 @@ def _load_config_value(key: str, default=None):
 
 def run_single_judgement():
     """1回の判定 (fetch → regime → predict → stop_rules → signal → log)"""
-    from data_source import fetch_btc_ohlcv, get_recent_candles, get_latest_candle
-    from regime_detector import detect_regime, extract_materials
+    from data_source import (
+        fetch_btc_ohlcv, get_recent_candles, get_latest_candle,
+        fetch_market_snapshot,
+    )
+    from regime_detector import (
+        detect_regime, extract_materials, extract_market_materials,
+    )
     from inference import predict
     from stop_rules import force_stop_check
     from signal_generator import generate_signal
@@ -66,10 +71,18 @@ def run_single_judgement():
     candles = get_recent_candles(df, n=240)  # 10日分
     latest = get_latest_candle(df)
 
-    # 2. regime
+    # 1b. loop2合意: 判定直前にライブ public市場データ取得 (OI/FR/L:S/板)
+    print(f"  fetching market snapshot (OI/FR/L:S/orderbook)...")
+    market_snapshot = fetch_market_snapshot("BTCUSDT")
+
+    # 2. regime + materials (OHLCV由来 + ライブ snapshot由来 を マージ)
     regime = detect_regime(candles)
-    materials = extract_materials(candles, regime)
-    print(f"  regime={regime} materials={materials}")
+    base_mats = extract_materials(candles, regime)
+    live_mats = extract_market_materials(market_snapshot, candles)
+    materials = base_mats + live_mats
+    print(f"  regime={regime}")
+    print(f"  OHLCV由来 materials={base_mats}")
+    print(f"  ライブ snapshot materials={live_mats}")
     print(f"  latest close=${latest['close']:.2f}")
 
     # 3. predict (v6 LoRA、 dry_run可)
@@ -91,6 +104,7 @@ def run_single_judgement():
         'btc_price': latest['close'],
         'regime': regime,
         'materials': materials,
+        'market_snapshot': market_snapshot,
         'response': response,
         'force_stop': fs_result,
         'signal': signal,

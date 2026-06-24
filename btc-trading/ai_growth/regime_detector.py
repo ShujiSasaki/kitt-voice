@@ -88,6 +88,83 @@ def detect_regime(candles: list[dict]) -> str:
     return 'range'
 
 
+def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) -> list[str]:
+    """loop2合意: public市場データ snapshot を materials 文字列に言語化
+
+    snapshot = data_source.fetch_market_snapshot() の戻り値。
+    OI/FR/L:S/板 を 日本語サマリ で 1つずつ materials に 追加。
+
+    danjer 風 言語化:
+    - OI: 「OI = N万BTC (現在値)」
+    - FR: 「FR +0.012% (やや過熱)」 / 「FR -0.003% (中立)」
+    - L:S: 「トップ建玉L:S = 1.83 (買い偏り)」
+    - 板: 「板imbalance +0.15 (買い厚め)」 / 「best bid/ask スプレッド N$」
+    """
+    mats: list[str] = []
+    if not snapshot:
+        return mats
+
+    # === OI ===
+    oi = snapshot.get('oi') or {}
+    if 'error' not in oi:
+        oi_btc = oi.get('oi_btc', 0)
+        if oi_btc > 0:
+            mats.append(f'OI = {oi_btc:,.0f}BTC')
+    else:
+        mats.append('OI 取得失敗')
+
+    # === Funding Rate ===
+    fr = snapshot.get('funding') or {}
+    if 'error' not in fr:
+        rate = fr.get('funding_rate', 0)
+        rate_bps = rate * 100  # %表示
+        if rate_bps >= 0.05:
+            judge = '過熱(売り受取)'
+        elif rate_bps >= 0.01:
+            judge = 'やや過熱'
+        elif rate_bps <= -0.01:
+            judge = '冷え(買い受取)'
+        else:
+            judge = '中立'
+        mats.append(f'FR {rate_bps:+.3f}% ({judge})')
+    else:
+        mats.append('FR 取得失敗')
+
+    # === Long/Short Ratio ===
+    ls = snapshot.get('ls') or {}
+    if 'error' not in ls:
+        top_pos = ls.get('top_position_ls', 1.0)
+        glb = ls.get('global_ls', 1.0)
+        if top_pos >= 1.5:
+            jp = 'トップ建玉ロング偏り'
+        elif top_pos <= 0.7:
+            jp = 'トップ建玉ショート偏り'
+        else:
+            jp = 'トップ建玉中立'
+        mats.append(f'L:S top_pos={top_pos:.2f} global={glb:.2f} ({jp})')
+    else:
+        mats.append('L:S 取得失敗')
+
+    # === Order Book ===
+    ob = snapshot.get('orderbook') or {}
+    if 'error' not in ob:
+        imb = ob.get('imbalance', 0)
+        best_bid = ob.get('best_bid', 0)
+        best_ask = ob.get('best_ask', 0)
+        spread = best_ask - best_bid
+        if imb >= 0.10:
+            jp = '板買い厚め'
+        elif imb <= -0.10:
+            jp = '板売り厚め'
+        else:
+            jp = '板バランス'
+        mats.append(f'板imbalance {imb:+.2f} ({jp}) spread=${spread:.2f}')
+    else:
+        mats.append('板 取得失敗')
+
+    return mats
+
+
 def extract_materials(candles: list[dict], regime: str) -> list[str]:
     """局面に応じた「材料」リスト生成 (LoRA入力用)
 
