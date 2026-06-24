@@ -145,6 +145,43 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === Liquidations (Phase 1 開始 2026-06-24) ===
+    liq = snapshot.get('liquidations') or {}
+    if liq and 'error' not in liq:
+        long_usd = liq.get('long_usd', 0)
+        short_usd = liq.get('short_usd', 0)
+        count = liq.get('count', 0)
+        dur = liq.get('duration_sec', 30)
+        largest_long = liq.get('largest_long_usd', 0)
+        largest_short = liq.get('largest_short_usd', 0)
+        if count == 0:
+            mats.append(f'清算 直近{dur}秒: 0件 (清算静穏)')
+        else:
+            # 偏り判定
+            total = long_usd + short_usd
+            if total > 0:
+                ratio = long_usd / total
+                if ratio >= 0.7:
+                    jp = 'ロング清算優勢(下落圧)'
+                elif ratio <= 0.3:
+                    jp = 'ショート清算優勢(上昇圧)'
+                else:
+                    jp = '両建て清算混在'
+            else:
+                jp = '清算微小'
+            largest = max(largest_long, largest_short)
+            big = ''
+            if largest >= 1_000_000:
+                big = f' 最大${largest/1e6:.1f}M(大口)'
+            elif largest >= 100_000:
+                big = f' 最大${largest/1e3:.0f}k'
+            mats.append(
+                f'清算 直近{dur}秒: ロング${long_usd:,.0f} / ショート${short_usd:,.0f} '
+                f'({count}件、 {jp}){big}'
+            )
+    elif liq:
+        mats.append('清算 取得失敗')
+
     # === Order Book ===
     ob = snapshot.get('orderbook') or {}
     if 'error' not in ob:

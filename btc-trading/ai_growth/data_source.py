@@ -195,6 +195,124 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_recent_liquidations_bybit(symbol: str = "BTCUSDT", duration_sec: int = 30) -> dict:
+    """Phase 1合意 (2026-06-24 14:29) — 清算 (Liquidations)
+
+    Bybit public WebSocket `allLiquidation.SYMBOL` を duration_sec 秒接続して
+    リアルタイム清算ストリームを 集計。 API key 不要 (発注経路ゼロ)。
+
+    Bybit doc: https://bybit-exchange.github.io/docs/v5/websocket/public/all-liquidation
+    msg sample: {"topic":"allLiquidation.BTCUSDT","data":[{
+        "T":<ms>,"s":"BTCUSDT","S":"Buy"|"Sell","v":<qty>,"p":<price>
+    }]}
+    S="Sell" = ロングポジションの強制決済 (= ロング清算)
+    S="Buy"  = ショートポジションの強制決済 (= ショート清算)
+
+    Returns:
+        {'long_usd': float, 'short_usd': float, 'count': int,
+         'long_count': int, 'short_count': int, 'duration_sec': int,
+         'largest_long_usd': float, 'largest_short_usd': float}
+    """
+    import asyncio
+    import json as _json
+
+    async def _collect():
+        import websockets as _ws
+        long_usd = 0.0
+        short_usd = 0.0
+        long_count = 0
+        short_count = 0
+        largest_long = 0.0
+        largest_short = 0.0
+        try:
+            async with _ws.connect(
+                "wss://stream.bybit.com/v5/public/linear",
+                ping_interval=20, ping_timeout=10,
+            ) as ws:
+                await ws.send(_json.dumps({
+                    "op": "subscribe",
+                    "args": [f"allLiquidation.{symbol}"],
+                }))
+                try:
+                    await asyncio.wait_for(asyncio.sleep(duration_sec), timeout=duration_sec + 5)
+                except asyncio.TimeoutError:
+                    pass
+                # 受信処理 を 別タスク で 並行
+                pass
+        except Exception:
+            pass
+        return long_usd, short_usd, long_count, short_count, largest_long, largest_short
+
+    async def _collect_v2():
+        import websockets as _ws
+        long_usd = 0.0
+        short_usd = 0.0
+        long_count = 0
+        short_count = 0
+        largest_long = 0.0
+        largest_short = 0.0
+        deadline = asyncio.get_event_loop().time() + duration_sec
+        try:
+            async with _ws.connect(
+                "wss://stream.bybit.com/v5/public/linear",
+                ping_interval=20, ping_timeout=10, open_timeout=5,
+            ) as ws:
+                await ws.send(_json.dumps({
+                    "op": "subscribe",
+                    "args": [f"allLiquidation.{symbol}"],
+                }))
+                while asyncio.get_event_loop().time() < deadline:
+                    try:
+                        remaining = max(0.5, deadline - asyncio.get_event_loop().time())
+                        msg = await asyncio.wait_for(ws.recv(), timeout=remaining)
+                    except (asyncio.TimeoutError, _ws.exceptions.ConnectionClosed):
+                        break
+                    try:
+                        o = _json.loads(msg)
+                    except Exception:
+                        continue
+                    data = o.get('data') or []
+                    if not isinstance(data, list):
+                        continue
+                    for d in data:
+                        try:
+                            qty = float(d.get('v', 0))
+                            price = float(d.get('p', 0))
+                            side = d.get('S', '')
+                            usd = qty * price
+                            if side == 'Sell':  # ロング清算
+                                long_usd += usd
+                                long_count += 1
+                                if usd > largest_long:
+                                    largest_long = usd
+                            elif side == 'Buy':  # ショート清算
+                                short_usd += usd
+                                short_count += 1
+                                if usd > largest_short:
+                                    largest_short = usd
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+        return long_usd, short_usd, long_count, short_count, largest_long, largest_short
+
+    try:
+        long_usd, short_usd, lc, sc, ll, ls = asyncio.run(_collect_v2())
+    except Exception as e:
+        return {'error': f'{type(e).__name__}: {e}', 'duration_sec': duration_sec}
+
+    return {
+        'long_usd': long_usd,
+        'short_usd': short_usd,
+        'long_count': lc,
+        'short_count': sc,
+        'count': lc + sc,
+        'largest_long_usd': ll,
+        'largest_short_usd': ls,
+        'duration_sec': duration_sec,
+    }
+
+
 def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
     """loop2 合意: 「AIが判断する直前にその瞬間のOI/FR/板/出来高などを取りに行く」
 
@@ -215,6 +333,11 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
             snap[key] = fn(symbol)
         except Exception as e:
             snap[key] = {'error': f'{type(e).__name__}: {e}'}
+    # Phase 1 開始 (2026-06-24 14:29 合意): 清算 (Bybit ws 30秒集計)
+    try:
+        snap['liquidations'] = fetch_recent_liquidations_bybit(symbol, duration_sec=30)
+    except Exception as e:
+        snap['liquidations'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 
