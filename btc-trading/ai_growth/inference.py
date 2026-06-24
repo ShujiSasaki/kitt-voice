@@ -149,7 +149,7 @@ class V6Inference:
         with torch.inference_mode():
             out = self.model.generate(
                 **ids,
-                max_new_tokens=256,
+                max_new_tokens=512,
                 do_sample=False,
                 repetition_penalty=1.0,
                 eos_token_id=self.stop_ids,

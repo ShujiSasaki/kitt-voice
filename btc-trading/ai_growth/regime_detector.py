@@ -172,6 +172,92 @@ def _fibonacci_levels(candles: list[dict], lookback: int = 100) -> dict:
     }
 
 
+def extract_technical_materials_tf(candles: list[dict], tf_label: str) -> list[str]:
+    """指定 TF (日足/4時間/週足/月足/etc) で テクニカル指標 を 計算+言語化
+
+    1時間足 専用の extract_technical_materials と 同じロジックだが、
+    TFラベルを 各 material 先頭に 付ける + 月足は 1行サマリだけ。
+    """
+    mats: list[str] = []
+    if len(candles) < 30:
+        return [f'{tf_label} データ不足({len(candles)}本)']
+
+    closes = [c['close'] for c in candles]
+    last_close = closes[-1]
+
+    # SMA200 (データが足りなければ 短く)
+    sma_window = min(200, len(closes))
+    sma200 = sum(closes[-sma_window:]) / sma_window
+    diff_pct = (last_close - sma200) / sma200 * 100
+    sma_jp = '上' if last_close >= sma200 else '下'
+
+    # 月足 は 「超長期背景 1行サマリだけ」 (合意 ① 月足の役割)
+    if tf_label == '月足':
+        # 月足 で 高値圏/冬相場 を 大まかに 判断
+        # SMA から +30% 以上 = 高値圏、 -30% 以下 = 冬相場、 中間 = 中域
+        if diff_pct >= 30:
+            phase_jp = '高値圏 (利確意識)'
+        elif diff_pct <= -30:
+            phase_jp = '冬相場 (蓄積期)'
+        elif diff_pct >= 0:
+            phase_jp = '中域 上振れ'
+        else:
+            phase_jp = '中域 下振れ'
+        mats.append(
+            f'{tf_label} 背景: SMA{sma_window} ${sma200:.0f} vs 現値{last_close:.0f} '
+            f'({diff_pct:+.1f}%、 {phase_jp})'
+        )
+        return mats
+
+    # 月足以外: 通常の マルチ指標
+    mats.append(f'{tf_label} SMA{sma_window} ${sma200:.0f} (SMA{sma_jp} {diff_pct:+.2f}%)')
+
+    rsi14 = _rsi(closes, 14)
+    if rsi14 >= 70:
+        rsi_jp = '過熱'
+    elif rsi14 <= 30:
+        rsi_jp = 'オーバーソールド'
+    elif rsi14 >= 55:
+        rsi_jp = '強気寄り'
+    elif rsi14 <= 45:
+        rsi_jp = '弱気寄り'
+    else:
+        rsi_jp = '中立'
+    mats.append(f'{tf_label} RSI14 {rsi14:.1f} ({rsi_jp})')
+
+    macd = _macd(closes)
+    macd_v = macd.get('macd', 0)
+    sig_v = macd.get('signal', 0)
+    hist = macd.get('hist', 0)
+    if hist > 0 and macd_v > sig_v:
+        macd_jp = 'GC側(強気)'
+    elif hist < 0 and macd_v < sig_v:
+        macd_jp = 'DC側(弱気)'
+    else:
+        macd_jp = '中立'
+    mats.append(f'{tf_label} MACD Hist={hist:+.1f} ({macd_jp})')
+
+    # 一目均衡表 (データ52本以上のみ)
+    if len(candles) >= 52:
+        ichi = _ichimoku(candles)
+        if ichi:
+            tenkan = ichi.get('tenkan', 0)
+            kijun = ichi.get('kijun', 0)
+            senkou_a = ichi.get('senkou_a', 0)
+            senkou_b = ichi.get('senkou_b', 0)
+            cloud_top = max(senkou_a, senkou_b)
+            cloud_bottom = min(senkou_a, senkou_b)
+            if last_close > cloud_top:
+                ichi_jp = '雲上(強気)'
+            elif last_close < cloud_bottom:
+                ichi_jp = '雲下(弱気)'
+            else:
+                ichi_jp = '雲中'
+            mats.append(f'{tf_label} 一目 価格{ichi_jp} 転換{tenkan:.0f}/基準{kijun:.0f}')
+
+    return mats
+
+
 def extract_chart_vision_materials(vision_result: dict) -> list[str]:
     """Phase 3-② vision結果 → materials 言語化"""
     mats: list[str] = []
