@@ -1265,7 +1265,12 @@ document.addEventListener('change', (e) => {
 // ===== AI育成リング (2026-06-24 PWA統合) =====
 async function loadAiGrowthStatus() {
   const content = document.getElementById('ai-growth-content');
+  const btn = document.getElementById('ai-growth-refresh');
   if (!content) return;
+  // ローディング表示 (タップフィードバック)
+  content.innerHTML = '<div class="text-dm-text-dim p-4">⏳ 読み込み中…</div>';
+  const originalBtnText = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '⏳ 更新中…'; btn.style.opacity = '0.6'; }
   try {
     const s = await fetchJSON(`${API}/ai_growth/status`);
     if (s.error) {
@@ -1356,8 +1361,27 @@ async function loadAiGrowthStatus() {
 
       ${recentList}
     `;
+    // 成功フィードバック: ボタンを 0.8秒「✅ 更新」 にして 元に戻す
+    if (btn) {
+      btn.textContent = '✅ 更新';
+      btn.style.opacity = '1';
+      btn.style.background = '#10b981';
+      setTimeout(() => {
+        btn.textContent = originalBtnText || '🔄 再読み込み';
+        btn.style.background = '#3b82f6';
+      }, 800);
+    }
   } catch (e) {
     content.innerHTML = `<div class="text-red-400">取得失敗: ${e.message}</div>`;
+    if (btn) {
+      btn.textContent = '❌ 失敗';
+      btn.style.background = '#ef4444';
+      btn.style.opacity = '1';
+      setTimeout(() => {
+        btn.textContent = originalBtnText || '🔄 再読み込み';
+        btn.style.background = '#3b82f6';
+      }, 1200);
+    }
   }
 }
 
@@ -1368,8 +1392,8 @@ function openAiGrowthModal() {
     document.body.appendChild(m);
   }
   m.classList.remove('hidden');
-  // 強制スタイル: 画面全体を確実に覆う (viewport基準で position:fixed)
-  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:99999;background:rgba(0,0,0,0.98);display:flex;flex-direction:column;overflow-y:auto;padding:0;';
+  // 強制スタイル: 画面全体を確実に覆う (iOS 動的viewport=dvh使用、 bounce伝播抑制)
+  m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;min-height:100vh;z-index:99999;background:rgba(0,0,0,0.98);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0;';
   // サイドバー(左の48px縦並び)を強制非表示
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
