@@ -1308,18 +1308,67 @@ async function loadAiGrowthStatus() {
       warns = `<div class="mt-2 text-sm text-yellow-400">⚠️ ${cau.warnings.join('<br>⚠️ ')}</div>`;
     }
 
+    // 直近10件の傾向サマリ (「最近何考えてるか」)
+    const rs = s.recent_summary || {};
+    let summaryBlock = '';
+    if ((rs.window || 0) > 0) {
+      const regimeStr = Object.entries(rs.regime_counts || {})
+        .sort((a,b) => b[1]-a[1])
+        .map(([k,v]) => `${k} ×${v}`).join(' / ') || '-';
+      const matStr = (rs.top_materials || [])
+        .map(m => `<span class="inline-block px-1.5 py-0.5 mr-1 mb-1 bg-dm-bg rounded text-xs">${m.name} ×${m.count}</span>`).join('') || '<span class="text-dm-text-dim text-xs">-</span>';
+      const ruleStr = (rs.top_rules_hit || [])
+        .map(r => `<span class="inline-block px-1.5 py-0.5 mr-1 mb-1 bg-dm-bg rounded text-xs text-yellow-400">${r.name} ×${r.count}</span>`).join('') || '<span class="text-dm-text-dim text-xs">なし</span>';
+      summaryBlock = `<div class="p-3 bg-dm-header rounded">
+        <div class="text-sm font-bold mb-2">🧠 最近の傾向 (直近${rs.window}件)</div>
+        <div class="text-xs text-dm-text-dim mb-1">相場認識</div>
+        <div class="text-sm mb-2">${regimeStr}</div>
+        <div class="text-xs text-dm-text-dim mb-1">よく見てる素材</div>
+        <div class="mb-2">${matStr}</div>
+        <div class="text-xs text-dm-text-dim mb-1">よく当たるストップルール</div>
+        <div>${ruleStr}</div>
+      </div>`;
+    }
+
     let recentList = '';
     if (recent.length > 0) {
       recentList = '<div class="p-3 bg-dm-header rounded">'
-        + '<div class="text-sm font-bold mb-2">📜 直近判定 (新しい順)</div>'
-        + recent.slice().reverse().map(r => {
+        + '<div class="text-sm font-bold mb-2">📜 直近判定 (新しい順・タップで展開)</div>'
+        + recent.slice().reverse().map((r, idx) => {
           const ts = (r.ts || '').slice(11, 16);
           const sig = r.signal || '';
           const sigEmoji = sig === 'long' ? '⬆️' : sig === 'short' ? '⬇️' : sig === 'force_stopped' ? '🛑' : '⏸️';
-          return `<div class="flex justify-between gap-2 py-1 border-b border-dm-border last:border-0">
-            <span class="text-sm">${ts} ${sigEmoji} ${r.regime}</span>
-            <span class="text-sm text-dm-text-dim">$${(r.btc_price || 0).toFixed(0)}</span>
-          </div>`;
+          const sigLabel = sig === 'force_stopped' ? '強制停止' : sig === 'no_trade' ? '様子見' : sig;
+          const materialsList = (r.materials || []).length > 0
+            ? (r.materials || []).map(m => `<li class="text-xs text-dm-text">・${m}</li>`).join('')
+            : '<li class="text-xs text-dm-text-dim">(なし)</li>';
+          const rulesHitStr = (r.rules_hit || []).length > 0
+            ? (r.rules_hit || []).map(rh => `<span class="text-xs text-yellow-400">${rh}</span>`).join(' / ')
+            : '<span class="text-xs text-dm-text-dim">なし</span>';
+          const safetyOk = (r.paper_mode_confirmed && r.no_order_assertion) ? '✅' : '⚠️';
+          const responseEsc = (r.response || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<details class="py-1.5 border-b border-dm-border last:border-0">
+            <summary class="flex justify-between gap-2 cursor-pointer select-none">
+              <span class="text-sm">${ts} ${sigEmoji} <span class="text-dm-text-dim">${r.regime}</span> <span class="text-xs text-dm-text-dim">${sigLabel}</span></span>
+              <span class="text-sm text-dm-text-dim">$${(r.btc_price || 0).toFixed(0)}</span>
+            </summary>
+            <div class="mt-2 pl-2 space-y-2 border-l-2 border-dm-border">
+              <div>
+                <div class="text-xs text-dm-text-dim mb-0.5">🔍 AIが見てる素材</div>
+                <ul class="space-y-0.5">${materialsList}</ul>
+              </div>
+              <div>
+                <div class="text-xs text-dm-text-dim mb-0.5">💬 AIの本文</div>
+                <pre class="text-xs text-dm-text whitespace-pre-wrap bg-dm-bg p-2 rounded">${responseEsc || '(空)'}</pre>
+              </div>
+              <div>
+                <div class="text-xs text-dm-text-dim mb-0.5">🛑 ストップ判定</div>
+                <div class="text-xs">${rulesHitStr}</div>
+                ${r.stop_reason ? `<div class="text-xs text-dm-text mt-0.5">理由: ${r.stop_reason}</div>` : ''}
+              </div>
+              <div class="text-xs text-dm-text-dim">分類: <span class="text-dm-text">${r.classified_as || '-'}</span> | 安全確認: ${safetyOk}</div>
+            </div>
+          </details>`;
         }).join('')
         + '</div>';
     }
@@ -1359,6 +1408,7 @@ async function loadAiGrowthStatus() {
         ${warns}
       </div>
 
+      ${summaryBlock}
       ${recentList}
     `;
     // 成功フィードバック: ボタンを 0.8秒「✅ 更新」 にして 元に戻す

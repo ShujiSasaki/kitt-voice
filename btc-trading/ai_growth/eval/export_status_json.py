@@ -31,19 +31,40 @@ def export():
     mv = metrics['model_version']
     signals = load_signals(mv)
 
-    # 最新10件の信号 (簡易表示用)
+    # 最新10件の信号 (詳細表示用 — 「何考えてるか」 を 可視化)
     recent = []
     for s in signals[-10:]:
         sig = s.get('signal', {})
+        fs = s.get('force_stop', {}) or {}
         recent.append({
             'ts': s.get('ts', ''),
             'btc_price': s.get('btc_price', 0),
             'regime': s.get('regime'),
             'signal': sig.get('signal'),
             'stance': sig.get('stance', ''),
+            'classified_as': sig.get('classified_as', ''),
             'force_stopped': sig.get('force_stopped', False),
-            'response_excerpt': (s.get('response', '') or '')[:120],
+            'rules_hit': sig.get('rules_hit', []) or fs.get('rules_hit', []),
+            'stop_reason': fs.get('reason', ''),
+            'materials': s.get('materials', []) or [],
+            'response': s.get('response', '') or '',
+            'paper_mode_confirmed': s.get('paper_mode_confirmed', False),
+            'no_order_assertion': s.get('no_order_assertion', False),
         })
+
+    # サマリ: 直近10件の傾向 (「最近何をやってるか」)
+    regime_counts = {}
+    rule_counts = {}
+    material_counts = {}
+    for r in recent:
+        rg = r.get('regime') or 'unknown'
+        regime_counts[rg] = regime_counts.get(rg, 0) + 1
+        for rh in (r.get('rules_hit') or []):
+            rule_counts[rh] = rule_counts.get(rh, 0) + 1
+        for mt in (r.get('materials') or []):
+            material_counts[mt] = material_counts.get(mt, 0) + 1
+    top_materials = sorted(material_counts.items(), key=lambda x: -x[1])[:5]
+    top_rules = sorted(rule_counts.items(), key=lambda x: -x[1])[:5]
 
     target_min = int(_load_config_value('cycle_target_count_min', '50'))
     target_max = int(_load_config_value('cycle_target_count_max', '100'))
@@ -63,6 +84,12 @@ def export():
         'offense': metrics['offense'],
         'caution': metrics['caution'],
         'recent_signals': recent,
+        'recent_summary': {
+            'regime_counts': regime_counts,
+            'top_materials': [{'name': k, 'count': v} for k, v in top_materials],
+            'top_rules_hit': [{'name': k, 'count': v} for k, v in top_rules],
+            'window': len(recent),
+        },
     }
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
