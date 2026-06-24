@@ -145,6 +145,34 @@ def extract_market_materials(snapshot: dict, candles: list[dict] | None = None) 
     else:
         mats.append('L:S 取得失敗')
 
+    # === CVD (Phase 1-② 2026-06-24) ===
+    cvd = snapshot.get('cvd') or {}
+    if cvd and 'error' not in cvd:
+        delta_usd = cvd.get('delta_usd', 0)
+        count = cvd.get('count', 0)
+        window = cvd.get('window_sec', 0)
+        buy_usd = cvd.get('buy_usd', 0)
+        sell_usd = cvd.get('sell_usd', 0)
+        total = buy_usd + sell_usd
+        if total > 0:
+            ratio = buy_usd / total
+            if ratio >= 0.55:
+                jp = '買い優勢'
+            elif ratio <= 0.45:
+                jp = '売り優勢'
+            else:
+                jp = '均衡'
+        else:
+            jp = '出来高微小'
+        # 言語化: window が秒単位、 1000件で 通常 数分
+        win_str = f'{window/60:.1f}分' if window >= 60 else f'{window:.0f}秒'
+        sign = '+' if delta_usd >= 0 else ''
+        mats.append(
+            f'CVD 直近{count}件({win_str}): {sign}${delta_usd/1e6:.2f}M ({jp})'
+        )
+    elif cvd:
+        mats.append('CVD 取得失敗')
+
     # === Liquidations (Phase 1 開始 2026-06-24) ===
     liq = snapshot.get('liquidations') or {}
     if liq and 'error' not in liq:

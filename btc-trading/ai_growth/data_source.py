@@ -195,6 +195,57 @@ def fetch_binance_orderbook(symbol: str = "BTCUSDT", depth: int = 20) -> dict:
     }
 
 
+def fetch_binance_cvd(symbol: str = "BTCUSDT", limit: int = 1000) -> dict:
+    """Phase 1-② CVD (Cumulative Volume Delta)
+
+    Binance public `/fapi/v1/aggTrades` で 直近 limit件 の aggregate trades を
+    買い (m=false: 買いがtaker) / 売り (m=true: 売りがtaker) に分けて 集計。
+
+    Returns:
+        {'buy_qty': float, 'sell_qty': float, 'buy_usd': float, 'sell_usd': float,
+         'delta_qty': float, 'delta_usd': float, 'count': int,
+         'first_ts': str, 'last_ts': str, 'window_sec': float}
+    """
+    url = f"https://fapi.binance.com/fapi/v1/aggTrades?symbol={symbol}&limit={min(limit, 1000)}"
+    trades = _http_get_json(url)
+    if not isinstance(trades, list) or not trades:
+        return {'error': 'no_trades', 'count': 0}
+    buy_qty = 0.0
+    sell_qty = 0.0
+    buy_usd = 0.0
+    sell_usd = 0.0
+    first_ms = trades[0].get('T', 0)
+    last_ms = trades[-1].get('T', 0)
+    for t in trades:
+        try:
+            qty = float(t.get('q', 0))
+            price = float(t.get('p', 0))
+            usd = qty * price
+            if t.get('m'):  # buyer is maker → seller is taker → sell pressure
+                sell_qty += qty
+                sell_usd += usd
+            else:           # seller is maker → buyer is taker → buy pressure
+                buy_qty += qty
+                buy_usd += usd
+        except Exception:
+            continue
+    delta_qty = buy_qty - sell_qty
+    delta_usd = buy_usd - sell_usd
+    window_sec = max(0.0, (last_ms - first_ms) / 1000.0)
+    return {
+        'buy_qty': buy_qty,
+        'sell_qty': sell_qty,
+        'buy_usd': buy_usd,
+        'sell_usd': sell_usd,
+        'delta_qty': delta_qty,
+        'delta_usd': delta_usd,
+        'count': len(trades),
+        'first_ts': str(first_ms),
+        'last_ts': str(last_ms),
+        'window_sec': window_sec,
+    }
+
+
 def fetch_recent_liquidations_bybit(symbol: str = "BTCUSDT", duration_sec: int = 30) -> dict:
     """Phase 1合意 (2026-06-24 14:29) — 清算 (Liquidations)
 
@@ -333,11 +384,17 @@ def fetch_market_snapshot(symbol: str = "BTCUSDT") -> dict:
             snap[key] = fn(symbol)
         except Exception as e:
             snap[key] = {'error': f'{type(e).__name__}: {e}'}
-    # Phase 1 開始 (2026-06-24 14:29 合意): 清算 (Bybit ws 30秒集計)
+    # Phase 1 (2026-06-24 14:29 合意): 段階追加
+    # ① 清算 (Bybit ws 30秒集計)
     try:
         snap['liquidations'] = fetch_recent_liquidations_bybit(symbol, duration_sec=30)
     except Exception as e:
         snap['liquidations'] = {'error': f'{type(e).__name__}: {e}'}
+    # ② CVD (Binance aggTrades 直近1000件)
+    try:
+        snap['cvd'] = fetch_binance_cvd(symbol, limit=1000)
+    except Exception as e:
+        snap['cvd'] = {'error': f'{type(e).__name__}: {e}'}
     return snap
 
 
